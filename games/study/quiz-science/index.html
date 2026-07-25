@@ -865,6 +865,10 @@ function finish(){
   $("over").classList.remove("hide");
 
   if(window.Versus && Versus.active()) Versus.finish(S.score);
+  if(window.Records && S.wrongs.length)
+    Records.note("quiz-science", S.wrongs.slice(0, 50).map(function(w){
+      return { q: w.q.q, a: w.q.a[w.q.c], my: "" };
+    }));
 
   var info = saveRecord();
   if(info){
