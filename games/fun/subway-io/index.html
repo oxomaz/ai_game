@@ -141,6 +141,7 @@
 
     <div class="step"><i>STEP 1</i><b>노선을 고르세요</b></div>
     <div class="lines" id="lineList"></div>
+    <div class="tip" id="mapNote">🗺️ 고른 노선의 <b>실제 모양과 진짜 역 이름</b>이 배경 지도로 깔려요. 강과 바닷가도 실제 위치예요.</div>
 
     <div class="row"><button class="btn" id="toStep2" disabled>다음 →</button></div>
     <div class="row"><button class="btn ghost" id="vsOpen">🌐 친구랑 온라인 대결</button></div>
@@ -148,7 +149,8 @@
     <div class="tip">
       <b>조작</b> · PC: 마우스 방향으로 이동, 클릭(또는 스페이스) 길게 누르면 가속<br>
       <b>모바일</b>: 화면을 누른 방향으로 이동, 왼쪽 아래 부스터 버튼으로 가속<br>
-      가속하면 승객이 조금씩 내리니 필요할 때만 쓰세요.
+      가속하면 승객이 조금씩 내리니 필요할 때만 쓰세요.<br>
+      <span style="opacity:.75">지도·노선·역 자료 © OpenStreetMap contributors (ODbL)</span>
     </div>
     <a class="hub-link" href="../../../">← 게임 목록</a>
   </div>
@@ -184,6 +186,8 @@
 
 <script src="../../../common/profile.js"></script>
 <script src="../../../common/versus.js"></script>
+<!-- 실제 지하철 노선·해안선·강 데이터 (OpenStreetMap). 못 읽어도 게임은 그대로 돌아간다 -->
+<script src="map-ko.js" onerror="window.SUBWAY_MAP=null"></script>
 <script>
 /* =========================================================
    지하철 슬리더 — slither.io 스타일 지하철 게임
@@ -416,6 +420,8 @@ let cam={x:0,y:0}, zoom=1, running=false, lastT=0, frame=0;
 let viewL=0, viewR=0, viewT=0, viewB=0;   // 화면에 보이는 범위 (화면 밖은 안 그린다)
 let pick={line:null, grade:null};
 let deadInfo=null;
+let worldMap=null;    // 지도로 쓰는 노선의 실제 지도 (buildWorldMap 이 만든다). 데이터가 없으면 null
+let mapLine=null;     // 지도로 쓰는 노선 (혼자=내가 고른 노선, 온라인=시드로 뽑은 공통 노선)
 
 /* ══════════════════ 온라인 대결 ══════════════════ */
 /* 같은 맵에서 친구와 동시에 달리는 모드.
@@ -436,7 +442,7 @@ function openVersus(){
   if(!pick.grade) pick.grade=GRADES[0];
   Versus.open({
     game:'subway-io',
-    settingsHTML:()=>'<div class="vs-note">둘 다 <b>똑같은 노선 지도</b>에서 동시에 출발해요. ' +
+    settingsHTML:()=>'<div class="vs-note">둘 다 <b>똑같은 노선 지도</b>에서 동시에 출발해요 (지도로 쓸 노선은 자동으로 하나 뽑혀요). ' +
       '승객을 더 많이 태운 사람이 이겨요!<br>👻 상대 열차는 <b>보이기만</b> 해요 — 부딪히지 않아요.<br>' +
       '🤖 AI 열차는 <b>출발할 때만 똑같고</b> 그 뒤로는 각자 화면에서 따로 움직여요.</div>',
     onStart:()=>{ startGame(true); },
@@ -551,7 +557,10 @@ function spawnBot(){
   do{ p=randPos(200); tries++; }while(tries<20 && trains.some(t=>t.alive && Math.hypot(t.x-p.x,t.y-p.y)<420));
   const line=LINES[(Math.random()*LINES.length)|0];
   const grade=GRADES[(Math.random()*GRADES.length)|0];
-  const name=BOT_NAMES[(Math.random()*BOT_NAMES.length)|0]+'행';
+  /* 행선지는 지금 달리는 노선의 진짜 역 이름에서 고른다 (지도가 없으면 예전 목록) */
+  const pool=(worldMap && worldMap.stations.length>2)
+    ? worldMap.stations.map(s=>s.name) : BOT_NAMES;
+  const name=pool[(Math.random()*pool.length)|0]+'행';
   const t=new Train(p.x,p.y,Math.random()*Math.PI*2,line,grade,name,false);
   t.hunter=Math.random()<0.45;
   t.pax=Math.floor(rnd(4,40));
@@ -968,6 +977,80 @@ function drawNameTag(g,p,label,col,wid){
   g.restore();
 }
 
+/* ══════════════════ 실제 지도 배경 ══════════════════
+   map-ko.js 에 든 OpenStreetMap 자료(노선 폴리라인·역 좌표·해안선·강)를
+   고른 노선이 화면(반지름 WORLD_R)에 꽉 차도록 평면에 펴서 옮긴다.
+   위경도는 그대로 쓰면 가로가 눌리므로 경도에 cos(위도)를 곱한다(정거원통도법).
+   지도는 배경일 뿐이고 달리는 규칙은 예전 그대로다. */
+function buildWorldMap(lineId){
+  const D = window.SUBWAY_MAP;
+  if(!D || !D.lines || !D.lines[lineId]) return null;
+  const L = D.lines[lineId];
+  const segs = (L.s||[]).filter(s=>s.length>1);
+  if(!segs.length) return null;
+
+  let laMin=90, laMax=-90, loMin=180, loMax=-180;
+  const scan=p=>{ if(p[0]<laMin)laMin=p[0]; if(p[0]>laMax)laMax=p[0];
+                  if(p[1]<loMin)loMin=p[1]; if(p[1]>loMax)loMax=p[1]; };
+  segs.forEach(s=>s.forEach(scan));
+  (L.t||[]).forEach(t=>scan([t[3],t[4]]));
+
+  const la0=(laMin+laMax)/2, lo0=(loMin+loMax)/2;
+  const kx=Math.cos(la0*Math.PI/180);
+  /* 가로세로가 아니라 "가운데서 가장 먼 점"으로 크기를 맞춘다.
+     그래야 대각선으로 뻗은 노선(1·4호선)도 원형 경계를 넘지 않는다. */
+  let far=1e-6;
+  const reach=p=>{ const dy=p[0]-la0, dx=(p[1]-lo0)*kx, d=Math.hypot(dx,dy); if(d>far) far=d; };
+  segs.forEach(s=>s.forEach(reach));
+  (L.t||[]).forEach(t=>reach([t[3],t[4]]));
+  const K=WORLD_R*0.88/far;                        // 노선이 세상의 88% 를 채우게
+  const P=(la,lo)=>({x:(lo-lo0)*kx*K, y:-(la-la0)*K});
+  const conv=arr=>arr.map(p=>P(p[0],p[1]));
+  /* 지형은 세상 밖으로 한참 나간 것까지 들고 있을 필요가 없다 */
+  const near=pts=>pts.some(p=>Math.abs(p.x)<WORLD_R*2.4 && Math.abs(p.y)<WORLD_R*2.4);
+  const trim=list=>(list||[]).map(conv).filter(p=>p.length>1 && near(p));
+
+  return {
+    line: segs.map(conv),
+    stations: (L.t||[]).map(t=>{ const p=P(t[3],t[4]);
+      return {x:p.x, y:p.y, name:t[0], en:t[1]||'', no:t[2]||''}; }),
+    coast: trim(D.coast),
+    rivers: trim(D.rivers)
+  };
+}
+
+/* 지도 배경을 캔버스에 그린다 (세상 좌표계 안에서 호출) */
+function drawMapBg(g){
+  if(!worldMap) return;
+  g.save();
+  g.lineCap='round'; g.lineJoin='round';
+
+  // 바다·강 — 굵고 어두운 파랑으로 윤곽만
+  g.strokeStyle='rgba(46,92,150,.42)'; g.lineWidth=16;
+  g.beginPath();
+  for(const s of worldMap.coast){ s.forEach((p,i)=>i?g.lineTo(p.x,p.y):g.moveTo(p.x,p.y)); }
+  g.stroke();
+  g.fillStyle='rgba(34,74,124,.34)'; g.strokeStyle='rgba(58,112,175,.42)'; g.lineWidth=6;
+  for(const s of worldMap.rivers){
+    g.beginPath(); s.forEach((p,i)=>i?g.lineTo(p.x,p.y):g.moveTo(p.x,p.y));
+    g.closePath(); g.fill(); g.stroke();
+  }
+
+  // 노선 — 바깥 그림자 → 노선색 → 가운데 밝은 심지
+  const col=(mapLine&&mapLine.color)||(pick.line&&pick.line.color)||'#4aa3ff';
+  const pass=(w,st,al)=>{
+    g.globalAlpha=al; g.strokeStyle=st; g.lineWidth=w;
+    for(const s of worldMap.line){
+      g.beginPath(); s.forEach((p,i)=>i?g.lineTo(p.x,p.y):g.moveTo(p.x,p.y)); g.stroke();
+    }
+  };
+  pass(46, col, .13);
+  pass(22, col, .55);
+  pass(6, '#ffffff', .16);
+  g.globalAlpha=1;
+  g.restore();
+}
+
 /* 역 — 승강장 바닥 + 노란 안전선 + 스크린도어 + 서울 지하철식 역명판 */
 function drawStation(g,s){
   const r=s.r, w=r*3.1, h=r*1.4;
@@ -1029,13 +1112,16 @@ function drawWorld(){
   const L=cam.x-vw/2, R=cam.x+vw/2, T=cam.y-vh/2, B=cam.y+vh/2;
   viewL=L; viewR=R; viewT=T; viewB=B;
 
-  // 격자
-  g.strokeStyle='rgba(120,160,220,.055)'; g.lineWidth=1/zoom;
+  // 격자 (지도가 있으면 더 흐리게 — 지도가 주인공)
+  g.strokeStyle='rgba(120,160,220,'+(worldMap?'.030':'.055')+')'; g.lineWidth=1/zoom;
   const gs=160;
   g.beginPath();
   for(let x=Math.floor(L/gs)*gs;x<R;x+=gs){ g.moveTo(x,T); g.lineTo(x,B); }
   for(let y=Math.floor(T/gs)*gs;y<B;y+=gs){ g.moveTo(L,y); g.lineTo(R,y); }
   g.stroke();
+
+  // 실제 지도(해안선·강·노선)
+  drawMapBg(g);
 
   // 역 — 승강장 + 스크린도어 + 역명판
   for(const s of stations){
@@ -1086,6 +1172,35 @@ function miniBackground(){
   const g=c.getContext('2d');
   const k=R*0.94;
   g.lineCap='round'; g.lineJoin='round';
+
+  /* 실제 지도가 있으면 미니맵도 진짜 노선 모양으로 */
+  if(worldMap){
+    const m=R/WORLD_R;
+    const path=list=>{ for(const s of list){ g.beginPath();
+      s.forEach((p,i)=>{ const x=cx+p.x*m, y=cy+p.y*m; i?g.lineTo(x,y):g.moveTo(x,y); }); g.stroke(); } };
+    g.strokeStyle='rgba(120,170,225,.45)'; g.lineWidth=R*0.020; path(worldMap.coast);
+    g.strokeStyle='rgba(90,150,215,.55)'; g.lineWidth=R*0.014; path(worldMap.rivers);
+    const col=(mapLine&&mapLine.color)||(pick.line&&pick.line.color)||'#4aa3ff';
+    g.strokeStyle=col; g.lineWidth=R*0.045; g.globalAlpha=.95; path(worldMap.line);
+    g.globalAlpha=1;
+    for(const s of worldMap.stations){
+      const x=cx+s.x*m, y=cy+s.y*m;
+      g.fillStyle='#f2f6fc'; g.strokeStyle='rgba(20,30,50,.5)'; g.lineWidth=R*0.012;
+      g.beginPath(); g.arc(x,y,R*0.018,0,6.283); g.fill(); g.stroke();
+    }
+    g.strokeStyle='rgba(255,120,120,.5)'; g.lineWidth=2;
+    g.beginPath(); g.arc(cx,cy,R,0,6.283); g.stroke();
+    if(mapLine){                                   // 어느 노선 지도인지 알려준다
+      g.font='700 '+(R*0.13).toFixed(1)+'px "Malgun Gothic",sans-serif';
+      g.textAlign='center'; g.textBaseline='top';
+      g.fillStyle='rgba(10,15,26,.62)';
+      const t=mapLine.name, w=g.measureText(t).width+R*0.16;
+      rr(g,cx-w/2,2,w,R*0.20,R*0.06); g.fill();
+      g.fillStyle='#e8eefc'; g.fillText(t,cx,R*0.035);
+    }
+    miniBg=c; return c;
+  }
+
   for(const rt of MINI_ROUTES){                    // 노선 (굵은 직선)
     g.strokeStyle=rt.c; g.lineWidth=R*0.075; g.globalAlpha=.85;
     g.beginPath();
@@ -1205,10 +1320,38 @@ const s1=document.getElementById('s1'), s2=document.getElementById('s2'), over=d
 const hud=document.getElementById('hud');
 function show(el){ [s1,s2,over].forEach(x=>x.classList.remove('on')); if(el) el.classList.add('on'); hud.classList.toggle('on', !el); }
 
+/* 노선 버튼의 동그라미를 그 노선의 진짜 모양으로 그려 준다 (자료가 있을 때만) */
+function lineThumb(id,color,px){
+  const D=window.SUBWAY_MAP;
+  if(!D||!D.lines||!D.lines[id]) return null;
+  const segs=(D.lines[id].s||[]).filter(s=>s.length>1);
+  if(!segs.length) return null;
+  let laMin=90,laMax=-90,loMin=180,loMax=-180;
+  segs.forEach(s=>s.forEach(p=>{ laMin=Math.min(laMin,p[0]); laMax=Math.max(laMax,p[0]);
+                                 loMin=Math.min(loMin,p[1]); loMax=Math.max(loMax,p[1]); }));
+  const la0=(laMin+laMax)/2, lo0=(loMin+loMax)/2, kx=Math.cos(la0*Math.PI/180);
+  let far=1e-6;
+  segs.forEach(s=>s.forEach(p=>{ far=Math.max(far, Math.hypot((p[1]-lo0)*kx, p[0]-la0)); }));
+  const c=document.createElement('canvas');
+  c.width=c.height=px*2; c.style.width=c.style.height=px+'px'; c.style.display='block';
+  const g=c.getContext('2d'), R=px, K=(R-px*0.30)/far;
+  g.lineCap='round'; g.lineJoin='round'; g.strokeStyle=color; g.lineWidth=px*0.34;
+  for(const s of segs){
+    g.beginPath();
+    s.forEach((p,i)=>{ const x=R+(p[1]-lo0)*kx*K, y=R-(p[0]-la0)*K; i?g.lineTo(x,y):g.moveTo(x,y); });
+    g.stroke();
+  }
+  return c;
+}
+
+if(!window.SUBWAY_MAP){ const mn=document.getElementById('mapNote'); if(mn) mn.style.display='none'; }
+
 const lineList=document.getElementById('lineList');
 LINES.forEach(l=>{
   const b=document.createElement('button');
   b.className='lbtn'; b.innerHTML=`<span class="dot" style="background:${l.color}"></span><span>${l.name}</span>`;
+  const th=lineThumb(l.id, l.color, 20);
+  if(th){ const dot=b.querySelector('.dot'); dot.style.background='transparent'; dot.style.borderRadius='0'; dot.appendChild(th); }
   b.onclick=()=>{ pick.line=l; [...lineList.children].forEach(c=>c.classList.remove('sel')); b.classList.add('sel');
     document.getElementById('toStep2').disabled=false; renderGrades(); };
   lineList.appendChild(b);
@@ -1271,13 +1414,27 @@ function startGame(online){
   // 세상 만들기 — 온라인이면 시드 난수로 감싸서 양쪽이 똑같은 맵을 갖게 한다
   const build=()=>{
     trains=[]; food=[]; stations=[]; frame=0;
-    /* 역 배치. 이름·번호·노선색은 난수를 쓰지 않고 순번으로만 정한다
+    /* 지도로 쓸 노선. 혼자 할 때는 내가 고른 노선,
+       온라인 대결에서는 두 사람이 고른 노선이 다를 수 있으므로
+       시드 난수로 뽑아 양쪽이 똑같은 지도를 보게 한다. */
+    mapLine = VS.on ? LINES[(Math.random()*LINES.length)|0] : pick.line;
+    worldMap=buildWorldMap(mapLine.id);
+    miniBg=null;                       // 노선이 바뀌면 미니맵 바탕도 다시 그린다
+    /* 역 배치. 실제 지도가 있으면 그 노선의 진짜 역 자리에, 없으면 예전처럼 흩뿌린다.
+       어느 쪽이든 난수를 쓰지 않고 순번으로만 정한다
        (온라인 대결에서 양쪽 난수 순서가 어긋나면 안 되기 때문) */
-    for(let i=0;i<60;i++){
-      const p=randPos(120), r=rnd(14,34);
-      const nm=STATION_NAMES[i%STATION_NAMES.length];
-      stations.push({x:p.x, y:p.y, r:r, name:nm[0], en:nm[1],
-        no:String((i%9+1)*100 + (i%28+1)), col:LINES[i%9].color});
+    if(worldMap){
+      worldMap.stations.forEach((s,i)=>{
+        stations.push({x:s.x, y:s.y, r:22+ (i%5)*2.4,
+          name:s.name, en:s.en, no:s.no||String(i+1), col:mapLine.color});
+      });
+    }else{
+      for(let i=0;i<60;i++){
+        const p=randPos(120), r=rnd(14,34);
+        const nm=STATION_NAMES[i%STATION_NAMES.length];
+        stations.push({x:p.x, y:p.y, r:r, name:nm[0], en:nm[1],
+          no:String((i%9+1)*100 + (i%28+1)), col:LINES[i%9].color});
+      }
     }
     for(let i=0;i<14;i++) refillFood();
     const myName = VS.on ? (Versus.myName||'나') : '나';
