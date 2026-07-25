@@ -478,6 +478,17 @@
     else if (me < op) { title = '아깝다!'; emoji = '💪'; }
     else { title = '무승부!'; emoji = '🤝'; }
 
+    /* 온라인 대결 전적을 서버에 기록한다 (상대가 중간에 나간 판은 세지 않는다).
+       게임 10종이 모두 이 함수를 거치므로 여기 한 곳이면 충분하다. */
+    if (!oppLeft && global.Records && global.Records.versus) {
+      try {
+        var gid = V._opts.game || '';
+        var map = (global.JG && global.JG.SERVER_KEY) || {};
+        global.Records.versus(map[gid] || gid,
+          me > op ? 'win' : (me < op ? 'lose' : 'draw'), V.oppName);
+      } catch (e) { /* 기록 실패가 게임을 막지 않는다 */ }
+    }
+
     el('vsResPane').innerHTML =
       '<div class="vs-rt">' + emoji + ' ' + title + '</div>' +
       '<p class="sub">' + (reason ? esc(reason) : esc(V.myName) + ' vs ' + esc(V.oppName)) + '</p>' +
@@ -561,6 +572,9 @@
 
   V.active = function () { return V.on; };
   V.leave = leave;
+
+  /* 자동 테스트용 훅 — 실제 대결 없이 승패 화면 로직만 돌려볼 수 있다 */
+  V._showResult = showResult;
 
   global.Versus = V;
 })(window);
