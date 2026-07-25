@@ -1,0 +1,15 @@
+{
+  "name": "jerry-games",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "미니 게임 모음 — 정적 게임 + api/ 기록 서버(Vercel Functions)",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test:api": "node test/run.js",
+    "test:browser": "node test/browser.js",
+    "test:page": "node test/page.js"
+  }
+}

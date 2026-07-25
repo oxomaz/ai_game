@@ -18,6 +18,8 @@
    - 브랜치 기본값 변경·삭제·이름 변경처럼 깃허브 웹에서만 되는 작업은 **구글 크롬**으로 `github.com/oxomaz/jerry-games`에 들어가 처리한다.
    - 푸시 후에는 `https://oxomaz.github.io/jerry-games/` 와 새 게임 주소가 실제로 열리는지 확인한다. (Pages: `main` 브랜치 / root)
 7-1. **여러 게임이 함께 쓰는 코드는 루트 `common/` 폴더에 둔다.** 지금은 온라인 대결 라이브러리 `common/versus.js`와 그것이 쓰는 `common/peerjs.min.js`가 들어 있다. 게임에서는 `<script src="../../../common/versus.js"></script>`로 불러온다. PeerJS는 CDN이 막힌 환경에서도 되도록 저장소에 함께 넣어두고, 없으면 unpkg CDN으로 자동 대체된다.
+7-2. **기록은 서버에 남긴다.** 점수·이력·오답노트·대결 전적은 `common/records.js`를 통해 `api/`(Vercel Functions + Upstash Redis)에 저장한다. 게임에서는 `<script src="../../../common/records.js"></script>`를 불러온 뒤 `Records.submit('<게임폴더명>', 점수)` / `Records.note(...)` / `Records.versus(...)`를 호출하고, 결과 화면에 `Records.showBoard('<게임폴더명>')` 버튼을 둔다. 새 게임을 추가할 때는 `api/_lib.js`의 `GAMES` 목록에도 게임 키와 점수 상한을 등록해야 한다(등록 안 된 게임은 서버가 거부한다). 자세한 내용은 `api/README.md` 참고.
+   - `localStorage`에 최고점수를 저장하던 기존 코드는 그대로 두어도 된다. 서버 기록은 그 위에 얹는 것이고, 서버가 없거나 인터넷이 끊겨도 게임은 정상 동작해야 한다.
 8. 한국어 게임명/설명을 기본으로 하되, 폴더/파일 경로는 영문으로 유지한다.
 9. **난이도가 있는 게임은 실제로 클리어 가능한지 검증한다.** 자동 생성 레벨을 쓰는 경우, 물리/규칙을 그대로 시뮬레이션해 모든 단계가 통과 가능한지 확인한 뒤 커밋한다.
 

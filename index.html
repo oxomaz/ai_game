@@ -36,6 +36,12 @@
   a.card .desc{font-size:12.5px; color:var(--sub); line-height:1.5;}
   a.card .vsbadge{display:inline-block;margin-top:9px;font-size:11.5px;font-weight:800;color:#6b5ce7;
     background:#efecff;border-radius:999px;padding:3px 9px;}
+  a.records{
+    display:block; text-align:center; text-decoration:none; margin:0 0 24px;
+    background:var(--card); border:2px solid var(--border); border-radius:12px;
+    padding:13px; font-size:14px; font-weight:800; color:var(--blue); transition:.15s;
+  }
+  a.records:hover{border-color:var(--blue); background:#e8f0fe;}
   footer{text-align:center; margin-top:32px; font-size:12px; color:var(--sub);}
 </style>
 </head>
@@ -43,6 +49,7 @@
 <div class="wrap">
   <div class="logo"><span>미</span><span>니</span><span>게</span><span>임</span></div>
   <p class="sub">여기서 바로 플레이할 수 있는 게임 모음이에요. <b>🌐</b> 표시가 있는 게임은 방 코드로 친구와 대결할 수 있어요!</p>
+  <a class="records" href="records.html">📊 내 기록 · 전체 랭킹 · 오답노트 보기</a>
   <div id="sections"></div>
   <footer>새 게임은 <code>games/fun/</code> · <code>games/study/</code> 폴더에 계속 추가됩니다.</footer>
 </div>
