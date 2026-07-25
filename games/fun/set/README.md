@@ -3,7 +3,7 @@
 펼쳐진 카드 중에서 조건에 맞는 **세 장의 조합(SET)** 을 찾아내는 패턴 인식 게임입니다.
 규칙을 처음 접해도 되도록 설명과 연습 문제부터 시작합니다.
 
-**▶ 플레이: https://oxomaz.github.io/ai_game/games/set/**
+**▶ 플레이: https://oxomaz.github.io/ai_game/games/fun/set/**
 
 ## 규칙
 

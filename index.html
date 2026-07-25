@@ -23,6 +23,8 @@
   .logo span:nth-child(4){color:var(--blue);}
   .logo span:nth-child(5){color:var(--green);}
   p.sub{text-align:center; color:var(--sub); margin:0 0 28px; font-size:14px;}
+  h2.section{font-size:15px; font-weight:800; color:var(--sub); margin:28px 0 12px; padding-bottom:6px; border-bottom:2px solid var(--border);}
+  h2.section:first-of-type{margin-top:0;}
   .grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:14px;}
   a.card{
     display:block; background:var(--card); border:2px solid var(--border); border-radius:14px;
@@ -39,24 +41,39 @@
 <div class="wrap">
   <div class="logo"><span>미</span><span>니</span><span>게</span><span>임</span></div>
   <p class="sub">여기서 바로 플레이할 수 있는 게임 모음이에요.</p>
-  <div class="grid" id="grid"></div>
-  <footer>새 게임은 <code>games/</code> 폴더에 계속 추가됩니다.</footer>
+  <div id="sections"></div>
+  <footer>새 게임은 <code>games/fun/</code> · <code>games/study/</code> 폴더에 계속 추가됩니다.</footer>
 </div>
 <script>
-  // 새 게임을 추가하면 여기에 한 줄씩 등록하세요.
+  // 새 게임을 추가하면 여기에 한 줄씩 등록하세요. (category: "fun" 재미용 / "study" 학습용)
   const GAMES = [
-    { path: "games/kkeutmalitgi/",  emoji: "🔤", title: "끝말잇기",     desc: "컴퓨터와 3단계 난이도로 대결하거나, 최대 8명이 한 화면에서 돌아가며 단어 잇기" },
-    { path: "games/hidden-object/", emoji: "🔍", title: "숨은그림찾기", desc: "매판 새로 그려지는 그림판에서 목표 찾기. 혼자서도, 둘이서 버저 대결로도" },
-    { path: "games/set/",           emoji: "🃏", title: "SET 카드게임", desc: "네 속성이 모두 같거나 모두 다른 세 장 찾기. 규칙 설명과 연습 문제부터 시작" },
-    { path: "games/jump-map/",      emoji: "🏃", title: "점프맵 100",   desc: "1~100단계 파쿠르 점프맵. 닉네임별 기록 · 캐릭터 12종 · 별 수집" }
+    { path: "games/fun/kkeutmalitgi/",  emoji: "🔤", title: "끝말잇기",     desc: "컴퓨터와 3단계 난이도로 대결하거나, 최대 8명이 한 화면에서 돌아가며 단어 잇기", category: "fun" },
+    { path: "games/fun/hidden-object/", emoji: "🔍", title: "숨은그림찾기", desc: "매판 새로 그려지는 그림판에서 목표 찾기. 혼자서도, 둘이서 버저 대결로도", category: "fun" },
+    { path: "games/fun/set/",           emoji: "🃏", title: "SET 카드게임", desc: "네 속성이 모두 같거나 모두 다른 세 장 찾기. 규칙 설명과 연습 문제부터 시작", category: "fun" },
+    { path: "games/fun/jump-map/",      emoji: "🏃", title: "점프맵 100",   desc: "1~100단계 파쿠르 점프맵. 닉네임별 기록 · 캐릭터 12종 · 별 수집", category: "fun" }
   ];
-  const grid = document.getElementById("grid");
-  GAMES.forEach(g=>{
-    const a = document.createElement("a");
-    a.className = "card";
-    a.href = g.path;
-    a.innerHTML = `<span class="emoji">${g.emoji}</span><div class="title">${g.title}</div><div class="desc">${g.desc}</div>`;
-    grid.appendChild(a);
+  const SECTIONS = [
+    { key: "study", title: "📚 학습용 게임" },
+    { key: "fun",   title: "🎈 재미용 게임" }
+  ];
+  const container = document.getElementById("sections");
+  SECTIONS.forEach(sec => {
+    const items = GAMES.filter(g => g.category === sec.key);
+    if (!items.length) return;
+    const h2 = document.createElement("h2");
+    h2.className = "section";
+    h2.textContent = sec.title;
+    container.appendChild(h2);
+    const grid = document.createElement("div");
+    grid.className = "grid";
+    items.forEach(g=>{
+      const a = document.createElement("a");
+      a.className = "card";
+      a.href = g.path;
+      a.innerHTML = `<span class="emoji">${g.emoji}</span><div class="title">${g.title}</div><div class="desc">${g.desc}</div>`;
+      grid.appendChild(a);
+    });
+    container.appendChild(grid);
   });
 </script>
 </body>

@@ -3,7 +3,7 @@
 수십 개의 귀여운 그림이 흩뿌려진 그림판에서, 위에 제시된 **목표 그림**을 찾아 클릭하는 게임입니다.
 혼자서도 할 수 있고, 한 화면에서 둘이서 버저 대결도 할 수 있습니다.
 
-**▶ 플레이: https://oxomaz.github.io/ai_game/games/hidden-object/**
+**▶ 플레이: https://oxomaz.github.io/ai_game/games/fun/hidden-object/**
 
 ## 특징
 
