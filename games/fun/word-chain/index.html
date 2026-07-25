@@ -913,7 +913,7 @@ function saveRecord(iWon){
   try{
     const words = state.used.length;
     const mode = recMode();
-    const res = JG.submit("word-chain", {score: words, mode: mode, unit:"단어"});
+    const res = JG.submit("kkeutmalitgi", {score: words, mode: mode, unit:"단어"});
     const beatAI = !!iWon && !!state.aiDiff && !state.online;
     const badges = JG.awardAll({
       "kk-win":     beatAI,
@@ -931,7 +931,7 @@ function showRecord(info){
   if(!info){ box.innerHTML = ""; return; }
   try{
     JG.resultBox("jgRes", {
-      gameId:"word-chain", score: info.score, res: info.res, unit:"단어",
+      gameId:"kkeutmalitgi", score: info.score, res: info.res, unit:"단어",
       badges: info.badges,
       extra: [["모드", info.mode], ["참가자", state.players.length + "명"]]
     });
@@ -945,10 +945,10 @@ function renderBest(){
   if(!window.JG){ if(home) home.innerHTML = ""; if(ai) ai.innerHTML = ""; return; }
   try{
     if(home){
-      const all = JG.allBest("word-chain");
+      const all = JG.allBest("kkeutmalitgi");
       let bestMode = null, bestVal = -1;
       Object.keys(all).forEach(m=>{ if(all[m] > bestVal){ bestVal = all[m]; bestMode = m; } });
-      const plays = JG.plays("word-chain");
+      const plays = JG.plays("kkeutmalitgi");
       home.innerHTML = bestMode
         ? `🏅 가장 길게 이은 기록: <b>${bestVal}단어</b> (${bestMode})<br>🗣️ 지금까지 <b>${plays}판</b> 놀았어요`
         : "🏅 아직 기록이 없어요. 한 판 끝내면 기록이 쌓여요!";
@@ -956,7 +956,7 @@ function renderBest(){
     if(ai){
       const chip = document.querySelector("#ai-diff-chips .chip.active");
       const diff = chip ? chip.dataset.val : "normal";
-      const b = JG.best("word-chain", "컴퓨터 · " + (DIFF_KO[diff] || diff));
+      const b = JG.best("kkeutmalitgi", "컴퓨터 · " + (DIFF_KO[diff] || diff));
       ai.innerHTML = (b != null)
         ? `🏅 ${DIFF_KO[diff]} 컴퓨터와의 최고 기록: <b>${b}단어</b>`
         : `🏅 ${DIFF_KO[diff]} 난이도는 아직 기록이 없어요. 도전!`;

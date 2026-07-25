@@ -68,7 +68,7 @@
     'kkeutmalitgi':        { emoji: '🗣️', title: '끝말잇기',        cat: 'fun' },
     'hidden-object':       { emoji: '🔍', title: '숨은그림찾기',     cat: 'fun' },
     'set':                 { emoji: '🃏', title: 'SET 카드게임',     cat: 'fun' },
-    'jump-map':            { emoji: '🏃', title: '점프맵 100',       cat: 'fun' },
+    'jump-map':            { emoji: '🏃', title: '점프맵 200',       cat: 'fun' },
     'subway-io':           { emoji: '🚇', title: '지하철 슬리더',    cat: 'fun' },
     'onitama':             { emoji: '🥷', title: '오니타마',         cat: 'fun' }
   };
@@ -122,11 +122,12 @@
     'set-12':       { emoji: '🧠', title: '패턴 마스터',   desc: '한 판에 SET 12개 찾기',                  game: 'set' },
     'set-nohint':   { emoji: '💡', title: '힌트 없이',     desc: '힌트 없이 한 판 완주',                   game: 'set' },
 
-    /* 점프맵 100 */
+    /* 점프맵 200 */
     'jm-10':        { emoji: '🏃', title: '10단계 돌파',   desc: '10단계까지 도달',                        game: 'jump-map' },
     'jm-30':        { emoji: '🧗', title: '30단계 돌파',   desc: '30단계까지 도달',                        game: 'jump-map' },
     'jm-60':        { emoji: '🔥', title: '60단계 돌파',   desc: '60단계까지 도달',                        game: 'jump-map' },
-    'jm-100':       { emoji: '👑', title: '점프맵 정복',   desc: '100단계 클리어!',                        game: 'jump-map' },
+    'jm-100':       { emoji: '👑', title: '100단계 돌파',  desc: '100단계까지 도달',                       game: 'jump-map' },
+    'jm-200':       { emoji: '🏆', title: '점프맵 정복',   desc: '200단계 클리어!',                        game: 'jump-map' },
     'jm-star30':    { emoji: '⭐', title: '별 수집가',     desc: '별 30개 모으기',                         game: 'jump-map' },
 
     /* 지하철 슬리더 */
@@ -235,15 +236,17 @@
      ※ SET 은 기록이 '초'(작을수록 좋음)이고 서버 순위표는 큰 값이 이기는
         구조라 온라인 순위표에서는 제외한다(로컬 기록·배지는 그대로).      */
   var RANKED = {
-    'math-speed':          { re: /^＋－ · 보통 · 60초$/,               label: '덧셈·뺄셈 · 보통 · 60초' },
-    'times-table-shooter': { re: /^2·3·4·5·6·7·8·9단 · 보통$/,        label: '전체 단 · 보통 속도' },
-    'word-cards':          { re: /^전체 주제 · 영→뜻$/,                label: '전체 주제 · 영→뜻' },
-    'quiz-science':        { re: /^전체 주제 · 20문제$/,               label: '전체 주제 · 20문제' },
-    'kkeutmalitgi':        { re: /^컴퓨터 · 보통$/,                    label: '컴퓨터 · 보통' },
-    'hidden-object':       { re: /^보통.* · 5판 · 제한시간$/,          label: '보통 · 5판 · 제한시간' },
-    'jump-map':            { re: /^혼자$/,                             label: '혼자 플레이' },
-    'subway-io':           { re: /^혼자$/,                             label: '혼자 플레이' },
-    'onitama':             { re: /^컴퓨터 · 보통$/,                    label: '컴퓨터 · 보통' }
+    /* 순위표에 올릴 "대표 모드". 학습용 게임은 나이 4단계(6~7살·초1~2·초3~4·초5~6)가 생겨
+       모드가 여러 개라, 그중 초3~4 설정 하나를 공식 기록으로 정했다. */
+    'math-speed':          { re: /^덧셈·뺄셈·곱셈·나눗셈 · 초3~4 · 60초$/, label: '사칙연산 · 초3~4 · 60초' },
+    'times-table-shooter': { re: /^초3~4 · 2·3·4·5·6·7·8·9단 · 보통$/,    label: '전체 단 · 초3~4 · 보통' },
+    'word-cards':          { re: /^초3~4 · 전체 주제 · 영→뜻 · 20문제$/,  label: '전체 주제 · 초3~4 · 영→뜻 20문제' },
+    'quiz-science':        { re: /^초3~4 · 전체 주제 · 20문제$/,          label: '전체 주제 · 초3~4 · 20문제' },
+    'kkeutmalitgi':        { re: /^컴퓨터 · 보통$/,                       label: '컴퓨터 · 보통' },
+    'hidden-object':       { re: /^보통.* · 5판 · 제한시간$/,             label: '보통 · 5판 · 제한시간' },
+    'jump-map':            { re: /^혼자$/,                                label: '혼자 플레이' },
+    'subway-io':           { re: /^혼자$/,                                label: '혼자 플레이' },
+    'onitama':             { re: /^컴퓨터 · 보통$/,                       label: '컴퓨터 · 보통' }
   };
 
   /* records.js 를 옆 폴더에서 자동으로 불러온다 → 게임 파일은 손댈 필요 없음 */
