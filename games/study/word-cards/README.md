@@ -2,7 +2,7 @@
 
 초등 3학년 수준 영단어 **120개**를 외우고 확인하는 게임입니다.
 
-**▶ 플레이: https://oxomaz.github.io/ai_game/games/study/word-cards/**
+**▶ 플레이: https://oxomaz.github.io/jerry-games/games/study/word-cards/**
 
 ## 특징
 

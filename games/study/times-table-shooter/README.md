@@ -2,7 +2,7 @@
 
 화면 위에서 내려오는 숫자 풍선 중 **정답을 골라 쏘는** 액션 게임입니다.
 
-**▶ 플레이: https://oxomaz.github.io/ai_game/games/study/times-table-shooter/**
+**▶ 플레이: https://oxomaz.github.io/jerry-games/games/study/times-table-shooter/**
 
 ## 특징
 

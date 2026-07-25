@@ -3,7 +3,7 @@
 발판을 밟고 뛰어올라 목표 지점까지 도달하는 **100단계 파쿠르 점프맵**입니다.
 레벨이 올라갈수록 발판이 좁아지고 간격이 멀어지며, 새로운 장애물이 하나씩 추가됩니다.
 
-**▶ 플레이: https://oxomaz.github.io/ai_game/games/fun/jump-map/**
+**▶ 플레이: https://oxomaz.github.io/jerry-games/games/fun/jump-map/**
 
 ## 특징
 

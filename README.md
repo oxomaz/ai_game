@@ -1,9 +1,9 @@
-# 🎮 AI Game
+# 🎮 Jerry Games
 
 브라우저에서 바로 실행되는 미니 게임 모음입니다.
-게임 하나당 폴더 하나, 파일 하나(`index.html`). 빌드도 설치도 없이 **더블클릭하면 바로 플레이**됩니다.
+게임 하나당 폴더 하나, 실행 파일 하나(`index.html`) + 설명서 하나(`README.md`). 빌드도 설치도 없이 **더블클릭하면 바로 플레이**됩니다.
 
-**▶ 바로 플레이: https://oxomaz.github.io/ai_game/**
+**▶ 바로 플레이: https://oxomaz.github.io/jerry-games/**
 
 ---
 
@@ -185,15 +185,15 @@ O/X와 4지선다가 섞인 상식 퀴즈입니다. **문제마다 왜 그런지
 ## 📁 폴더 구조
 
 ```
-ai_game/
+jerry-games/
 ├── index.html                        ← 게임 목록 허브 페이지 (학습용/재미용 구분)
 ├── games/
-│   ├── study/                        ← 📚 학습용 게임
+│   ├── study/                        ← 📚 학습용 게임 (README.md에 학습용 전용 규칙)
 │   │   ├── math-speed/index.html           ← 연산 스피드 퀴즈
 │   │   ├── times-table-shooter/index.html  ← 구구단 슈팅
 │   │   ├── word-cards/index.html           ← 영단어 카드 퀴즈
 │   │   └── quiz-science/index.html         ← 상식·과학 퀴즈
-│   └── fun/                          ← 🎈 재미용 게임
+│   └── fun/                          ← 🎈 재미용 게임 (README.md에 재미용 전용 규칙)
 │       ├── kkeutmalitgi/index.html   ← 끝말잇기
 │       ├── hidden-object/index.html  ← 숨은그림찾기
 │       ├── set/index.html            ← SET 카드게임
