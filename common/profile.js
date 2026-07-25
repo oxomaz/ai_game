@@ -422,8 +422,17 @@
     '.jg-prow .jg-av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:19px;background:#eef1f6;flex:0 0 auto;}',
     '.jg-prow .jg-nm{flex:1;font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
     '.jg-prow .jg-sub{font-size:11.5px;color:#5f6368;font-weight:600;}',
-    '.jg-x{border:none;background:#f1f3f6;color:#5f6368;border-radius:9px;padding:5px 8px;font-size:12px;cursor:pointer;font-family:inherit;font-weight:700;}',
+    '.jg-x{border:none;background:#f1f3f6;color:#5f6368;border-radius:9px;padding:6px 9px;font-size:12px;cursor:pointer;font-family:inherit;font-weight:700;white-space:nowrap;flex:0 0 auto;}',
+    '.jg-x.edit{background:#e8f0fe;color:#1a5fd0;}',
+    '.jg-x.del{background:#fdeceb;color:#c5372c;}',
     '.jg-form{border-top:1px solid #e0e3e7;padding-top:13px;}',
+    '.jg-form.edit{border:2px solid #4285F4;border-radius:14px;padding:13px;background:#f6f9ff;}',
+    '.jg-cols{display:grid;grid-template-columns:repeat(8,1fr);gap:5px;margin-bottom:12px;}',
+    '.jg-colb{aspect-ratio:1;border:2px solid #e0e3e7;border-radius:10px;cursor:pointer;padding:0;}',
+    '.jg-colb.on{border-color:#202124;box-shadow:0 0 0 2px #fff inset;}',
+    '.jg-prev{display:flex;align-items:center;gap:9px;background:#fff;border:2px dashed #cbd3dd;border-radius:12px;padding:9px 11px;margin-bottom:11px;}',
+    '.jg-prev .jg-av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex:0 0 auto;}',
+    '.jg-prev .jg-pn{font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
     '.jg-lab{font-size:12px;font-weight:800;color:#5f6368;margin-bottom:6px;}',
     '.jg-in{width:100%;padding:11px;border:2px solid #e0e3e7;border-radius:11px;font-size:16px;font-family:inherit;font-weight:700;margin-bottom:10px;background:#fff;color:#202124;}',
     '.jg-avs{display:grid;grid-template-columns:repeat(8,1fr);gap:5px;margin-bottom:12px;}',
@@ -536,8 +545,25 @@
     mask.className = 'jg-mask';
     var editing = null;               // 편집 중인 프로필 id (null이면 새로 만들기)
     var pickEmoji = AVATARS[db.profiles.length % AVATARS.length];
+    var pickColor = COLORS[db.profiles.length % COLORS.length];
+    var typedName = '';               // 입력칸에 지금 쳐 넣은 이름 (다시 그려도 안 날아가게 보관)
 
     function close() { picking = false; if (mask.parentNode) mask.parentNode.removeChild(mask); }
+
+    /* 아바타·색을 고를 때는 화면을 통째로 다시 그리지 않는다.
+       (다시 그리면 입력칸에 쓰던 이름이 날아가서 "이름이 안 바뀐다"는 문제가 났었다) */
+    function paintPick() {
+      mask.querySelectorAll('.jg-avb').forEach(function (b) {
+        b.classList.toggle('on', b.dataset.av === pickEmoji);
+      });
+      mask.querySelectorAll('.jg-colb').forEach(function (b) {
+        b.classList.toggle('on', b.dataset.col === pickColor);
+      });
+      var pa = mask.querySelector('.jg-prev .jg-av');
+      if (pa) { pa.textContent = pickEmoji; pa.style.background = shade(pickColor); }
+      var pn = mask.querySelector('.jg-prev .jg-pn');
+      if (pn) pn.textContent = typedName || '이름을 적어 주세요';
+    }
 
     function draw() {
       var cur = player();
@@ -550,40 +576,52 @@
         return '<div class="jg-prow' + (p.id === cur.id ? ' on' : '') + '" data-id="' + p.id + '">' +
           '<span class="jg-av" style="background:' + shade(p.color) + '">' + p.emoji + '</span>' +
           '<span class="jg-nm">' + esc(p.name) + '<div class="jg-sub">' + np + '판 · 배지 ' + nb + '개</div></span>' +
-          '<button class="jg-x" data-edit="' + p.id + '">이름·아바타</button>' +
-          (ps.length > 1 ? '<button class="jg-x" data-del="' + p.id + '">삭제</button>' : '') +
+          '<button class="jg-x edit" data-edit="' + p.id + '">✏️ 고치기</button>' +
+          (ps.length > 1 ? '<button class="jg-x del" data-del="' + p.id + '">삭제</button>' : '') +
           '</div>';
       }).join('');
 
       var target = editing ? ps.filter(function (p) { return p.id === editing; })[0] : null;
-      if (target) pickEmoji = pickEmoji || target.emoji;
 
       mask.innerHTML = '<div class="jg-modal">' +
         '<h3>👤 플레이어</h3>' +
-        '<p class="jg-hint">기록과 배지는 <b>플레이어별로 따로</b> 쌓여요. 이 브라우저 안에만 저장돼서, 다른 기기나 다른 사람에게는 보이지 않아요.</p>' +
+        '<p class="jg-hint">이름을 눌러 <b>플레이어를 바꾸고</b>, <b>✏️ 고치기</b>를 누르면 이름·캐릭터·색을 바꿀 수 있어요. ' +
+          '기록과 배지는 플레이어별로 따로 쌓이고, 이름을 바꿔도 그대로 남아요.</p>' +
         '<div class="jg-plist">' + rows + '</div>' +
-        '<div class="jg-form">' +
-          '<div class="jg-lab">' + (target ? '이름 바꾸기' : '새 플레이어 이름') + '</div>' +
-          '<input class="jg-in" id="jgName" maxlength="10" placeholder="이름 (10자까지)" value="' + (target ? esc(target.name) : '') + '">' +
-          '<div class="jg-lab">아바타 고르기</div>' +
+        '<div class="jg-form' + (target ? ' edit' : '') + '" id="jgForm">' +
+          '<div class="jg-lab">' + (target ? '✏️ ' + esc(target.name) + ' 님 고치기' : '➕ 새 플레이어 만들기') + '</div>' +
+          '<div class="jg-prev"><span class="jg-av"></span><span class="jg-pn"></span></div>' +
+          '<div class="jg-lab">이름</div>' +
+          '<input class="jg-in" id="jgName" maxlength="10" placeholder="이름 (10자까지)" value="' + esc(typedName) + '">' +
+          '<div class="jg-lab">캐릭터 고르기</div>' +
           '<div class="jg-avs">' + AVATARS.map(function (a) {
-            return '<button class="jg-avb' + (a === (target ? (pickEmoji || target.emoji) : pickEmoji) ? ' on' : '') + '" data-av="' + a + '">' + a + '</button>';
+            return '<button class="jg-avb" data-av="' + a + '">' + a + '</button>';
           }).join('') + '</div>' +
-          '<button class="jg-btn" id="jgSave">' + (target ? '저장하기' : '새 플레이어 추가') + '</button>' +
+          '<div class="jg-lab">색 고르기</div>' +
+          '<div class="jg-cols">' + COLORS.map(function (c) {
+            return '<button class="jg-colb" data-col="' + c + '" style="background:' + c + '"></button>';
+          }).join('') + '</div>' +
+          '<button class="jg-btn" id="jgSave">' + (target ? '💾 저장하기' : '새 플레이어 추가') + '</button>' +
           (target ? '<button class="jg-btn g" id="jgCancel">취소</button>' : '') +
           '<button class="jg-btn g" id="jgClose">닫기</button>' +
         '</div></div>';
 
       mask.querySelectorAll('.jg-prow').forEach(function (row) {
         row.addEventListener('click', function (e) {
-          if (e.target.dataset.edit) {
-            editing = e.target.dataset.edit;
-            pickEmoji = null;
+          var t = e.target;
+          if (t.dataset && t.dataset.edit) {
+            var p = players().filter(function (x) { return x.id === t.dataset.edit; })[0];
+            if (!p) return;
+            editing = p.id; typedName = p.name; pickEmoji = p.emoji; pickColor = p.color || COLORS[0];
             draw();
+            var inp = mask.querySelector('#jgName');
+            if (inp) { try { inp.focus(); inp.select(); } catch (err) {} }
+            var f = mask.querySelector('#jgForm');
+            if (f && f.scrollIntoView) { try { f.scrollIntoView({ block: 'nearest' }); } catch (err) {} }
             return;
           }
-          if (e.target.dataset.del) {
-            if (removePlayer(e.target.dataset.del)) { editing = null; draw(); }
+          if (t.dataset && t.dataset.del) {
+            if (removePlayer(t.dataset.del)) { resetForm(); draw(); }
             return;
           }
           setActive(row.dataset.id);
@@ -591,24 +629,39 @@
         });
       });
       mask.querySelectorAll('.jg-avb').forEach(function (b) {
-        b.addEventListener('click', function () { pickEmoji = b.dataset.av; draw(); });
+        b.addEventListener('click', function () { pickEmoji = b.dataset.av; paintPick(); });
       });
+      mask.querySelectorAll('.jg-colb').forEach(function (b) {
+        b.addEventListener('click', function () { pickColor = b.dataset.col; paintPick(); });
+      });
+      var nameIn = mask.querySelector('#jgName');
+      nameIn.addEventListener('input', function () { typedName = nameIn.value; paintPick(); });
+
       var save = mask.querySelector('#jgSave');
       save.addEventListener('click', function () {
-        var nm = (mask.querySelector('#jgName').value || '').trim();
-        var av = pickEmoji || (target && target.emoji) || AVATARS[0];
+        var nm = (nameIn.value || '').trim();
         if (target) {
-          updatePlayer(target.id, { name: nm || target.name, emoji: av });
-          editing = null; pickEmoji = null; draw();
+          updatePlayer(target.id, { name: nm || target.name, emoji: pickEmoji, color: pickColor });
+          toast((nm || target.name) + ' 님으로 바꿨어요', pickEmoji);
+          resetForm(); draw();
         } else {
-          if (!nm) { mask.querySelector('#jgName').focus(); return; }
-          addPlayer(nm, av);
+          if (!nm) { nameIn.focus(); return; }
+          addPlayer(nm, pickEmoji, pickColor);
           close();
         }
       });
       var cancel = mask.querySelector('#jgCancel');
-      if (cancel) cancel.addEventListener('click', function () { editing = null; pickEmoji = null; draw(); });
+      if (cancel) cancel.addEventListener('click', function () { resetForm(); draw(); });
       mask.querySelector('#jgClose').addEventListener('click', close);
+      paintPick();
+    }
+
+    /* 편집을 끝내고 '새 플레이어 만들기' 상태로 되돌린다 */
+    function resetForm() {
+      var n = players().length;
+      editing = null; typedName = '';
+      pickEmoji = AVATARS[n % AVATARS.length];
+      pickColor = COLORS[n % COLORS.length];
     }
 
     mask.addEventListener('click', function (e) { if (e.target === mask) close(); });
