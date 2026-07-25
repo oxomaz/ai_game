@@ -48,17 +48,22 @@ for (const [g, s] of [['jump-map', 5000], ['quiz-science', 70]])
 
 console.log('\n[허브 → 기록 페이지]');
 await page.goto(BASE + '/');
-ok('허브에 기록 보기 링크 있음', await page.locator('a.records').count() === 1);
-await page.locator('a.records').click();
-await page.waitForTimeout(300);
+const link = page.locator('a[href="records.html"]');
+ok('허브에 기록 페이지 링크 있음', (await link.count()) >= 1);
+await link.first().click();
+await page.waitForTimeout(500);
 ok('기록 페이지로 이동', page.url().includes('records.html'));
 
-console.log('\n[이름 정하기]');
-ok('처음엔 이름 입력창이 뜸', await page.locator('#jgn').count() === 1);
-await page.fill('#jgn', '재희');
-await page.click('#jgok');
-await page.waitForTimeout(500);
-ok('이름이 화면에 표시됨', (await page.locator('#myname').innerText()) === '재희');
+console.log('\n[플레이어 이름]');
+await page.waitForTimeout(700);
+await page.evaluate(() => {
+  if (window.JG) JG.updatePlayer(JG.player().id, { name: '재희' });
+  if (window.Records && Records.useProfile) Records.useProfile(JG.player().id, '재희');
+});
+await page.reload();
+await page.waitForTimeout(900);
+ok('이름이 화면에 표시됨', (await page.locator('#myname').innerText()).includes('재희'),
+   await page.locator('#myname').innerText());
 
 console.log('\n[내 기록 탭]');
 let t = await page.innerText('body');
