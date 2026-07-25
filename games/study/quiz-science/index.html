@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>상식·과학 퀴즈</title>
+<style>
+  :root{
+    --blue:#4285F4; --red:#EA4335; --yellow:#FBBC05; --green:#34A853;
+    --bg:#f6f8fc; --card:#fff; --text:#202124; --sub:#5f6368; --border:#e0e3e7;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",-apple-system,BlinkMacSystemFont,sans-serif;
+    display:flex; justify-content:center; padding:14px;
+  }
+  .wrap{width:100%; max-width:460px;}
+  h1{font-size:24px; text-align:center; margin:6px 0 4px; letter-spacing:-1px;}
+  .tag{text-align:center; color:var(--sub); font-size:13px; margin:0 0 16px;}
+  .panel{background:var(--card); border:2px solid var(--border); border-radius:16px; padding:16px; margin-bottom:12px;}
+  .label{font-size:13px; font-weight:800; color:var(--sub); margin-bottom:8px;}
+  .opts{display:flex; flex-wrap:wrap; gap:7px;}
+  .opt{
+    flex:1 1 auto; min-width:76px; text-align:center; padding:11px 8px; border-radius:11px;
+    border:2px solid var(--border); background:#fff; font-size:14px; font-weight:700;
+    cursor:pointer; user-select:none;
+  }
+  .opt.on{border-color:var(--blue); background:#e8f0fe; color:var(--blue);}
+  .btn{
+    display:block; width:100%; padding:15px; border:none; border-radius:13px; background:var(--blue);
+    color:#fff; font-size:17px; font-weight:800; cursor:pointer; font-family:inherit;
+  }
+  .btn.ghost{background:#fff; color:var(--sub); border:2px solid var(--border);}
+  .hide{display:none !important;}
+  a.back{display:block; text-align:center; margin-top:14px; color:var(--sub); font-size:13px;}
+
+  .top{display:flex; align-items:center; gap:10px; margin-bottom:12px;}
+  .top .prog{flex:1; height:9px; background:#e6eaf0; border-radius:99px; overflow:hidden;}
+  .top .prog i{display:block; height:100%; background:var(--blue); width:0; transition:width .25s;}
+  .top .cnt{font-size:13px; font-weight:800; color:var(--sub); min-width:80px; text-align:right;}
+
+  .qbox{background:var(--card); border:2px solid var(--border); border-radius:18px; padding:22px 16px; margin-bottom:12px;}
+  .qcat{
+    display:inline-block; font-size:11px; font-weight:800; color:var(--blue);
+    background:#e8f0fe; border-radius:99px; padding:4px 11px; margin-bottom:10px;
+  }
+  .qtext{font-size:19px; font-weight:700; line-height:1.55;}
+  .choices{display:grid; gap:9px;}
+  .choices.ox{grid-template-columns:1fr 1fr;}
+  .choice{
+    padding:15px 12px; border-radius:13px; border:2px solid var(--border); background:#fff;
+    font-size:16px; font-weight:700; cursor:pointer; text-align:center; font-family:inherit; color:var(--text);
+    line-height:1.4;
+  }
+  .choices.ox .choice{font-size:34px; padding:20px 12px;}
+  .choice.ok{border-color:var(--green); background:#e6f4ea; color:var(--green);}
+  .choice.no{border-color:var(--red); background:#fce8e6; color:var(--red);}
+  .choice:disabled{cursor:default;}
+  .expl{
+    margin-top:12px; background:#fff8e1; border:2px solid #ffe28a; border-radius:13px;
+    padding:14px; font-size:14.5px; line-height:1.6;
+  }
+  .expl b{color:#a06800;}
+  .streak{text-align:center; font-size:13px; font-weight:800; color:var(--yellow); height:18px; margin-bottom:6px;}
+
+  .big{font-size:46px; font-weight:800; text-align:center; color:var(--blue); line-height:1.1;}
+  .rows{margin:14px 0;}
+  .row{display:flex; justify-content:space-between; padding:9px 2px; border-bottom:1px solid var(--border); font-size:15px;}
+  .review{max-height:230px; overflow:auto; font-size:14px; line-height:1.6;}
+  .review .it{padding:9px 0; border-bottom:1px solid var(--border);}
+  .review .it b{color:var(--red);}
+  .review .it span{color:var(--sub); font-size:13px;}
+  .medal{text-align:center; font-size:44px; margin-bottom:4px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <section id="home">
+    <h1>🧠 상식·과학 퀴즈</h1>
+    <p class="tag">문제마다 왜 그런지 설명이 나와요</p>
+
+    <div class="panel">
+      <div class="label">주제 (여러 개 가능)</div>
+      <div class="opts" id="catBox"></div>
+      <button class="btn ghost" id="allBtn" style="margin-top:9px; padding:10px; font-size:14px;">전체 선택 / 해제</button>
+    </div>
+
+    <div class="panel">
+      <div class="label">문제 수</div>
+      <div class="opts" id="numBox">
+        <div class="opt on" data-n="10">10문제</div>
+        <div class="opt" data-n="20">20문제</div>
+        <div class="opt" data-n="0">전부</div>
+      </div>
+    </div>
+
+    <button class="btn" id="startBtn">시작하기</button>
+    <a class="back" href="../../../">← 게임 목록</a>
+  </section>
+
+  <section id="play" class="hide">
+    <div class="top">
+      <div class="prog"><i id="prog"></i></div>
+      <div class="cnt" id="cnt">1 / 10 · 0점</div>
+    </div>
+    <div class="streak" id="streak"></div>
+    <div class="qbox">
+      <div class="qcat" id="qcat">과학</div>
+      <div class="qtext" id="qtext">문제</div>
+    </div>
+    <div class="choices" id="choices"></div>
+    <div class="expl hide" id="expl"></div>
+    <button class="btn hide" id="nextBtn" style="margin-top:12px;">다음 문제 →</button>
+    <a class="back" href="#" id="quitBtn">그만하기</a>
+  </section>
+
+  <section id="over" class="hide">
+    <h1>결과</h1>
+    <div class="panel">
+      <div class="medal" id="medal">🏅</div>
+      <div class="big" id="finalScore">0</div>
+      <div style="text-align:center; color:var(--sub); font-size:13px; margin-top:4px;" id="scoreSub">점</div>
+      <div class="rows">
+        <div class="row"><span>맞힌 문제</span><b id="rHit">0</b></div>
+        <div class="row"><span>틀린 문제</span><b id="rMiss">0</b></div>
+        <div class="row"><span>최고 연속</span><b id="rStreak">0</b></div>
+      </div>
+      <div class="label" id="reviewLabel">틀린 문제 다시 보기</div>
+      <div class="review" id="reviewList"></div>
+    </div>
+    <button class="btn" id="againBtn">한 번 더</button>
+    <button class="btn ghost" id="retryWrong" style="margin-top:9px;">틀린 문제만 다시</button>
+    <button class="btn ghost" id="homeBtn" style="margin-top:9px;">설정 바꾸기</button>
+    <a class="back" href="../../../">← 게임 목록</a>
+  </section>
+
+</div>
+
+<script>
+var $ = function(id){ return document.getElementById(id); };
+
+/* =========================================================
+   문제 은행
+   { q:질문, a:[보기...], c:정답번호(0부터), e:해설 }
+   보기가 ["O","X"] 이면 O/X 문제로 크게 표시됩니다.
+   ========================================================= */
+var BANK = {
+  "과학": [
+    {q:"물이 얼면 부피는 어떻게 될까요?", a:["늘어난다","줄어든다","그대로다","반으로 준다"], c:0,
+     e:"물은 얼면서 분자들이 육각형 모양으로 자리를 잡아 <b>부피가 늘어나요</b>. 그래서 얼음이 물에 뜨고, 꽉 찬 병에 물을 넣어 얼리면 병이 깨집니다."},
+    {q:"소리는 진공(공기가 없는 곳)에서도 들린다.", a:["O","X"], c:1,
+     e:"소리는 공기 같은 물질이 <b>떨려서</b> 전달돼요. 공기가 없는 우주에서는 소리가 전혀 들리지 않습니다."},
+    {q:"무지개는 보통 몇 가지 색으로 나눌까요?", a:["5가지","6가지","7가지","10가지"], c:2,
+     e:"빨·주·노·초·파·남·보 <b>일곱 가지</b>로 나눠요. 사실은 색이 부드럽게 이어져 있는데, 사람이 일곱으로 나눠 부르는 거예요."},
+    {q:"자석의 같은 극끼리는 서로 어떻게 될까요?", a:["끌어당긴다","밀어낸다","아무 일 없다","붙었다 떨어졌다 한다"], c:1,
+     e:"N극과 N극처럼 <b>같은 극은 밀어내고</b>, N극과 S극처럼 다른 극은 끌어당깁니다."},
+    {q:"식물이 햇빛으로 스스로 양분을 만드는 것을 무엇이라 할까요?", a:["증산작용","광합성","호흡","발아"], c:1,
+     e:"<b>광합성</b>이에요. 잎에서 햇빛·물·이산화탄소로 양분을 만들고 산소를 내보냅니다."},
+    {q:"온도계에서 물이 끓는 온도는 몇 도일까요? (1기압 기준)", a:["50도","80도","100도","150도"], c:2,
+     e:"1기압에서 물은 <b>100℃</b>에서 끓고 <b>0℃</b>에서 업니다. 높은 산에서는 기압이 낮아 100도보다 낮은 온도에서 끓어요."},
+    {q:"그림자는 빛이 물체를 통과하지 못해서 생긴다.", a:["O","X"], c:0,
+     e:"맞아요. 빛은 <b>곧게 나아가기</b> 때문에, 빛을 막는 물체 뒤쪽에 어두운 그림자가 생깁니다."},
+    {q:"다음 중 고체가 아닌 것은?", a:["얼음","돌","공기","나무"], c:2,
+     e:"공기는 <b>기체</b>예요. 물질은 고체·액체·기체 세 가지 상태로 나뉩니다."},
+    {q:"우리 몸에서 피를 온몸으로 보내는 기관은?", a:["폐","심장","간","위"], c:1,
+     e:"<b>심장</b>이 펌프처럼 쉬지 않고 뛰면서 피를 온몸으로 보냅니다."},
+    {q:"철이 녹스는 데 꼭 필요한 두 가지는?", a:["물과 산소","불과 바람","소금과 설탕","빛과 소리"], c:0,
+     e:"철은 <b>물과 산소</b>를 만나면 붉은 녹이 생겨요. 그래서 기름칠이나 페인트로 공기와 물을 막아줍니다."}
+  ],
+  "우주": [
+    {q:"태양계에서 가장 큰 행성은?", a:["지구","화성","목성","토성"], c:2,
+     e:"<b>목성</b>이에요. 지구가 1,300개 넘게 들어갈 만큼 큽니다."},
+    {q:"지구에서 가장 가까운 별은?", a:["북극성","달","태양","금성"], c:2,
+     e:"<b>태양</b>이에요. 달과 금성은 스스로 빛을 내지 않으니 별이 아니고, 달은 지구의 위성입니다."},
+    {q:"달은 스스로 빛을 낸다.", a:["O","X"], c:1,
+     e:"달은 <b>태양 빛을 반사</b>해서 밝게 보이는 거예요. 스스로 빛을 내는 건 별(태양)입니다."},
+    {q:"지구가 태양을 한 바퀴 도는 데 걸리는 시간은?", a:["하루","한 달","일 년","십 년"], c:2,
+     e:"약 <b>365일, 즉 일 년</b>이에요. 지구가 스스로 한 바퀴 도는 자전은 하루가 걸립니다."},
+    {q:"계절이 바뀌는 가장 큰 이유는?", a:["지구가 기울어진 채 태양을 돌아서","태양이 커졌다 작아져서","달이 지구를 돌아서","구름의 양이 달라져서"], c:0,
+     e:"지구 축이 약 23.5도 <b>기울어진 채</b> 태양 둘레를 돌기 때문에, 햇빛을 받는 각도가 달라져 계절이 생깁니다."},
+    {q:"태양계 행성은 모두 몇 개일까요?", a:["7개","8개","9개","12개"], c:1,
+     e:"<b>8개</b>예요. 수성·금성·지구·화성·목성·토성·천왕성·해왕성. 명왕성은 2006년에 왜소행성으로 분류가 바뀌었어요."},
+    {q:"우주에서 지구를 보면 파랗게 보이는 이유는?", a:["바다가 넓어서","하늘이 파래서","얼음이 많아서","풀이 많아서"], c:0,
+     e:"지구 표면의 약 70%가 <b>바다</b>라서 파랗게 보여요. 그래서 '푸른 행성'이라고 부릅니다."}
+  ],
+  "동물·자연": [
+    {q:"다음 중 포유류가 아닌 것은?", a:["고래","박쥐","펭귄","사람"], c:2,
+     e:"<b>펭귄은 새(조류)</b>예요. 고래와 박쥐는 새끼를 낳고 젖을 먹이는 포유류입니다."},
+    {q:"개구리처럼 물과 땅에서 모두 사는 동물을 무엇이라 할까요?", a:["파충류","양서류","어류","곤충"], c:1,
+     e:"<b>양서류</b>예요. 어릴 때는 올챙이로 아가미 호흡을 하고, 자라면 폐와 피부로 숨을 쉽니다."},
+    {q:"곤충의 다리는 몇 개일까요?", a:["4개","6개","8개","10개"], c:1,
+     e:"곤충은 다리가 <b>6개</b>예요. 다리가 8개인 거미는 곤충이 아닙니다."},
+    {q:"나무의 나이테를 세면 나무의 나이를 알 수 있다.", a:["O","X"], c:0,
+     e:"맞아요. 계절에 따라 자라는 속도가 달라 <b>고리 하나가 대략 한 해</b>를 뜻합니다."},
+    {q:"낙타의 등에 있는 혹에는 무엇이 들어 있을까요?", a:["물","지방","공기","모래"], c:1,
+     e:"물이 아니라 <b>지방</b>이에요. 먹이가 없을 때 이 지방을 에너지로 씁니다."},
+    {q:"벌이 꽃을 찾아다니면 식물에게 어떤 도움이 될까요?", a:["꽃가루를 옮겨준다","물을 준다","잎을 지켜준다","뿌리를 튼튼히 한다"], c:0,
+     e:"벌이 꿀을 먹으며 <b>꽃가루를 옮겨</b> 열매와 씨앗이 생기게 도와줍니다. 이것을 수분(꽃가루받이)이라고 해요."},
+    {q:"박쥐는 어두운 곳에서 소리를 이용해 길을 찾는다.", a:["O","X"], c:0,
+     e:"맞아요. 초음파를 내보내고 <b>되돌아오는 소리</b>로 물체의 위치를 알아냅니다. 이를 반향정위라고 해요."}
+  ],
+  "한국·사회": [
+    {q:"우리나라의 수도는 어디일까요?", a:["부산","서울","인천","대전"], c:1,
+     e:"대한민국의 수도는 <b>서울</b>입니다."},
+    {q:"태극기의 네 모서리에 있는 검은 무늬를 무엇이라 할까요?", a:["사괘","사군자","팔각","십장생"], c:0,
+     e:"건·곤·감·리 네 개의 괘, 즉 <b>사괘</b>입니다. 가운데 원은 태극이라고 해요."},
+    {q:"우리나라에서 가장 큰 섬은?", a:["울릉도","거제도","제주도","강화도"], c:2,
+     e:"<b>제주도</b>예요. 화산 활동으로 만들어진 섬이고, 가운데에 한라산이 있습니다."},
+    {q:"한글을 만든 임금님은 누구일까요?", a:["세종대왕","이순신","정조","광개토대왕"], c:0,
+     e:"<b>세종대왕</b>이 훈민정음을 만들었어요. 한글날은 10월 9일입니다."},
+    {q:"우리나라에서 가장 긴 강은?", a:["한강","낙동강","금강","섬진강"], c:1,
+     e:"<b>낙동강</b>이 가장 길어요(약 510km). 한강은 두 번째로 깁니다."},
+    {q:"태극기의 가운데 원은 빨강과 파랑으로 되어 있다.", a:["O","X"], c:0,
+     e:"맞아요. 위쪽 빨강은 양(陽), 아래쪽 파랑은 음(陰)을 뜻하는 <b>태극</b> 무늬입니다."},
+    {q:"우리나라 화폐 단위는 무엇일까요?", a:["엔","위안","원","달러"], c:2,
+     e:"대한민국의 화폐 단위는 <b>원</b>입니다."}
+  ],
+  "역사": [
+    {q:"거북선을 만들어 왜군을 물리친 장군은?", a:["강감찬","이순신","을지문덕","김유신"], c:1,
+     e:"<b>이순신 장군</b>이에요. 임진왜란 때 한산도 대첩 등에서 크게 승리했습니다."},
+    {q:"고구려·백제·신라가 함께 있던 시대를 무엇이라 할까요?", a:["삼국시대","고려시대","조선시대","통일신라"], c:0,
+     e:"<b>삼국시대</b>예요. 나중에 신라가 삼국을 통일했습니다."},
+    {q:"경주 불국사와 석굴암을 만든 나라는?", a:["고구려","백제","신라","고려"], c:2,
+     e:"<b>신라</b>예요. 두 곳 모두 유네스코 세계문화유산으로 등재되어 있습니다."},
+    {q:"조선을 세운 사람은 누구일까요?", a:["왕건","이성계","김춘추","대조영"], c:1,
+     e:"<b>이성계</b>가 1392년에 조선을 세웠어요. 왕건은 고려를 세운 사람입니다."},
+    {q:"훈민정음은 백성들이 쉽게 글을 쓰게 하려고 만들었다.", a:["O","X"], c:0,
+     e:"맞아요. '백성을 가르치는 바른 소리'라는 뜻으로, <b>누구나 쉽게 배우도록</b> 만들었습니다."}
+  ],
+  "생활상식": [
+    {q:"화재가 났을 때 걸어야 하는 전화번호는?", a:["112","119","114","120"], c:1,
+     e:"불이 나거나 응급환자가 생기면 <b>119</b>, 도둑·사고 신고는 112입니다."},
+    {q:"신호등에서 초록 불이 깜빡일 때 하면 좋은 행동은?", a:["빨리 뛰어서 건넌다","건너지 않고 기다린다","자전거를 탄다","길 가운데 선다"], c:1,
+     e:"곧 빨간 불로 바뀐다는 뜻이라 <b>기다렸다가 다음 신호에</b> 건너는 게 안전합니다."},
+    {q:"손을 씻을 때 비누로 몇 초 이상 씻는 게 좋을까요?", a:["5초","10초","30초","5분"], c:2,
+     e:"비누 거품을 내서 <b>30초 정도</b> 꼼꼼히 씻는 것이 좋습니다. 손가락 사이와 손톱 밑도 잊지 마세요."},
+    {q:"음식물 쓰레기와 일반 쓰레기는 함께 버려도 된다.", a:["O","X"], c:1,
+     e:"따로 버려야 해요. 음식물 쓰레기는 <b>동물 사료나 퇴비</b>로 다시 쓰이기 때문에 분리배출합니다."},
+    {q:"일 년은 며칠일까요? (윤년이 아닌 해)", a:["360일","365일","366일","370일"], c:1,
+     e:"보통 해는 <b>365일</b>이고, 4년에 한 번 오는 윤년은 2월이 29일까지라 366일입니다."},
+    {q:"하루는 몇 시간일까요?", a:["12시간","20시간","24시간","30시간"], c:2,
+     e:"하루는 <b>24시간</b>이에요. 1시간은 60분, 1분은 60초입니다."},
+    {q:"횡단보도를 건널 때는 손을 들고 운전자와 눈을 맞추는 게 좋다.", a:["O","X"], c:0,
+     e:"맞아요. 운전자에게 <b>'제가 건널게요'</b>라고 알려주는 것이라 훨씬 안전합니다."}
+  ]
+};
+
+var CATS = Object.keys(BANK);
+
+/* ---------- 설정 UI ---------- */
+var catBox = $("catBox");
+CATS.forEach(function(c){
+  var d = document.createElement("div");
+  d.className = "opt on"; d.dataset.c = c; d.textContent = c;
+  catBox.appendChild(d);
+});
+catBox.addEventListener("click", function(e){
+  var el = e.target.closest(".opt"); if(!el) return;
+  el.classList.toggle("on");
+  if(!catBox.querySelector(".opt.on")) el.classList.add("on");
+});
+$("allBtn").onclick = function(){
+  var allOn = catBox.querySelectorAll(".opt.on").length === CATS.length;
+  catBox.querySelectorAll(".opt").forEach(function(o){ o.classList.toggle("on", !allOn); });
+  if(!catBox.querySelector(".opt.on")) catBox.querySelector(".opt").classList.add("on");
+};
+$("numBox").addEventListener("click", function(e){
+  var el = e.target.closest(".opt"); if(!el) return;
+  $("numBox").querySelectorAll(".opt").forEach(function(o){ o.classList.remove("on"); });
+  el.classList.add("on");
+});
+
+/* ---------- 공통 ---------- */
+function shuffle(a){
+  a = a.slice();
+  for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; }
+  return a;
+}
+var S = null;
+
+function start(list){
+  var cats = [].map.call(catBox.querySelectorAll(".opt.on"), function(o){ return o.dataset.c; });
+  var n = +$("numBox").querySelector(".opt.on").dataset.n;
+
+  var pool;
+  if(list){ pool = shuffle(list); }
+  else{
+    pool = [];
+    cats.forEach(function(c){ BANK[c].forEach(function(q){ pool.push({ cat:c, q:q }); }); });
+    pool = shuffle(pool);
+    if(n > 0) pool = pool.slice(0, n);
+  }
+  if(!pool.length) return;
+
+  S = { list:pool, i:0, hit:0, miss:0, score:0, streak:0, best:0, wrongs:[], answered:false };
+  $("home").classList.add("hide"); $("over").classList.add("hide"); $("play").classList.remove("hide");
+  show();
+}
+
+function show(){
+  S.answered = false;
+  var item = S.list[S.i], q = item.q;
+  $("qcat").textContent = item.cat;
+  $("qtext").innerHTML = q.q;
+  $("cnt").textContent = (S.i+1) + " / " + S.list.length + " · " + S.score + "점";
+  $("prog").style.width = ((S.i+1)/S.list.length*100) + "%";
+  $("streak").textContent = S.streak >= 3 ? ("🔥 " + S.streak + "문제 연속 정답!") : "";
+  $("expl").classList.add("hide");
+  $("nextBtn").classList.add("hide");
+
+  var isOX = (q.a.length === 2 && q.a[0] === "O" && q.a[1] === "X");
+  var box = $("choices");
+  box.className = "choices" + (isOX ? " ox" : "");
+  box.innerHTML = "";
+
+  // 보기 순서를 섞되 정답 위치를 따라간다 (O/X는 순서 고정)
+  var idx = q.a.map(function(_, i){ return i; });
+  if(!isOX) idx = shuffle(idx);
+
+  idx.forEach(function(oi){
+    var b = document.createElement("button");
+    b.className = "choice";
+    b.textContent = q.a[oi];
+    b.onclick = function(){ answer(b, oi, q); };
+    box.appendChild(b);
+  });
+}
+
+function answer(btn, oi, q){
+  if(S.answered) return;
+  S.answered = true;
+  var correct = (oi === q.c);
+  var buttons = $("choices").querySelectorAll(".choice");
+  buttons.forEach(function(b){
+    b.disabled = true;
+    if(b.textContent === q.a[q.c]) b.classList.add("ok");
+  });
+  if(correct){
+    S.hit++; S.streak++;
+    if(S.streak > S.best) S.best = S.streak;
+    S.score += 10 + Math.min(S.streak - 1, 5) * 2;
+  }else{
+    S.miss++; S.streak = 0;
+    btn.classList.add("no");
+    S.wrongs.push(S.list[S.i]);
+  }
+  $("cnt").textContent = (S.i+1) + " / " + S.list.length + " · " + S.score + "점";
+  $("streak").textContent = S.streak >= 3 ? ("🔥 " + S.streak + "문제 연속 정답!") : "";
+
+  var ex = $("expl");
+  ex.innerHTML = (correct ? "⭕ <b>정답!</b><br>" : "❌ <b>아쉬워요. 정답은 「" + q.a[q.c] + "」</b><br>") + q.e;
+  ex.classList.remove("hide");
+  $("nextBtn").classList.remove("hide");
+  $("nextBtn").textContent = (S.i === S.list.length-1) ? "결과 보기 →" : "다음 문제 →";
+}
+
+$("nextBtn").onclick = function(){
+  if(S.i < S.list.length-1){ S.i++; show(); }
+  else finish();
+};
+$("quitBtn").onclick = function(e){ e.preventDefault(); finish(); };
+
+function finish(){
+  var total = S.hit + S.miss;
+  var acc = total ? Math.round(S.hit/total*100) : 0;
+  $("finalScore").textContent = S.score;
+  $("scoreSub").textContent = "점  ·  정확도 " + acc + "%";
+  $("rHit").textContent = S.hit + "개";
+  $("rMiss").textContent = S.miss + "개";
+  $("rStreak").textContent = S.best + "연속";
+  $("medal").textContent = acc >= 90 ? "🏆" : acc >= 70 ? "🥇" : acc >= 50 ? "🥈" : "🥉";
+
+  if(S.wrongs.length){
+    $("reviewLabel").classList.remove("hide");
+    $("retryWrong").classList.remove("hide");
+    $("reviewList").innerHTML = S.wrongs.map(function(w){
+      return "<div class='it'><b>Q.</b> " + w.q.q + "<br><span>→ " + w.q.a[w.q.c] + " · " +
+             w.q.e.replace(/<\/?b>/g,"") + "</span></div>";
+    }).join("");
+  }else{
+    $("reviewLabel").classList.add("hide");
+    $("retryWrong").classList.add("hide");
+    $("reviewList").innerHTML = "<div style='color:var(--green); font-weight:800;'>전부 다 맞혔어요! 👏</div>";
+  }
+  $("play").classList.add("hide");
+  $("over").classList.remove("hide");
+}
+
+$("startBtn").onclick = function(){ start(null); };
+$("againBtn").onclick = function(){ start(null); };
+$("retryWrong").onclick = function(){ start(S.wrongs); };
+$("homeBtn").onclick = function(){ $("over").classList.add("hide"); $("home").classList.remove("hide"); };
+</script>
+</body>
+</html>

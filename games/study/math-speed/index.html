@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>연산 스피드 퀴즈</title>
+<style>
+  :root{
+    --blue:#4285F4; --red:#EA4335; --yellow:#FBBC05; --green:#34A853;
+    --bg:#f6f8fc; --card:#fff; --text:#202124; --sub:#5f6368; --border:#e0e3e7;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",-apple-system,BlinkMacSystemFont,sans-serif;
+    display:flex; justify-content:center; align-items:flex-start; padding:16px;
+  }
+  .wrap{width:100%; max-width:460px;}
+  h1{font-size:24px; text-align:center; margin:8px 0 4px; letter-spacing:-1px;}
+  .tag{text-align:center; color:var(--sub); font-size:13px; margin:0 0 18px;}
+  .panel{background:var(--card); border:2px solid var(--border); border-radius:16px; padding:18px; margin-bottom:14px;}
+  .label{font-size:13px; font-weight:800; color:var(--sub); margin-bottom:8px;}
+  .opts{display:flex; flex-wrap:wrap; gap:8px;}
+  .opt{
+    flex:1 1 auto; min-width:64px; text-align:center; padding:11px 8px; border-radius:11px;
+    border:2px solid var(--border); background:#fff; font-size:15px; font-weight:700; cursor:pointer;
+    user-select:none; transition:.12s;
+  }
+  .opt.on{border-color:var(--blue); background:#e8f0fe; color:var(--blue);}
+  .btn{
+    display:block; width:100%; padding:15px; border:none; border-radius:13px; background:var(--blue);
+    color:#fff; font-size:17px; font-weight:800; cursor:pointer; font-family:inherit;
+  }
+  .btn:active{transform:scale(.99);}
+  .btn.ghost{background:#fff; color:var(--sub); border:2px solid var(--border);}
+  .hide{display:none !important;}
+
+  /* play */
+  .hud{display:flex; gap:8px; margin-bottom:12px;}
+  .hud > div{
+    flex:1; background:var(--card); border:2px solid var(--border); border-radius:12px;
+    padding:9px 4px; text-align:center;
+  }
+  .hud .k{font-size:11px; color:var(--sub); font-weight:700;}
+  .hud .v{font-size:19px; font-weight:800; margin-top:2px;}
+  #timeV.warn{color:var(--red);}
+  .bar{height:8px; background:#e6eaf0; border-radius:99px; overflow:hidden; margin-bottom:12px;}
+  .bar i{display:block; height:100%; width:100%; background:var(--green); transition:width .2s linear;}
+  .bar i.warn{background:var(--red);}
+  .qbox{
+    background:var(--card); border:2px solid var(--border); border-radius:16px;
+    padding:22px 14px; text-align:center; margin-bottom:12px;
+  }
+  .q{font-size:38px; font-weight:800; letter-spacing:1px;}
+  .ans{
+    margin-top:12px; font-size:32px; font-weight:800; color:var(--blue);
+    min-height:44px; letter-spacing:2px;
+  }
+  .ans.empty{color:#c6ccd4;}
+  .qbox.ok{border-color:var(--green); background:#e6f4ea;}
+  .qbox.no{border-color:var(--red); background:#fce8e6;}
+  .combo{font-size:13px; font-weight:800; color:var(--yellow); height:18px;}
+  .pad{display:grid; grid-template-columns:repeat(3,1fr); gap:9px;}
+  .key{
+    padding:18px 0; border-radius:13px; border:2px solid var(--border); background:#fff;
+    font-size:24px; font-weight:800; text-align:center; cursor:pointer; user-select:none;
+    font-family:inherit; color:var(--text);
+  }
+  .key:active{background:#e8f0fe;}
+  .key.fn{font-size:17px; color:var(--sub);}
+  .key.go{background:var(--green); color:#fff; border-color:var(--green);}
+
+  /* result */
+  .big{font-size:46px; font-weight:800; text-align:center; color:var(--blue); line-height:1.1;}
+  .rows{margin:16px 0;}
+  .row{display:flex; justify-content:space-between; padding:9px 2px; border-bottom:1px solid var(--border); font-size:15px;}
+  .row b{font-weight:800;}
+  .new{text-align:center; color:var(--red); font-weight:800; margin-bottom:8px;}
+  .wrongs{max-height:170px; overflow:auto; font-size:14px; color:var(--sub); line-height:1.9;}
+  .wrongs b{color:var(--red);}
+  a.back{display:block; text-align:center; margin-top:14px; color:var(--sub); font-size:13px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===== 시작 화면 ===== -->
+  <section id="home">
+    <h1>⚡ 연산 스피드 퀴즈</h1>
+    <p class="tag">제한 시간 안에 최대한 많이 맞혀보세요!</p>
+
+    <div class="panel">
+      <div class="label">연산 고르기 (여러 개 가능)</div>
+      <div class="opts" id="opsBox">
+        <div class="opt on" data-op="+">＋ 덧셈</div>
+        <div class="opt on" data-op="-">－ 뺄셈</div>
+        <div class="opt" data-op="*">× 곱셈</div>
+        <div class="opt" data-op="/">÷ 나눗셈</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="label">난이도</div>
+      <div class="opts" id="lvBox">
+        <div class="opt on" data-lv="0">쉬움</div>
+        <div class="opt" data-lv="1">보통</div>
+        <div class="opt" data-lv="2">어려움</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="label">시간</div>
+      <div class="opts" id="tmBox">
+        <div class="opt" data-tm="30">30초</div>
+        <div class="opt on" data-tm="60">60초</div>
+        <div class="opt" data-tm="120">120초</div>
+      </div>
+    </div>
+
+    <div class="panel" id="bestPanel">
+      <div class="label">최고 기록</div>
+      <div id="bestTxt" style="font-size:15px; font-weight:700;">아직 없어요</div>
+    </div>
+
+    <button class="btn" id="startBtn">시작하기</button>
+    <a class="back" href="../../../">← 게임 목록</a>
+  </section>
+
+  <!-- ===== 플레이 화면 ===== -->
+  <section id="play" class="hide">
+    <div class="hud">
+      <div><div class="k">남은 시간</div><div class="v" id="timeV">60</div></div>
+      <div><div class="k">점수</div><div class="v" id="scoreV">0</div></div>
+      <div><div class="k">맞힌 개수</div><div class="v" id="hitV">0</div></div>
+    </div>
+    <div class="bar"><i id="barI"></i></div>
+
+    <div class="qbox" id="qbox">
+      <div class="q" id="qTxt">1 + 1 = ?</div>
+      <div class="ans empty" id="ansTxt">?</div>
+      <div class="combo" id="comboTxt"></div>
+    </div>
+
+    <div class="pad">
+      <button class="key" data-k="1">1</button>
+      <button class="key" data-k="2">2</button>
+      <button class="key" data-k="3">3</button>
+      <button class="key" data-k="4">4</button>
+      <button class="key" data-k="5">5</button>
+      <button class="key" data-k="6">6</button>
+      <button class="key" data-k="7">7</button>
+      <button class="key" data-k="8">8</button>
+      <button class="key" data-k="9">9</button>
+      <button class="key fn" data-k="C">지우기</button>
+      <button class="key" data-k="0">0</button>
+      <button class="key go" data-k="E">확인</button>
+    </div>
+    <a class="back" href="#" id="quitBtn">그만하기</a>
+  </section>
+
+  <!-- ===== 결과 화면 ===== -->
+  <section id="over" class="hide">
+    <h1>결과</h1>
+    <div class="panel">
+      <div id="newBest" class="new hide">🎉 최고 기록 경신!</div>
+      <div class="big" id="finalScore">0</div>
+      <div style="text-align:center; color:var(--sub); font-size:13px; margin-top:4px;">점</div>
+      <div class="rows">
+        <div class="row"><span>맞힌 문제</span><b id="rHit">0</b></div>
+        <div class="row"><span>틀린 문제</span><b id="rMiss">0</b></div>
+        <div class="row"><span>정확도</span><b id="rAcc">0%</b></div>
+        <div class="row"><span>최고 연속</span><b id="rCombo">0</b></div>
+      </div>
+      <div class="label" id="wrongLabel">틀린 문제 다시 보기</div>
+      <div class="wrongs" id="wrongList"></div>
+    </div>
+    <button class="btn" id="againBtn">한 번 더</button>
+    <button class="btn ghost" id="homeBtn" style="margin-top:9px;">설정 바꾸기</button>
+    <a class="back" href="../../../">← 게임 목록</a>
+  </section>
+
+</div>
+
+<script>
+/* ---------- 저장소 (없거나 막혀 있어도 게임이 멈추지 않게) ---------- */
+var memStore = {};
+function loadBest(){
+  try{
+    var raw = localStorage.getItem("mathSpeedBest");
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return memStore.best || {};
+}
+function saveBest(obj){
+  memStore.best = obj;
+  try{ localStorage.setItem("mathSpeedBest", JSON.stringify(obj)); }catch(e){}
+}
+
+/* ---------- 설정 ---------- */
+var LV_NAME = ["쉬움","보통","어려움"];
+var OP_SIGN = {"+":"+","-":"−","*":"×","/":"÷"};
+var cfg = { ops:["+","-"], lv:0, tm:60 };
+
+function bindOpts(boxId, onPick, multi){
+  var box = document.getElementById(boxId);
+  box.addEventListener("click", function(e){
+    var el = e.target.closest(".opt");
+    if(!el) return;
+    if(multi){
+      el.classList.toggle("on");
+      if(!box.querySelector(".opt.on")) el.classList.add("on"); // 최소 1개 유지
+    }else{
+      box.querySelectorAll(".opt").forEach(function(o){ o.classList.remove("on"); });
+      el.classList.add("on");
+    }
+    onPick();
+  });
+}
+function readCfg(){
+  cfg.ops = [].map.call(document.querySelectorAll("#opsBox .opt.on"), function(o){ return o.dataset.op; });
+  cfg.lv  = +document.querySelector("#lvBox .opt.on").dataset.lv;
+  cfg.tm  = +document.querySelector("#tmBox .opt.on").dataset.tm;
+  showBest();
+}
+function bestKey(){ return cfg.ops.slice().sort().join("") + "|" + cfg.lv + "|" + cfg.tm; }
+function showBest(){
+  var b = loadBest()[bestKey()];
+  document.getElementById("bestTxt").textContent =
+    b ? (b + "점  (" + LV_NAME[cfg.lv] + " · " + cfg.tm + "초)") : "아직 없어요";
+}
+bindOpts("opsBox", readCfg, true);
+bindOpts("lvBox", readCfg, false);
+bindOpts("tmBox", readCfg, false);
+
+/* ---------- 문제 만들기 ---------- */
+function ri(a,b){ return a + Math.floor(Math.random()*(b-a+1)); }
+
+function makeQ(){
+  var op = cfg.ops[ri(0, cfg.ops.length-1)];
+  var a, b, ans;
+  if(op === "+"){
+    if(cfg.lv===0){ a=ri(1,10); b=ri(1,10); }
+    else if(cfg.lv===1){ a=ri(10,60); b=ri(10,40); }
+    else { a=ri(100,899); b=ri(100,899); }
+    ans = a+b;
+  }else if(op === "-"){
+    if(cfg.lv===0){ a=ri(2,18); b=ri(1,a); }
+    else if(cfg.lv===1){ a=ri(20,99); b=ri(1,a); }
+    else { a=ri(200,999); b=ri(10,a); }
+    ans = a-b;
+  }else if(op === "*"){
+    if(cfg.lv===0){ a=ri(2,5); b=ri(1,9); }
+    else if(cfg.lv===1){ a=ri(2,9); b=ri(2,9); }
+    else { a=ri(11,49); b=ri(3,9); }
+    ans = a*b;
+  }else{ // 나눗셈 — 항상 딱 나누어떨어지게 만든다
+    var q, d;
+    if(cfg.lv===0){ d=ri(2,5); q=ri(1,9); }
+    else if(cfg.lv===1){ d=ri(2,9); q=ri(2,9); }
+    else { d=ri(3,9); q=ri(11,29); }
+    a = d*q; b = d; ans = q;
+  }
+  return { a:a, b:b, op:op, ans:ans, txt: a + " " + OP_SIGN[op] + " " + b + " = ?" };
+}
+
+/* ---------- 게임 진행 ---------- */
+var S = null, timer = null;
+var $ = function(id){ return document.getElementById(id); };
+
+function start(){
+  readCfg();
+  S = { left:cfg.tm, score:0, hit:0, miss:0, combo:0, best:0, input:"", q:null, wrongs:[], lock:false };
+  $("home").classList.add("hide");
+  $("over").classList.add("hide");
+  $("play").classList.remove("hide");
+  nextQ();
+  paint();
+  clearInterval(timer);
+  timer = setInterval(tick, 1000);
+}
+
+function tick(){
+  S.left--;
+  if(S.left <= 0){ S.left = 0; paint(); finish(); return; }
+  paint();
+}
+
+function nextQ(){
+  S.q = makeQ();
+  S.input = "";
+  $("qTxt").textContent = S.q.txt;
+}
+
+function paint(){
+  $("timeV").textContent = S.left;
+  $("timeV").className = "v" + (S.left <= 10 ? " warn" : "");
+  $("scoreV").textContent = S.score;
+  $("hitV").textContent = S.hit;
+  var pct = cfg.tm ? (S.left / cfg.tm * 100) : 100;
+  var bi = $("barI");
+  bi.style.width = pct + "%";
+  bi.className = S.left <= 10 ? "warn" : "";
+  var at = $("ansTxt");
+  at.textContent = S.input === "" ? "?" : S.input;
+  at.className = "ans" + (S.input === "" ? " empty" : "");
+  $("comboTxt").textContent = S.combo >= 3 ? ("🔥 " + S.combo + "연속!") : "";
+}
+
+function flash(cls, cb){
+  var box = $("qbox");
+  box.classList.add(cls);
+  S.lock = true;
+  setTimeout(function(){
+    box.classList.remove(cls);
+    S.lock = false;
+    if(cb) cb();
+  }, 260);
+}
+
+function submit(){
+  if(S.lock || S.input === "") return;
+  var v = parseInt(S.input, 10);
+  if(v === S.q.ans){
+    S.hit++;
+    S.combo++;
+    if(S.combo > S.best) S.best = S.combo;
+    var bonus = Math.min(S.combo, 10) * 2;      // 연속 보너스 (최대 +20)
+    S.score += 10 + bonus + cfg.lv * 5;          // 난이도 보너스
+    flash("ok", function(){ nextQ(); paint(); });
+  }else{
+    S.miss++;
+    S.combo = 0;
+    S.wrongs.push(S.q.a + " " + OP_SIGN[S.q.op] + " " + S.q.b + " = " + S.q.ans + "  (내 답 " + v + ")");
+    S.left = Math.max(1, S.left - 3);            // 오답 −3초
+    flash("no", function(){ nextQ(); paint(); });
+  }
+  paint();
+}
+
+function key(k){
+  if(!S || S.lock) return;
+  if(k === "C"){ S.input = ""; paint(); return; }
+  if(k === "E"){ submit(); return; }
+  if(S.input.length >= 4) return;
+  if(S.input === "0") S.input = "";
+  S.input += k;
+  paint();
+  // 자릿수가 정답과 같아지면 자동 채점 — 아이가 확인 버튼을 안 눌러도 빠르게 진행
+  if(S.input.length >= String(S.q.ans).length) submit();
+}
+
+document.querySelector(".pad").addEventListener("click", function(e){
+  var b = e.target.closest(".key");
+  if(b) key(b.dataset.k);
+});
+document.addEventListener("keydown", function(e){
+  if($("play").classList.contains("hide")) return;
+  if(e.key >= "0" && e.key <= "9") key(e.key);
+  else if(e.key === "Enter") key("E");
+  else if(e.key === "Backspace" || e.key === "Escape") key("C");
+});
+
+function finish(){
+  clearInterval(timer);
+  var total = S.hit + S.miss;
+  var acc = total ? Math.round(S.hit / total * 100) : 0;
+  $("finalScore").textContent = S.score;
+  $("rHit").textContent = S.hit + "개";
+  $("rMiss").textContent = S.miss + "개";
+  $("rAcc").textContent = acc + "%";
+  $("rCombo").textContent = S.best + "연속";
+
+  var wl = $("wrongList");
+  if(S.wrongs.length){
+    $("wrongLabel").classList.remove("hide");
+    wl.innerHTML = S.wrongs.map(function(w){ return "<div>" + w + "</div>"; }).join("");
+  }else{
+    $("wrongLabel").classList.add("hide");
+    wl.innerHTML = "<div style='color:var(--green); font-weight:800;'>전부 다 맞혔어요! 대단해요 👏</div>";
+  }
+
+  var all = loadBest();
+  var k = bestKey();
+  if(!all[k] || S.score > all[k]){
+    all[k] = S.score;
+    saveBest(all);
+    $("newBest").classList.remove("hide");
+  }else{
+    $("newBest").classList.add("hide");
+  }
+
+  $("play").classList.add("hide");
+  $("over").classList.remove("hide");
+}
+
+$("startBtn").onclick = start;
+$("againBtn").onclick = start;
+$("homeBtn").onclick = function(){
+  $("over").classList.add("hide");
+  $("home").classList.remove("hide");
+  showBest();
+};
+$("quitBtn").onclick = function(e){ e.preventDefault(); finish(); };
+
+showBest();
+</script>
+</body>
+</html>

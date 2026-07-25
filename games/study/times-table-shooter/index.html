@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>구구단 슈팅</title>
+<style>
+  :root{
+    --blue:#4285F4; --red:#EA4335; --yellow:#FBBC05; --green:#34A853;
+    --bg:#f6f8fc; --card:#fff; --text:#202124; --sub:#5f6368; --border:#e0e3e7;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",-apple-system,BlinkMacSystemFont,sans-serif;
+    display:flex; justify-content:center; padding:14px;
+  }
+  .wrap{width:100%; max-width:460px;}
+  h1{font-size:24px; text-align:center; margin:6px 0 4px; letter-spacing:-1px;}
+  .tag{text-align:center; color:var(--sub); font-size:13px; margin:0 0 16px;}
+  .panel{background:var(--card); border:2px solid var(--border); border-radius:16px; padding:16px; margin-bottom:12px;}
+  .label{font-size:13px; font-weight:800; color:var(--sub); margin-bottom:8px;}
+  .opts{display:flex; flex-wrap:wrap; gap:7px;}
+  .opt{
+    flex:1 1 auto; min-width:52px; text-align:center; padding:11px 6px; border-radius:11px;
+    border:2px solid var(--border); background:#fff; font-size:15px; font-weight:700;
+    cursor:pointer; user-select:none;
+  }
+  .opt.on{border-color:var(--blue); background:#e8f0fe; color:var(--blue);}
+  .btn{
+    display:block; width:100%; padding:15px; border:none; border-radius:13px; background:var(--blue);
+    color:#fff; font-size:17px; font-weight:800; cursor:pointer; font-family:inherit;
+  }
+  .btn.ghost{background:#fff; color:var(--sub); border:2px solid var(--border);}
+  .hide{display:none !important;}
+  a.back{display:block; text-align:center; margin-top:14px; color:var(--sub); font-size:13px;}
+
+  /* play */
+  .hud{display:flex; gap:7px; margin-bottom:10px;}
+  .hud > div{flex:1; background:var(--card); border:2px solid var(--border); border-radius:12px; padding:8px 3px; text-align:center;}
+  .hud .k{font-size:11px; color:var(--sub); font-weight:700;}
+  .hud .v{font-size:18px; font-weight:800; margin-top:2px;}
+  #stage{
+    position:relative; width:100%; height:62vh; min-height:340px; overflow:hidden;
+    background:linear-gradient(#0b1b3a,#16305e 60%,#25406e);
+    border-radius:16px; border:2px solid #0b1b3a; touch-action:manipulation;
+  }
+  .star{position:absolute; width:2px; height:2px; background:#fff; opacity:.6; border-radius:50%;}
+  .qstrip{
+    display:flex; align-items:center; gap:10px; margin-bottom:8px;
+    background:#0b1b3a; border:2px solid #0b1b3a; border-radius:14px; padding:12px 14px;
+  }
+  #qbar{flex:1; text-align:center; color:#fff; font-size:27px; font-weight:800; letter-spacing:1px;}
+  .lifebar{font-size:16px; letter-spacing:1px;}
+  .bub{
+    position:absolute; width:58px; height:58px; margin-left:-29px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:21px; font-weight:800; color:#fff; cursor:pointer;
+    background:radial-gradient(circle at 32% 30%, #7aa8ff, #3163c4);
+    box-shadow:0 0 12px rgba(122,168,255,.5); border:2px solid #cfe0ff;
+  }
+  .bub.pop{animation:pop .22s ease-out forwards;}
+  @keyframes pop{to{transform:scale(1.7); opacity:0;}}
+  .bub.bad{background:radial-gradient(circle at 32% 30%, #ff9d95, #c62f22); border-color:#ffd7d3;}
+  #ship{
+    position:absolute; bottom:6px; left:50%; margin-left:-22px; width:44px; height:30px; z-index:4;
+    pointer-events:none; transition:left .12s;
+  }
+  #laser{
+    position:absolute; width:4px; background:#FBBC05; z-index:3; opacity:0;
+    box-shadow:0 0 10px #FBBC05; pointer-events:none; margin-left:-2px;
+  }
+  #laser.fire{opacity:1;}
+  .toast{
+    position:absolute; left:50%; top:46%; transform:translate(-50%,-50%);
+    font-size:30px; font-weight:800; color:#fff; text-shadow:0 2px 10px #000;
+    z-index:7; opacity:0; pointer-events:none; transition:opacity .15s;
+  }
+  .toast.show{opacity:1;}
+
+  /* result */
+  .big{font-size:46px; font-weight:800; text-align:center; color:var(--blue); line-height:1.1;}
+  .rows{margin:14px 0;}
+  .row{display:flex; justify-content:space-between; padding:9px 2px; border-bottom:1px solid var(--border); font-size:15px;}
+  .new{text-align:center; color:var(--red); font-weight:800; margin-bottom:8px;}
+  .wrongs{max-height:150px; overflow:auto; font-size:14px; color:var(--sub); line-height:1.9;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <section id="home">
+    <h1>🚀 구구단 슈팅</h1>
+    <p class="tag">내려오는 숫자 중에서 정답을 쏘세요!</p>
+
+    <div class="panel">
+      <div class="label">연습할 단 (여러 개 가능)</div>
+      <div class="opts" id="danBox">
+        <div class="opt" data-d="2">2단</div>
+        <div class="opt" data-d="3">3단</div>
+        <div class="opt" data-d="4">4단</div>
+        <div class="opt" data-d="5">5단</div>
+        <div class="opt" data-d="6">6단</div>
+        <div class="opt" data-d="7">7단</div>
+        <div class="opt" data-d="8">8단</div>
+        <div class="opt" data-d="9">9단</div>
+      </div>
+      <button class="btn ghost" id="allBtn" style="margin-top:9px; padding:10px; font-size:14px;">전체 선택 / 해제</button>
+    </div>
+
+    <div class="panel">
+      <div class="label">속도</div>
+      <div class="opts" id="spBox">
+        <div class="opt on" data-s="0">느리게</div>
+        <div class="opt" data-s="1">보통</div>
+        <div class="opt" data-s="2">빠르게</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="label">최고 기록</div>
+      <div id="bestTxt" style="font-size:15px; font-weight:700;">아직 없어요</div>
+    </div>
+
+    <button class="btn" id="startBtn">시작하기</button>
+    <a class="back" href="../../../">← 게임 목록</a>
+  </section>
+
+  <section id="play" class="hide">
+    <div class="hud">
+      <div><div class="k">점수</div><div class="v" id="scoreV">0</div></div>
+      <div><div class="k">맞힌 개수</div><div class="v" id="hitV">0</div></div>
+      <div><div class="k">단계</div><div class="v" id="lvV">1</div></div>
+    </div>
+    <div class="qstrip">
+      <div id="qbar">2 × 3 = ?</div>
+      <div class="lifebar" id="lifeV">❤️❤️❤️</div>
+    </div>
+    <div id="stage">
+      <div id="laser"></div>
+      <svg id="ship" viewBox="0 0 44 30">
+        <polygon points="22,0 34,26 22,20 10,26" fill="#FBBC05" stroke="#fff" stroke-width="1.5"/>
+      </svg>
+      <div class="toast" id="toast"></div>
+    </div>
+    <a class="back" href="#" id="quitBtn">그만하기</a>
+  </section>
+
+  <section id="over" class="hide">
+    <h1>결과</h1>
+    <div class="panel">
+      <div id="newBest" class="new hide">🎉 최고 기록 경신!</div>
+      <div class="big" id="finalScore">0</div>
+      <div style="text-align:center; color:var(--sub); font-size:13px; margin-top:4px;">점</div>
+      <div class="rows">
+        <div class="row"><span>맞힌 개수</span><b id="rHit">0</b></div>
+        <div class="row"><span>도달 단계</span><b id="rLv">1</b></div>
+      </div>
+      <div class="label" id="wrongLabel">헷갈렸던 구구단</div>
+      <div class="wrongs" id="wrongList"></div>
+    </div>
+    <button class="btn" id="againBtn">한 번 더</button>
+    <button class="btn ghost" id="homeBtn" style="margin-top:9px;">설정 바꾸기</button>
+    <a class="back" href="../../../">← 게임 목록</a>
+  </section>
+
+</div>
+
+<script>
+var $ = function(id){ return document.getElementById(id); };
+
+/* ---------- 저장소 (막혀 있으면 메모리로 대체) ---------- */
+var mem = {};
+function loadBest(){
+  try{ var r = localStorage.getItem("ttShooterBest"); if(r) return JSON.parse(r); }catch(e){}
+  return mem.best || {};
+}
+function saveBest(o){ mem.best = o; try{ localStorage.setItem("ttShooterBest", JSON.stringify(o)); }catch(e){} }
+
+/* ---------- 설정 ---------- */
+var SPEED = [62, 92, 130];           // px/sec 기본 낙하 속도
+var SPEED_NAME = ["느리게","보통","빠르게"];
+var cfg = { dans:[2,3,4,5], sp:0 };
+
+var danBox = $("danBox");
+[2,3,4,5].forEach(function(d){ danBox.querySelector('[data-d="'+d+'"]').classList.add("on"); });
+
+danBox.addEventListener("click", function(e){
+  var el = e.target.closest(".opt"); if(!el) return;
+  el.classList.toggle("on");
+  if(!danBox.querySelector(".opt.on")) el.classList.add("on");
+  readCfg();
+});
+$("allBtn").onclick = function(){
+  var allOn = danBox.querySelectorAll(".opt.on").length === 8;
+  danBox.querySelectorAll(".opt").forEach(function(o){ o.classList.toggle("on", !allOn); });
+  if(!danBox.querySelector(".opt.on")) danBox.querySelector('[data-d="2"]').classList.add("on");
+  readCfg();
+};
+$("spBox").addEventListener("click", function(e){
+  var el = e.target.closest(".opt"); if(!el) return;
+  $("spBox").querySelectorAll(".opt").forEach(function(o){ o.classList.remove("on"); });
+  el.classList.add("on"); readCfg();
+});
+function readCfg(){
+  cfg.dans = [].map.call(danBox.querySelectorAll(".opt.on"), function(o){ return +o.dataset.d; });
+  cfg.sp = +$("spBox").querySelector(".opt.on").dataset.s;
+  showBest();
+}
+function bestKey(){ return cfg.dans.slice().sort(function(a,b){return a-b;}).join(",") + "|" + cfg.sp; }
+function showBest(){
+  var b = loadBest()[bestKey()];
+  $("bestTxt").textContent = b ? (b + "점  (" + cfg.dans.join("·") + "단 · " + SPEED_NAME[cfg.sp] + ")") : "아직 없어요";
+}
+
+/* ---------- 별 배경 ---------- */
+var stage = $("stage");
+(function stars(){
+  for(var i=0;i<40;i++){
+    var s = document.createElement("div");
+    s.className = "star";
+    s.style.left = Math.random()*100 + "%";
+    s.style.top  = Math.random()*100 + "%";
+    s.style.opacity = (0.25 + Math.random()*0.6);
+    stage.appendChild(s);
+  }
+})();
+
+/* ---------- 게임 ---------- */
+var G = null, raf = null, lastT = 0;
+function ri(a,b){ return a + Math.floor(Math.random()*(b-a+1)); }
+
+function start(){
+  readCfg();
+  G = { score:0, hit:0, lv:1, life:3, bubbles:[], q:null, over:false, wrongs:{}, spawnLock:false };
+  $("home").classList.add("hide"); $("over").classList.add("hide"); $("play").classList.remove("hide");
+  stage.querySelectorAll(".bub").forEach(function(b){ b.remove(); });
+  hud();
+  setTimeout(nextQ, 60);   // 레이아웃이 잡힌 뒤 스폰
+  lastT = 0;
+  cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(loop);
+}
+
+function hud(){
+  $("scoreV").textContent = G.score;
+  $("hitV").textContent = G.hit;
+  $("lvV").textContent = G.lv;
+  $("lifeV").textContent = "❤️".repeat(G.life) + "🖤".repeat(3 - G.life);
+}
+
+function nextQ(){
+  if(!G || G.over) return;
+  var a = cfg.dans[ri(0, cfg.dans.length-1)];
+  var b = ri(1, 9);
+  G.q = { a:a, b:b, ans:a*b };
+  $("qbar").textContent = a + " × " + b + " = ?";
+  spawn();
+}
+
+function spawn(){
+  var ans = G.q.ans;
+  // 오답 후보: 인접한 곱셈 결과 위주로 만들어 진짜 헷갈리게
+  var pool = {};
+  pool[ans] = true;
+  var wrongs = [];
+  var tries = 0;
+  while(wrongs.length < 3 && tries < 60){
+    tries++;
+    var w;
+    var r = Math.random();
+    if(r < .45)      w = G.q.a * (G.q.b + (Math.random()<.5?1:-1));
+    else if(r < .8)  w = (G.q.a + (Math.random()<.5?1:-1)) * G.q.b;
+    else             w = ans + ri(-9, 9);
+    if(w > 0 && !pool[w]){ pool[w] = true; wrongs.push(w); }
+  }
+  var f = 1;
+  while(wrongs.length < 3){ f++; if(!pool[f]){ pool[f] = true; wrongs.push(f); } }
+
+  var vals = wrongs.concat([ans]);
+  for(var i = vals.length - 1; i > 0; i--){ var j = ri(0,i); var t = vals[i]; vals[i]=vals[j]; vals[j]=t; }
+
+  var W = stage.clientWidth;
+  var slots = [0.16, 0.38, 0.62, 0.84];
+  vals.forEach(function(v, i){
+    var el = document.createElement("div");
+    el.className = "bub";
+    el.textContent = v;
+    var x = W * slots[i];
+    el.style.left = x + "px";
+    el.style.top = (-62 - i * ri(8, 34)) + "px";
+    stage.appendChild(el);
+    G.bubbles.push({ el:el, v:v, x:x, y:parseFloat(el.style.top), ok:(v === G.q.ans) });
+  });
+}
+
+function clearBubbles(){
+  G.bubbles.forEach(function(b){ if(b.el.parentNode) b.el.remove(); });
+  G.bubbles = [];
+}
+
+function loop(t){
+  if(!G || G.over) return;
+  if(!lastT) lastT = t;
+  var dt = Math.min((t - lastT) / 1000, 0.05);
+  lastT = t;
+
+  var speed = SPEED[cfg.sp] * (1 + (G.lv - 1) * 0.16);
+  var H = stage.clientHeight;
+  var missed = false;
+
+  for(var i = G.bubbles.length - 1; i >= 0; i--){
+    var b = G.bubbles[i];
+    b.y += speed * dt;
+    b.el.style.top = b.y + "px";
+    if(b.y > H){
+      if(b.ok) missed = true;
+      b.el.remove();
+      G.bubbles.splice(i,1);
+    }
+  }
+  if(missed){ loseLife("놓쳤어요!"); }
+  raf = requestAnimationFrame(loop);
+}
+
+function fireAt(x, y, cb){
+  var ship = $("ship"), laser = $("laser");
+  var W = stage.clientWidth;
+  ship.style.left = Math.max(22, Math.min(W - 22, x)) + "px";
+  laser.style.left = x + "px";
+  laser.style.top = (y + 20) + "px";
+  laser.style.height = Math.max(0, stage.clientHeight - y - 26) + "px";
+  laser.classList.add("fire");
+  setTimeout(function(){ laser.classList.remove("fire"); if(cb) cb(); }, 110);
+}
+
+function toast(txt, color){
+  var el = $("toast");
+  el.textContent = txt;
+  el.style.color = color || "#fff";
+  el.classList.add("show");
+  setTimeout(function(){ el.classList.remove("show"); }, 500);
+}
+
+stage.addEventListener("click", function(e){
+  if(!G || G.over) return;
+  var el = e.target.closest(".bub");
+  if(!el) return;
+  var b = null;
+  for(var i=0;i<G.bubbles.length;i++){ if(G.bubbles[i].el === el){ b = G.bubbles[i]; break; } }
+  if(!b) return;
+
+  fireAt(b.x, b.y);
+  if(b.ok){
+    el.classList.add("pop");
+    G.hit++;
+    G.score += 10 + (G.lv - 1) * 2;
+    if(G.hit % 5 === 0){ G.lv++; toast("단계 " + G.lv + "!", "#FBBC05"); }
+    hud();
+    clearBubbles();
+    setTimeout(nextQ, 260);
+  }else{
+    el.classList.add("bad");
+    var k = G.q.a + " × " + G.q.b + " = " + G.q.ans;
+    G.wrongs[k] = (G.wrongs[k] || 0) + 1;
+    loseLife("땡! 정답은 " + G.q.ans);
+  }
+});
+
+function loseLife(msg){
+  G.life--;
+  hud();
+  toast(msg, "#EA4335");
+  clearBubbles();
+  if(G.life <= 0){ finish(); return; }
+  setTimeout(nextQ, 700);
+}
+
+function finish(){
+  if(!G || G.over) return;
+  G.over = true;
+  cancelAnimationFrame(raf);
+  clearBubbles();
+
+  $("finalScore").textContent = G.score;
+  $("rHit").textContent = G.hit + "개";
+  $("rLv").textContent = G.lv + "단계";
+
+  var ks = Object.keys(G.wrongs).sort(function(a,b){ return G.wrongs[b]-G.wrongs[a]; });
+  if(ks.length){
+    $("wrongLabel").classList.remove("hide");
+    $("wrongList").innerHTML = ks.map(function(k){
+      return "<div>" + k + (G.wrongs[k] > 1 ? "  <b style='color:#EA4335'>×" + G.wrongs[k] + "</b>" : "") + "</div>";
+    }).join("");
+  }else{
+    $("wrongLabel").classList.add("hide");
+    $("wrongList").innerHTML = "<div style='color:var(--green); font-weight:800;'>하나도 안 틀렸어요! 👏</div>";
+  }
+
+  var all = loadBest(), k2 = bestKey();
+  if(!all[k2] || G.score > all[k2]){ all[k2] = G.score; saveBest(all); $("newBest").classList.remove("hide"); }
+  else $("newBest").classList.add("hide");
+
+  $("play").classList.add("hide");
+  $("over").classList.remove("hide");
+}
+
+$("startBtn").onclick = start;
+$("againBtn").onclick = start;
+$("homeBtn").onclick = function(){ $("over").classList.add("hide"); $("home").classList.remove("hide"); showBest(); };
+$("quitBtn").onclick = function(e){ e.preventDefault(); finish(); };
+
+showBest();
+</script>
+</body>
+</html>

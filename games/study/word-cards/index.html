@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>영단어 카드 퀴즈</title>
+<style>
+  :root{
+    --blue:#4285F4; --red:#EA4335; --yellow:#FBBC05; --green:#34A853;
+    --bg:#f6f8fc; --card:#fff; --text:#202124; --sub:#5f6368; --border:#e0e3e7;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",-apple-system,BlinkMacSystemFont,sans-serif;
+    display:flex; justify-content:center; padding:14px;
+  }
+  .wrap{width:100%; max-width:460px;}
+  h1{font-size:24px; text-align:center; margin:6px 0 4px; letter-spacing:-1px;}
+  .tag{text-align:center; color:var(--sub); font-size:13px; margin:0 0 16px;}
+  .panel{background:var(--card); border:2px solid var(--border); border-radius:16px; padding:16px; margin-bottom:12px;}
+  .label{font-size:13px; font-weight:800; color:var(--sub); margin-bottom:8px;}
+  .opts{display:flex; flex-wrap:wrap; gap:7px;}
+  .opt{
+    flex:1 1 auto; min-width:70px; text-align:center; padding:11px 8px; border-radius:11px;
+    border:2px solid var(--border); background:#fff; font-size:14px; font-weight:700;
+    cursor:pointer; user-select:none;
+  }
+  .opt.on{border-color:var(--blue); background:#e8f0fe; color:var(--blue);}
+  .btn{
+    display:block; width:100%; padding:15px; border:none; border-radius:13px; background:var(--blue);
+    color:#fff; font-size:17px; font-weight:800; cursor:pointer; font-family:inherit;
+  }
+  .btn.ghost{background:#fff; color:var(--sub); border:2px solid var(--border);}
+  .hide{display:none !important;}
+  a.back{display:block; text-align:center; margin-top:14px; color:var(--sub); font-size:13px;}
+
+  .top{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+  .top .prog{flex:1; height:9px; background:#e6eaf0; border-radius:99px; overflow:hidden;}
+  .top .prog i{display:block; height:100%; background:var(--blue); width:0; transition:width .25s;}
+  .top .cnt{font-size:13px; font-weight:800; color:var(--sub); min-width:52px; text-align:right;}
+
+  /* 플래시카드 */
+  .flip{perspective:1000px; margin-bottom:14px;}
+  .flipInner{
+    position:relative; width:100%; height:230px; transition:transform .45s;
+    transform-style:preserve-3d; cursor:pointer;
+  }
+  .flip.on .flipInner{transform:rotateY(180deg);}
+  .face{
+    position:absolute; inset:0; backface-visibility:hidden;
+    background:var(--card); border:2px solid var(--border); border-radius:18px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:16px;
+  }
+  .face.back{transform:rotateY(180deg); background:#e8f0fe; border-color:var(--blue);}
+  .word{font-size:38px; font-weight:800; letter-spacing:-1px; word-break:break-all; text-align:center;}
+  .mean{font-size:32px; font-weight:800; color:var(--blue); text-align:center;}
+  .cat{font-size:12px; color:var(--sub); font-weight:700;}
+  .hint{font-size:12px; color:var(--sub);}
+  .spk{
+    border:2px solid var(--border); background:#fff; border-radius:99px; padding:7px 15px;
+    font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; color:var(--sub);
+  }
+  .navRow{display:flex; gap:9px;}
+  .navRow .btn{flex:1;}
+
+  /* 퀴즈 */
+  .qbox{
+    background:var(--card); border:2px solid var(--border); border-radius:18px;
+    padding:26px 14px; text-align:center; margin-bottom:12px;
+  }
+  .qword{font-size:34px; font-weight:800; word-break:break-all;}
+  .qsub{font-size:12px; color:var(--sub); margin-top:6px;}
+  .choices{display:grid; gap:9px;}
+  .choice{
+    padding:15px 12px; border-radius:13px; border:2px solid var(--border); background:#fff;
+    font-size:17px; font-weight:700; cursor:pointer; text-align:center; font-family:inherit; color:var(--text);
+  }
+  .choice.ok{border-color:var(--green); background:#e6f4ea; color:var(--green);}
+  .choice.no{border-color:var(--red); background:#fce8e6; color:var(--red);}
+  .choice:disabled{cursor:default;}
+
+  /* 결과 */
+  .big{font-size:46px; font-weight:800; text-align:center; color:var(--blue); line-height:1.1;}
+  .rows{margin:14px 0;}
+  .row{display:flex; justify-content:space-between; padding:9px 2px; border-bottom:1px solid var(--border); font-size:15px;}
+  .wrongs{max-height:190px; overflow:auto; font-size:15px; line-height:2;}
+  .wrongs b{color:var(--red);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <section id="home">
+    <h1>🔤 영단어 카드 퀴즈</h1>
+    <p class="tag">초등 3학년 수준 영단어 120개</p>
+
+    <div class="panel">
+      <div class="label">주제 (여러 개 가능)</div>
+      <div class="opts" id="catBox"></div>
+      <button class="btn ghost" id="allBtn" style="margin-top:9px; padding:10px; font-size:14px;">전체 선택 / 해제</button>
+    </div>
+
+    <div class="panel">
+      <div class="label">방식</div>
+      <div class="opts" id="modeBox">
+        <div class="opt on" data-m="card">📇 카드 외우기</div>
+        <div class="opt" data-m="e2k">영어 → 뜻</div>
+        <div class="opt" data-m="k2e">뜻 → 영어</div>
+      </div>
+      <div class="hint" style="margin-top:8px;" id="modeHint">카드를 눌러 뒤집으면서 단어를 외워요.</div>
+    </div>
+
+    <div class="panel">
+      <div class="label">문제 수</div>
+      <div class="opts" id="numBox">
+        <div class="opt on" data-n="10">10개</div>
+        <div class="opt" data-n="20">20개</div>
+        <div class="opt" data-n="0">전부</div>
+      </div>
+    </div>
+
+    <button class="btn" id="startBtn">시작하기</button>
+    <a class="back" href="../../../">← 게임 목록</a>
+  </section>
+
+  <!-- 카드 모드 -->
+  <section id="cardView" class="hide">
+    <div class="top">
+      <div class="prog"><i id="cProg"></i></div>
+      <div class="cnt" id="cCnt">1 / 10</div>
+    </div>
+    <div class="flip" id="flip">
+      <div class="flipInner">
+        <div class="face">
+          <div class="cat" id="cCat">동물</div>
+          <div class="word" id="cWord">apple</div>
+          <button class="spk" id="cSpk">🔊 발음 듣기</button>
+          <div class="hint">카드를 누르면 뜻이 나와요</div>
+        </div>
+        <div class="face back">
+          <div class="mean" id="cMean">사과</div>
+          <div class="hint">다시 누르면 단어로 돌아가요</div>
+        </div>
+      </div>
+    </div>
+    <div class="navRow">
+      <button class="btn ghost" id="cPrev">← 이전</button>
+      <button class="btn" id="cNext">다음 →</button>
+    </div>
+    <a class="back" href="#" id="cQuit">그만하기</a>
+  </section>
+
+  <!-- 퀴즈 모드 -->
+  <section id="quizView" class="hide">
+    <div class="top">
+      <div class="prog"><i id="qProg"></i></div>
+      <div class="cnt" id="qCnt">1 / 10</div>
+    </div>
+    <div class="qbox">
+      <div class="qword" id="qWord">apple</div>
+      <div class="qsub" id="qSub">알맞은 뜻을 고르세요</div>
+      <button class="spk" id="qSpk" style="margin-top:10px;">🔊 발음 듣기</button>
+    </div>
+    <div class="choices" id="choices"></div>
+    <a class="back" href="#" id="qQuit">그만하기</a>
+  </section>
+
+  <!-- 결과 -->
+  <section id="over" class="hide">
+    <h1>결과</h1>
+    <div class="panel">
+      <div class="big" id="finalScore">0</div>
+      <div style="text-align:center; color:var(--sub); font-size:13px; margin-top:4px;">점</div>
+      <div class="rows">
+        <div class="row"><span>맞힌 단어</span><b id="rHit">0</b></div>
+        <div class="row"><span>틀린 단어</span><b id="rMiss">0</b></div>
+      </div>
+      <div class="label" id="wrongLabel">틀린 단어 다시 보기</div>
+      <div class="wrongs" id="wrongList"></div>
+    </div>
+    <button class="btn" id="againBtn">한 번 더</button>
+    <button class="btn ghost" id="retryWrong" style="margin-top:9px;">틀린 단어만 다시</button>
+    <button class="btn ghost" id="homeBtn" style="margin-top:9px;">설정 바꾸기</button>
+    <a class="back" href="../../../">← 게임 목록</a>
+  </section>
+
+</div>
+
+<script>
+var $ = function(id){ return document.getElementById(id); };
+
+/* =========================================================
+   단어장 — 여기에 [영어, 뜻] 을 추가하면 바로 게임에 반영됩니다.
+   ========================================================= */
+var WORDS = {
+  "동물": [
+    ["dog","개"],["cat","고양이"],["rabbit","토끼"],["tiger","호랑이"],["lion","사자"],
+    ["bear","곰"],["monkey","원숭이"],["elephant","코끼리"],["bird","새"],["fish","물고기"],
+    ["horse","말"],["pig","돼지"],["cow","소"],["duck","오리"],["frog","개구리"]
+  ],
+  "음식": [
+    ["apple","사과"],["banana","바나나"],["bread","빵"],["milk","우유"],["water","물"],
+    ["rice","밥, 쌀"],["egg","달걀"],["meat","고기"],["candy","사탕"],["cake","케이크"],
+    ["juice","주스"],["soup","수프, 국"],["cheese","치즈"],["grape","포도"],["strawberry","딸기"]
+  ],
+  "학교": [
+    ["school","학교"],["teacher","선생님"],["student","학생"],["book","책"],["pencil","연필"],
+    ["eraser","지우개"],["desk","책상"],["chair","의자"],["bag","가방"],["ruler","자"],
+    ["classroom","교실"],["notebook","공책"],["friend","친구"],["study","공부하다"],["homework","숙제"]
+  ],
+  "몸·감정": [
+    ["head","머리"],["hand","손"],["foot","발"],["eye","눈"],["nose","코"],
+    ["mouth","입"],["ear","귀"],["hair","머리카락"],["happy","행복한"],["sad","슬픈"],
+    ["angry","화난"],["tired","피곤한"],["hungry","배고픈"],["sick","아픈"],["scared","무서운"]
+  ],
+  "색·숫자": [
+    ["red","빨강"],["blue","파랑"],["yellow","노랑"],["green","초록"],["black","검정"],
+    ["white","하양"],["pink","분홍"],["purple","보라"],["one","하나"],["two","둘"],
+    ["three","셋"],["four","넷"],["five","다섯"],["ten","열"],["hundred","백"]
+  ],
+  "집·물건": [
+    ["house","집"],["door","문"],["window","창문"],["table","탁자"],["bed","침대"],
+    ["clock","시계"],["phone","전화기"],["computer","컴퓨터"],["key","열쇠"],["box","상자"],
+    ["ball","공"],["toy","장난감"],["shoes","신발"],["hat","모자"],["clothes","옷"]
+  ],
+  "자연·날씨": [
+    ["sun","해"],["moon","달"],["star","별"],["sky","하늘"],["cloud","구름"],
+    ["rain","비"],["snow","눈"],["wind","바람"],["tree","나무"],["flower","꽃"],
+    ["mountain","산"],["sea","바다"],["river","강"],["hot","더운"],["cold","추운"]
+  ],
+  "동작": [
+    ["run","달리다"],["walk","걷다"],["jump","뛰다"],["eat","먹다"],["drink","마시다"],
+    ["sleep","자다"],["read","읽다"],["write","쓰다"],["sing","노래하다"],["play","놀다"],
+    ["swim","수영하다"],["look","보다"],["listen","듣다"],["open","열다"],["help","돕다"]
+  ]
+};
+
+var CATS = Object.keys(WORDS);
+var ALL = [];
+CATS.forEach(function(c){ WORDS[c].forEach(function(w){ ALL.push({ en:w[0], ko:w[1], cat:c }); }); });
+
+/* ---------- 설정 UI ---------- */
+var catBox = $("catBox");
+CATS.forEach(function(c, i){
+  var d = document.createElement("div");
+  d.className = "opt" + (i < 3 ? " on" : "");
+  d.dataset.c = c;
+  d.textContent = c;
+  catBox.appendChild(d);
+});
+catBox.addEventListener("click", function(e){
+  var el = e.target.closest(".opt"); if(!el) return;
+  el.classList.toggle("on");
+  if(!catBox.querySelector(".opt.on")) el.classList.add("on");
+});
+$("allBtn").onclick = function(){
+  var allOn = catBox.querySelectorAll(".opt.on").length === CATS.length;
+  catBox.querySelectorAll(".opt").forEach(function(o){ o.classList.toggle("on", !allOn); });
+  if(!catBox.querySelector(".opt.on")) catBox.querySelector(".opt").classList.add("on");
+};
+function pickOne(boxId){
+  $(boxId).addEventListener("click", function(e){
+    var el = e.target.closest(".opt"); if(!el) return;
+    $(boxId).querySelectorAll(".opt").forEach(function(o){ o.classList.remove("on"); });
+    el.classList.add("on");
+    if(boxId === "modeBox"){
+      var m = el.dataset.m;
+      $("modeHint").textContent =
+        m === "card" ? "카드를 눌러 뒤집으면서 단어를 외워요." :
+        m === "e2k"  ? "영어 단어를 보고 알맞은 뜻을 고릅니다." :
+                       "한글 뜻을 보고 알맞은 영어 단어를 고릅니다.";
+    }
+  });
+}
+pickOne("modeBox"); pickOne("numBox");
+
+/* ---------- 발음 (지원 안 되면 조용히 무시) ---------- */
+function speak(text){
+  try{
+    if(!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    var u = new SpeechSynthesisUtterance(text);
+    u.lang = "en-US"; u.rate = 0.85;
+    window.speechSynthesis.speak(u);
+  }catch(e){}
+}
+
+/* ---------- 공통 ---------- */
+function shuffle(arr){
+  var a = arr.slice();
+  for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; }
+  return a;
+}
+var S = null;
+
+function selectedWords(){
+  var cats = [].map.call(catBox.querySelectorAll(".opt.on"), function(o){ return o.dataset.c; });
+  return ALL.filter(function(w){ return cats.indexOf(w.cat) >= 0; });
+}
+
+function start(list){
+  var mode = $("modeBox").querySelector(".opt.on").dataset.m;
+  var n = +$("numBox").querySelector(".opt.on").dataset.n;
+  var pool = list || shuffle(selectedWords());
+  if(!list && n > 0) pool = pool.slice(0, n);
+  if(!pool.length){ return; }
+
+  S = { mode:mode, list:pool, i:0, hit:0, miss:0, wrongs:[], lock:false };
+  $("home").classList.add("hide"); $("over").classList.add("hide");
+  if(mode === "card"){
+    $("quizView").classList.add("hide");
+    $("cardView").classList.remove("hide");
+    showCard();
+  }else{
+    $("cardView").classList.add("hide");
+    $("quizView").classList.remove("hide");
+    showQuiz();
+  }
+}
+
+/* ---------- 카드 모드 ---------- */
+function showCard(){
+  var w = S.list[S.i];
+  $("flip").classList.remove("on");
+  $("cWord").textContent = w.en;
+  $("cMean").textContent = w.ko;
+  $("cCat").textContent = w.cat;
+  $("cCnt").textContent = (S.i+1) + " / " + S.list.length;
+  $("cProg").style.width = ((S.i+1)/S.list.length*100) + "%";
+  $("cNext").textContent = (S.i === S.list.length-1) ? "다 외웠어요 ✓" : "다음 →";
+}
+$("flip").onclick = function(e){
+  if(e.target.closest(".spk")) return;
+  $("flip").classList.toggle("on");
+};
+$("cSpk").onclick = function(e){ e.stopPropagation(); speak(S.list[S.i].en); };
+$("cPrev").onclick = function(){ if(S.i > 0){ S.i--; showCard(); } };
+$("cNext").onclick = function(){
+  if(S.i < S.list.length-1){ S.i++; showCard(); }
+  else{
+    $("cardView").classList.add("hide");
+    $("home").classList.remove("hide");
+  }
+};
+$("cQuit").onclick = function(e){
+  e.preventDefault();
+  $("cardView").classList.add("hide");
+  $("home").classList.remove("hide");
+};
+
+/* ---------- 퀴즈 모드 ---------- */
+function showQuiz(){
+  S.lock = false;
+  var w = S.list[S.i];
+  var e2k = (S.mode === "e2k");
+  $("qWord").textContent = e2k ? w.en : w.ko;
+  $("qSub").textContent = e2k ? "알맞은 뜻을 고르세요" : "알맞은 영어 단어를 고르세요";
+  $("qSpk").classList.toggle("hide", !e2k);
+  $("qCnt").textContent = (S.i+1) + " / " + S.list.length;
+  $("qProg").style.width = ((S.i+1)/S.list.length*100) + "%";
+
+  // 오답 보기는 같은 주제에서 우선 뽑아 난이도를 올린다
+  var same = ALL.filter(function(x){ return x.cat === w.cat && x.en !== w.en; });
+  var others = shuffle(same.length >= 3 ? same : ALL.filter(function(x){ return x.en !== w.en; })).slice(0,3);
+  var choices = shuffle(others.concat([w]));
+
+  var box = $("choices");
+  box.innerHTML = "";
+  choices.forEach(function(c){
+    var b = document.createElement("button");
+    b.className = "choice";
+    b.textContent = e2k ? c.ko : c.en;
+    b.onclick = function(){ answer(b, c, w); };
+    box.appendChild(b);
+  });
+}
+function answer(btn, picked, correct){
+  if(S.lock) return;
+  S.lock = true;
+  var e2k = (S.mode === "e2k");
+  var buttons = $("choices").querySelectorAll(".choice");
+  buttons.forEach(function(b){
+    b.disabled = true;
+    if(b.textContent === (e2k ? correct.ko : correct.en)) b.classList.add("ok");
+  });
+  if(picked.en === correct.en){
+    S.hit++;
+  }else{
+    S.miss++;
+    btn.classList.add("no");
+    S.wrongs.push(correct);
+  }
+  setTimeout(function(){
+    if(S.i < S.list.length-1){ S.i++; showQuiz(); }
+    else finish();
+  }, picked.en === correct.en ? 450 : 950);
+}
+$("qSpk").onclick = function(){ speak(S.list[S.i].en); };
+$("qQuit").onclick = function(e){ e.preventDefault(); finish(); };
+
+function finish(){
+  var total = S.hit + S.miss;
+  $("finalScore").textContent = total ? Math.round(S.hit/total*100) : 0;
+  $("rHit").textContent = S.hit + "개";
+  $("rMiss").textContent = S.miss + "개";
+  if(S.wrongs.length){
+    $("wrongLabel").classList.remove("hide");
+    $("retryWrong").classList.remove("hide");
+    $("wrongList").innerHTML = S.wrongs.map(function(w){
+      return "<div><b>" + w.en + "</b> — " + w.ko + "</div>";
+    }).join("");
+  }else{
+    $("wrongLabel").classList.add("hide");
+    $("retryWrong").classList.add("hide");
+    $("wrongList").innerHTML = "<div style='color:var(--green); font-weight:800;'>전부 다 맞혔어요! 👏</div>";
+  }
+  $("quizView").classList.add("hide");
+  $("over").classList.remove("hide");
+}
+
+$("startBtn").onclick = function(){ start(null); };
+$("againBtn").onclick = function(){ start(null); };
+$("retryWrong").onclick = function(){ start(shuffle(S.wrongs)); };
+$("homeBtn").onclick = function(){ $("over").classList.add("hide"); $("home").classList.remove("hide"); };
+</script>
+</body>
+</html>
