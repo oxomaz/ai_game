@@ -111,6 +111,8 @@ input[type=text]:focus{border-color:#7dd3fc}
   #rot.hide{display:none}
 }
 @keyframes tilt{0%,45%{transform:rotate(0)}55%,100%{transform:rotate(90deg)}}
+  a.hub-link{display:block;text-align:center;margin:10px auto 0;padding:4px;color:#8a94a6;font-size:13px;text-decoration:none;font-family:inherit;}
+  a.hub-link:hover{text-decoration:underline;}
 </style>
 </head>
 <body>
@@ -142,7 +144,7 @@ input[type=text]:focus{border-color:#7dd3fc}
   </div>
 
   <!-- 타이틀 -->
-  <div class="screen on" id="scTitle"><div class="sc-body" style="justify-content:center">
+  <div class="screen on" id="scTitle"><div class="sc-body" style="justify-content:safe center">
     <h1>점프맵 100</h1>
     <div class="sub">발판을 밟고 장애물을 피해 도착 지점까지!<br>레벨 1부터 100까지, 갈수록 점점 더 어려워집니다.</div>
     <div class="row">
@@ -153,6 +155,7 @@ input[type=text]:focus{border-color:#7dd3fc}
       <div><kbd>←</kbd><kbd>→</kbd> 이동</div><div><kbd>Space</kbd> 점프</div><div><kbd>R</kbd> 재시작</div><div><kbd>ESC</kbd> 목록</div>
     </div>
     <div class="sub" style="margin-top:1.6em;font-size:.9em">점프 키를 짧게 누르면 낮게, 길게 누르면 높게 뜁니다.<br>발판 끝에서 살짝 늦게 눌러도 점프가 됩니다.</div>
+    <a class="hub-link" href="../../../">← 게임 목록</a>
   </div></div>
 
   <!-- 프로필 선택 -->
@@ -202,7 +205,7 @@ input[type=text]:focus{border-color:#7dd3fc}
   </div></div>
 
   <!-- 클리어 -->
-  <div class="screen" id="scClear"><div class="sc-body" style="justify-content:center">
+  <div class="screen" id="scClear"><div class="sc-body" style="justify-content:safe center">
     <h1 style="font-size:2.6em">클리어!</h1>
     <div class="sub" id="clLv">레벨 1</div>
     <div class="starrow" id="clStars">☆☆☆</div>

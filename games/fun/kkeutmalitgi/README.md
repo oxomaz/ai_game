@@ -3,7 +3,7 @@
 앞사람이 말한 단어의 **마지막 글자로 시작하는 단어**를 이어 말하는 고전 단어 게임입니다.
 컴퓨터와 1:1로 겨루거나, 한 화면에서 최대 8명이 돌아가며 즐길 수 있습니다.
 
-**▶ 플레이: https://oxomaz.github.io/ai_game/games/fun/kkeutmalitgi/**
+**▶ 플레이: https://oxomaz.github.io/jerry-games/games/fun/kkeutmalitgi/**
 
 ## 모드
 

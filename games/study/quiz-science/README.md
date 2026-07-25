@@ -2,7 +2,7 @@
 
 O/X와 4지선다가 섞인 상식 퀴즈입니다. **문제마다 왜 그런지 해설**이 나옵니다.
 
-**▶ 플레이: https://oxomaz.github.io/ai_game/games/study/quiz-science/**
+**▶ 플레이: https://oxomaz.github.io/jerry-games/games/study/quiz-science/**
 
 ## 특징
 

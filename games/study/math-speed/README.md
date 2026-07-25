@@ -2,7 +2,7 @@
 
 제한 시간 안에 사칙연산 문제를 **최대한 많이** 푸는 게임입니다.
 
-**▶ 플레이: https://oxomaz.github.io/ai_game/games/study/math-speed/**
+**▶ 플레이: https://oxomaz.github.io/jerry-games/games/study/math-speed/**
 
 ## 특징
 

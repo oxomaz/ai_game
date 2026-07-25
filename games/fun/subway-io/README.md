@@ -3,7 +3,7 @@
 승객을 태워 편성을 늘리고, 다른 열차와 부딪히지 않게 피해 다니는 **slither.io 방식의 지하철 게임**입니다.
 지렁이 대신 지하철 열차가 달리고, 몸통이 길어질수록 편성 칸수가 늘어납니다.
 
-**▶ 플레이: https://oxomaz.github.io/ai_game/games/fun/subway-io/**
+**▶ 플레이: https://oxomaz.github.io/jerry-games/games/fun/subway-io/**
 
 ## 열차 고르기
 
