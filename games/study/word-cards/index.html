@@ -703,6 +703,10 @@ function finish(){
   $("quizView").classList.add("hide");
   $("over").classList.remove("hide");
   if(window.Versus && Versus.active()) Versus.finish(S.hit);
+  if(window.Records && S.wrongs.length)
+    Records.note("word-cards", S.wrongs.slice(0, 50).map(function(w){
+      return { q: w.en, a: w.ko, my: "" };
+    }));
 
   var info = saveRecord();
   if(info){
