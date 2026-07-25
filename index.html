@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>미니 게임 모음</title>
+<style>
+  :root{
+    --blue:#4285F4; --red:#EA4335; --yellow:#FBBC05; --green:#34A853;
+    --bg:#f6f8fc; --card:#ffffff; --text:#202124; --sub:#5f6368; --border:#e0e3e7;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",-apple-system,BlinkMacSystemFont,sans-serif;
+    display:flex; justify-content:center; padding:40px 16px;
+  }
+  .wrap{width:100%; max-width:640px;}
+  .logo{text-align:center; font-size:34px; font-weight:800; letter-spacing:-1px; margin-bottom:8px;}
+  .logo span:nth-child(1){color:var(--blue);}
+  .logo span:nth-child(2){color:var(--red);}
+  .logo span:nth-child(3){color:var(--yellow);}
+  .logo span:nth-child(4){color:var(--blue);}
+  .logo span:nth-child(5){color:var(--green);}
+  p.sub{text-align:center; color:var(--sub); margin:0 0 28px; font-size:14px;}
+  .grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:14px;}
+  a.card{
+    display:block; background:var(--card); border:2px solid var(--border); border-radius:14px;
+    padding:20px; text-decoration:none; color:var(--text); transition:.15s;
+  }
+  a.card:hover{border-color:var(--blue); transform:translateY(-2px); box-shadow:0 4px 14px rgba(60,64,67,.1);}
+  a.card .emoji{font-size:32px; margin-bottom:8px; display:block;}
+  a.card .title{font-weight:800; font-size:16px; margin-bottom:4px;}
+  a.card .desc{font-size:12.5px; color:var(--sub); line-height:1.5;}
+  footer{text-align:center; margin-top:32px; font-size:12px; color:var(--sub);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo"><span>미</span><span>니</span><span>게</span><span>임</span></div>
+  <p class="sub">여기서 바로 플레이할 수 있는 게임 모음이에요.</p>
+  <div class="grid" id="grid"></div>
+  <footer>새 게임은 <code>games/</code> 폴더에 계속 추가됩니다.</footer>
+</div>
+<script>
+  // 새 게임을 추가하면 여기에 한 줄씩 등록하세요.
+  const GAMES = [
+    { path: "games/kkeutmalitgi/",  emoji: "🔤", title: "끝말잇기",     desc: "컴퓨터와 3단계 난이도로 대결하거나, 최대 8명이 한 화면에서 돌아가며 단어 잇기" },
+    { path: "games/hidden-object/", emoji: "🔍", title: "숨은그림찾기", desc: "매판 새로 그려지는 그림판에서 목표 찾기. 혼자서도, 둘이서 버저 대결로도" },
+    { path: "games/set/",           emoji: "🃏", title: "SET 카드게임", desc: "네 속성이 모두 같거나 모두 다른 세 장 찾기. 규칙 설명과 연습 문제부터 시작" },
+    { path: "games/jump-map/",      emoji: "🏃", title: "점프맵 100",   desc: "1~100단계 파쿠르 점프맵. 닉네임별 기록 · 캐릭터 12종 · 별 수집" }
+  ];
+  const grid = document.getElementById("grid");
+  GAMES.forEach(g=>{
+    const a = document.createElement("a");
+    a.className = "card";
+    a.href = g.path;
+    a.innerHTML = `<span class="emoji">${g.emoji}</span><div class="title">${g.title}</div><div class="desc">${g.desc}</div>`;
+    grid.appendChild(a);
+  });
+</script>
+</body>
+</html>

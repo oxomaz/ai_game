@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SET 카드게임</title>
+<style>
+  :root{
+    --bg:#f4f1ea;
+    --panel:#fffdf8;
+    --ink:#2f2a26;
+    --muted:#8b8178;
+    --line:#e3ddd1;
+    --p1:#f2913d;
+    --p2:#3f9ad8;
+    --ok:#37a35f;
+    --no:#e04c4c;
+    --radius:16px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,-apple-system,sans-serif;
+    background:var(--bg); color:var(--ink);
+    min-height:100vh; overflow-x:hidden;
+  }
+  button{font-family:inherit; cursor:pointer; border:none; background:none; color:inherit;}
+
+  /* ---------- 화면 전환 ---------- */
+  .screen{display:none; animation:fadeIn .35s ease;}
+  .screen.on{display:block;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  .wrap{max-width:1120px; margin:0 auto; padding:16px;}
+  #scr-game .wrap{max-width:940px; padding:12px 14px 20px;}
+  #scr-home .wrap{max-width:620px;}
+
+  /* ---------- 시작 화면 ---------- */
+  .hero{text-align:center; padding:28px 0 10px;}
+  .hero h1{font-size:clamp(34px,7vw,58px); margin:0 0 6px; letter-spacing:-1px;}
+  .hero h1 span{color:var(--p1);}
+  .hero p{margin:0; color:var(--muted); font-size:15px;}
+  .demo-row{display:flex; gap:10px; justify-content:center; margin:18px 0 8px; flex-wrap:wrap;}
+  .demo-row .card{width:74px;}
+
+  .setup{background:var(--panel); border:1px solid var(--line); border-radius:22px; padding:20px; margin-top:14px;
+         box-shadow:0 6px 22px rgba(90,75,55,.07);}
+  .setup h3{margin:0 0 10px; font-size:15px; color:var(--muted); font-weight:700;}
+  .opts{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px;}
+  .opt{border:2px solid var(--line); background:#fff; border-radius:14px; padding:13px 14px; text-align:left; transition:.15s;}
+  .opt b{display:block; font-size:16px; margin-bottom:3px;}
+  .opt small{color:var(--muted); font-size:12.5px; line-height:1.45; display:block;}
+  .opt:hover{border-color:#cfc6b6;}
+  .opt.sel{border-color:var(--p1); background:#fff6ec;}
+  .names{display:none; gap:10px; margin-bottom:20px;}
+  .names.on{display:flex;}
+  .names label{flex:1; font-size:12.5px; color:var(--muted); font-weight:700;}
+  .names input{width:100%; margin-top:5px; padding:11px 12px; border-radius:11px; border:2px solid var(--line);
+               font-size:16px; font-family:inherit; background:#fff; color:var(--ink);}
+  .names input:focus{outline:none; border-color:var(--p1);}
+  .big-btn{width:100%; padding:17px; border-radius:15px; background:var(--ink); color:#fff; font-size:19px; font-weight:800;
+           transition:.15s; box-shadow:0 4px 0 #1a1613;}
+  .big-btn:active{transform:translateY(3px); box-shadow:0 1px 0 #1a1613;}
+  .link-row{display:flex; gap:8px; justify-content:center; margin-top:14px; flex-wrap:wrap;}
+  .link{font-size:13.5px; color:var(--muted); text-decoration:underline; padding:6px 8px; font-weight:600;}
+  .best{margin-top:14px; text-align:center; font-size:13px; color:var(--muted); line-height:1.7;}
+
+  /* ---------- 게임 화면 ---------- */
+  .topbar{display:flex; align-items:center; gap:8px; justify-content:space-between; margin-bottom:10px;}
+  .icon-btn{padding:8px 12px; border-radius:10px; background:#fff; border:1px solid var(--line); font-size:13px; font-weight:700;}
+  .icon-btn:active{transform:scale(.96);}
+  .deck-info{font-size:13px; color:var(--muted); font-weight:700;}
+
+  .players{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:0 auto 12px;
+           max-width:var(--boardw,680px); }
+  .players.solo{grid-template-columns:1fr;}
+  .pbtn{border-radius:16px; padding:10px 12px; border:3px solid transparent; background:#fff; text-align:center;
+        transition:.15s; position:relative; overflow:hidden; box-shadow:0 3px 0 rgba(0,0,0,.06);}
+  .pbtn .pname{font-size:13.5px; font-weight:800; opacity:.85;}
+  .pbtn .pscore{font-size:28px; font-weight:900; line-height:1.15;}
+  .pbtn .phint{font-size:11.5px; color:var(--muted); margin-top:2px;}
+  .pbtn[data-p="1"]{border-color:var(--p1); color:var(--p1);}
+  .pbtn[data-p="2"]{border-color:var(--p2); color:var(--p2);}
+  .pbtn.active{color:#fff; transform:scale(1.02);}
+  .pbtn[data-p="1"].active{background:var(--p1);}
+  .pbtn[data-p="2"].active{background:var(--p2);}
+  .pbtn.active .phint{color:rgba(255,255,255,.85);}
+  .pbtn.locked{opacity:.35; pointer-events:none;}
+  .pbtn:active{transform:scale(.98);}
+  .timerbar{position:absolute; left:0; bottom:0; height:5px; width:100%; background:rgba(255,255,255,.65); transform-origin:left;}
+
+  .board{display:grid; grid-template-columns:repeat(var(--cols,4),1fr); gap:10px; margin:4px auto 14px;
+         max-width:var(--boardw,680px);}
+  .toolrow, .msg{max-width:var(--boardw,680px); margin-left:auto; margin-right:auto;}
+  @media(max-width:640px){
+    .board{grid-template-columns:repeat(3,1fr); gap:7px; max-width:none;}
+    .players, .toolrow, .msg{max-width:none;}
+  }
+
+  .card{position:relative; background:#fff; border-radius:13px; border:2px solid var(--line); aspect-ratio:5/7;
+        display:flex; align-items:center; justify-content:center; cursor:pointer; transition:transform .12s, box-shadow .12s, border-color .12s;
+        box-shadow:0 2px 6px rgba(90,75,55,.08); animation:pop .28s ease backwards;}
+  .card svg{width:82%; height:82%;}
+  .card:hover{transform:translateY(-3px);}
+  .card.sel{border-color:var(--ink); transform:translateY(-5px); box-shadow:0 8px 16px rgba(0,0,0,.16);}
+  .card.sel::after{content:"✓"; position:absolute; top:4px; right:6px; font-size:13px; font-weight:900; color:var(--ink);}
+  .card.hintglow{border-color:#f5c542; box-shadow:0 0 0 4px rgba(245,197,66,.35); animation:glow 1s ease-in-out infinite alternate;}
+  @keyframes glow{from{box-shadow:0 0 0 3px rgba(245,197,66,.25)}to{box-shadow:0 0 0 7px rgba(245,197,66,.45)}}
+  .card.good{border-color:var(--ok); animation:goodPop .5s ease forwards;}
+  .card.bad{border-color:var(--no); animation:shake .4s ease;}
+  .card.dim{opacity:.35;}
+  @keyframes pop{from{opacity:0; transform:scale(.85)}to{opacity:1; transform:none}}
+  @keyframes goodPop{0%{transform:scale(1)}35%{transform:scale(1.12) rotate(2deg)}100%{transform:scale(.2); opacity:0}}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+
+  .toolrow{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:10px;}
+  .tool{padding:11px 16px; border-radius:13px; background:#fff; border:2px solid var(--line); font-size:14px; font-weight:700;}
+  .tool:active{transform:scale(.96);}
+  .tool.warn{border-color:#f0d089; background:#fff9e9;}
+
+  .msg{min-height:56px; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px 14px;
+       font-size:14.5px; line-height:1.6; text-align:center; color:var(--muted); display:flex; align-items:center; justify-content:center;}
+  .msg.good{color:var(--ok); border-color:#bfe3cb; background:#f2fbf5; font-weight:700;}
+  .msg.bad{color:var(--no); border-color:#f2c9c9; background:#fef4f4;}
+  .msg b{color:var(--ink);}
+
+  /* ---------- 오버레이 ---------- */
+  .overlay{position:fixed; inset:0; background:rgba(47,42,38,.55); display:none; align-items:center; justify-content:center; padding:18px; z-index:60;}
+  .overlay.on{display:flex;}
+  .sheet{background:var(--panel); border-radius:22px; padding:24px; max-width:520px; width:100%; max-height:86vh; overflow:auto;
+         box-shadow:0 20px 50px rgba(0,0,0,.25); animation:rise .3s ease;}
+  @keyframes rise{from{opacity:0; transform:translateY(24px)}to{opacity:1; transform:none}}
+  .sheet h2{margin:0 0 12px; font-size:24px;}
+  .sheet p, .sheet li{font-size:14.5px; line-height:1.75; color:#4a433c;}
+  .sheet ul{padding-left:20px;}
+  .rule-demo{display:flex; gap:8px; align-items:center; margin:10px 0 4px; flex-wrap:wrap;}
+  .rule-demo .card{width:62px; aspect-ratio:5/7; animation:none;}
+  .tag{display:inline-block; padding:3px 9px; border-radius:8px; font-size:12px; font-weight:800; margin-bottom:4px;}
+  .tag.y{background:#e6f6ec; color:var(--ok);}
+  .tag.n{background:#fdeceb; color:var(--no);}
+  .winner{text-align:center;}
+  .winner .trophy{font-size:56px;}
+  .winner h2{font-size:28px; margin:6px 0 10px;}
+  .scoreline{font-size:17px; font-weight:800; margin:6px 0;}
+
+  .confetti{position:fixed; width:9px; height:15px; z-index:100; pointer-events:none; border-radius:2px;}
+</style>
+</head>
+<body>
+
+<!-- 줄무늬 패턴 defs -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs id="patdefs"></defs></svg>
+
+<!-- ============ 시작 화면 ============ -->
+<div class="screen on" id="scr-home">
+  <div class="wrap">
+    <div class="hero">
+      <h1>S<span>E</span>T</h1>
+      <p>같은 것끼리, 아니면 전부 다르게! 세 장을 찾아보세요</p>
+      <div class="demo-row" id="demoRow"></div>
+    </div>
+
+    <div class="setup">
+      <h3>난이도</h3>
+      <div class="opts" id="optDiff">
+        <button class="opt sel" data-v="easy"><b>🌱 쉬움 (27장)</b><small>무늬는 모두 같아요. 색·모양·개수 3가지만 보면 돼요</small></button>
+        <button class="opt" data-v="full"><b>🔥 정식 (81장)</b><small>색·모양·개수·무늬 4가지 모두 맞춰야 해요</small></button>
+      </div>
+
+      <h3>플레이 방식</h3>
+      <div class="opts" id="optMode">
+        <button class="opt sel" data-v="vs"><b>👨‍👧 2인 대전</b><small>버튼을 먼저 누른 사람이 카드를 고릅니다</small></button>
+        <button class="opt" data-v="solo"><b>🧘 혼자 연습</b><small>시간 재면서 덱을 모두 비워보세요</small></button>
+      </div>
+
+      <div class="names on" id="nameRow">
+        <label>플레이어 1 <input id="n1" maxlength="6" value="아빠"></label>
+        <label>플레이어 2 <input id="n2" maxlength="6" value="우리아이"></label>
+      </div>
+
+      <button class="big-btn" id="btnStart">게임 시작하기</button>
+      <div class="link-row">
+        <button class="link" id="btnRules">📖 규칙 보기</button>
+        <button class="link" id="btnTutorial">🎓 연습 문제</button>
+        <button class="link" id="btnSound">🔊 소리 켜짐</button>
+      </div>
+      <div class="best" id="bestBox"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 게임 화면 ============ -->
+<div class="screen" id="scr-game">
+  <div class="wrap">
+    <div class="topbar">
+      <button class="icon-btn" id="btnHome">← 나가기</button>
+      <div class="deck-info" id="deckInfo"></div>
+      <button class="icon-btn" id="btnRules2">📖 규칙</button>
+    </div>
+
+    <div class="players" id="players"></div>
+    <div class="board" id="board"></div>
+
+    <div class="toolrow">
+      <button class="tool" id="btnHint">💡 힌트</button>
+      <button class="tool warn" id="btnNoSet">🙅 SET 없어요</button>
+    </div>
+
+    <div class="msg" id="msg">준비됐어요! SET 세 장을 찾아보세요 🔍</div>
+  </div>
+</div>
+
+<!-- ============ 오버레이 ============ -->
+<div class="overlay" id="ov"><div class="sheet" id="ovBody"></div></div>
+
+<script>
+/* =========================================================
+   1. 기본 데이터 & 카드 그리기
+   ========================================================= */
+const COLORS = ['#e0393e', '#2b9e57', '#8b4fd1'];          // 빨강 초록 보라
+const COLOR_KO = ['빨강', '초록', '보라'];
+const SHAPE_KO = ['마름모', '물결', '타원'];
+const NUM_KO   = ['1개', '2개', '3개'];
+const SHADE_KO = ['꽉 참', '줄무늬', '비어 있음'];
+const ATTR_KO  = ['색깔', '모양', '개수', '무늬'];
+
+const PATHS = [
+  // 마름모
+  'M50,1 L99,25 L50,49 L1,25 Z',
+  // 물결(스퀴글)
+  'M6,31 C6,11 26,3 46,11 C61,17 76,19 89,11 C99,4 99,21 95,29 C88,45 65,50 45,42 C30,36 19,36 11,44 C5,49 6,39 6,31 Z',
+  // 타원
+  'M25,1 H75 A24,24 0 0 1 75,49 H25 A24,24 0 0 1 25,1 Z'
+];
+
+// 줄무늬 패턴 주입
+(function(){
+  const d = document.getElementById('patdefs');
+  COLORS.forEach((c,i)=>{
+    d.insertAdjacentHTML('beforeend',
+      `<pattern id="stripe${i}" width="6" height="6" patternUnits="userSpaceOnUse">
+         <rect width="6" height="6" fill="#ffffff"/>
+         <line x1="0" y1="1" x2="6" y2="1" stroke="${c}" stroke-width="2.2"/>
+       </pattern>`);
+  });
+})();
+
+// 카드 = {c: 색, s: 모양, n: 개수(0=1개), f: 무늬}
+function cardSVG(card){
+  const color = COLORS[card.c];
+  const path  = PATHS[card.s];
+  const count = card.n + 1;
+  const fill  = card.f === 0 ? color : (card.f === 1 ? `url(#stripe${card.c})` : '#ffffff');
+  const SW = 76, SH = 38, GAP = 11;
+  const totalH = count*SH + (count-1)*GAP;
+  let y = (180 - totalH)/2, g = '';
+  for (let i=0;i<count;i++){
+    g += `<g transform="translate(22,${y}) scale(0.76)">
+            <path d="${path}" fill="${fill}" stroke="${color}" stroke-width="4.5" stroke-linejoin="round"/>
+          </g>`;
+    y += SH + GAP;
+  }
+  return `<svg viewBox="0 0 120 180" xmlns="http://www.w3.org/2000/svg">${g}</svg>`;
+}
+
+/* =========================================================
+   2. 게임 규칙 로직
+   ========================================================= */
+function makeDeck(easy){
+  const deck = [];
+  const shades = easy ? [0] : [0,1,2];
+  for (let c=0;c<3;c++) for (let s=0;s<3;s++) for (let n=0;n<3;n++) for (const f of shades)
+    deck.push({c,s,n,f, id:`${c}${s}${n}${f}`});
+  return deck;
+}
+function shuffle(a){
+  for (let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+function isSet(a,b,c){
+  return ['c','s','n','f'].every(k => (a[k]+b[k]+c[k]) % 3 === 0);
+}
+function findAllSets(cards){
+  const out = [];
+  for (let i=0;i<cards.length-2;i++)
+    for (let j=i+1;j<cards.length-1;j++)
+      for (let k=j+1;k<cards.length;k++)
+        if (cards[i] && cards[j] && cards[k] && isSet(cards[i],cards[j],cards[k])) out.push([i,j,k]);
+  return out;
+}
+// 한글 조사 처리 (받침 유무)
+function hasJong(w){
+  const c = w.charCodeAt(w.length-1);
+  if (c < 0xAC00 || c > 0xD7A3) return false;
+  return (c - 0xAC00) % 28 !== 0;
+}
+const josa = (w,a,b) => w + (hasJong(w) ? a : b);   // josa('개수','은','는') -> '개수는'
+
+// 왜 SET이 아닌지 설명
+function explainFail(a,b,c){
+  const keys = ['c','s','n','f'];
+  const dicts = [COLOR_KO, SHAPE_KO, NUM_KO, SHADE_KO];
+  for (let i=0;i<keys.length;i++){
+    const k = keys[i];
+    if ((a[k]+b[k]+c[k]) % 3 !== 0){
+      const v = [a[k],b[k],c[k]].map(x=>dicts[i][x]);
+      return `<b>${josa(ATTR_KO[i],'을','를')}</b> 보면 “${v.join(' · ')}”.<br>셋 다 같거나 셋 다 달라야 SET이에요!`;
+    }
+  }
+  return '아쉽게도 SET이 아니에요.';
+}
+
+/* =========================================================
+   3. 기록 저장 (프로젝트 규칙에 따라 브라우저 저장소 미사용 — 메모리에만 보관)
+   ========================================================= */
+let REC = {};
+function loadRec(){ return REC; }
+function saveRec(r){ REC = r; }
+
+/* =========================================================
+   4. 소리 (WebAudio)
+   ========================================================= */
+let soundOn = loadRec().sound !== false;
+let actx = null;
+function ac(){ if(!actx){ try{ actx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } return actx; }
+function tone(freq, dur, type='sine', vol=0.16, delay=0){
+  if(!soundOn) return;
+  const a = ac(); if(!a) return;
+  const t = a.currentTime + delay;
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(vol, t+0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+  o.connect(g); g.connect(a.destination);
+  o.start(t); o.stop(t+dur+0.02);
+}
+const SFX = {
+  buzz(){ tone(660,0.12,'square',0.10); },
+  pick(){ tone(520,0.07,'sine',0.08); },
+  good(){ [523,659,784,1047].forEach((f,i)=>tone(f,0.28,'triangle',0.15,i*0.075)); },
+  bad(){ tone(190,0.22,'sawtooth',0.09); tone(140,0.28,'sawtooth',0.08,0.09); },
+  hint(){ tone(880,0.1,'sine',0.09); tone(1170,0.12,'sine',0.08,0.09); },
+  deal(){ tone(400,0.05,'sine',0.05); },
+  time(){ tone(300,0.18,'square',0.08); },
+  win(){ [523,659,784,1047,1319].forEach((f,i)=>tone(f,0.42,'triangle',0.16,i*0.12)); }
+};
+
+/* =========================================================
+   5. 컨페티
+   ========================================================= */
+function confetti(n=40){
+  const cols = ['#e0393e','#2b9e57','#8b4fd1','#f2913d','#3f9ad8','#f5c542'];
+  for (let i=0;i<n;i++){
+    const el = document.createElement('div');
+    el.className = 'confetti';
+    el.style.background = cols[i%cols.length];
+    el.style.left = Math.random()*100 + 'vw';
+    el.style.top = '-24px';
+    el.style.opacity = '1';
+    document.body.appendChild(el);
+    const dx = (Math.random()-0.5)*260, dur = 1400 + Math.random()*1200;
+    el.animate([
+      {transform:'translate(0,0) rotate(0deg)', opacity:1},
+      {transform:`translate(${dx}px, ${window.innerHeight+80}px) rotate(${720+Math.random()*720}deg)`, opacity:.2}
+    ], {duration:dur, easing:'cubic-bezier(.25,.6,.4,1)'}).onfinish = ()=>el.remove();
+  }
+}
+
+/* =========================================================
+   6. 게임 상태
+   ========================================================= */
+const G = {
+  easy:true, mode:'vs',
+  names:['아빠','우리아이'],
+  deck:[], board:[], scores:[0,0],
+  active:0,            // 0 = 아무도 안 누름, 1 / 2 = 해당 플레이어
+  sel:[], busy:false,
+  hintLevel:0, hintSet:null, hintsUsed:0,
+  timerId:null, lockTimers:[null,null],
+  startTime:0, tickId:null, found:0,
+  boardMin:12
+};
+
+const $ = id => document.getElementById(id);
+const board$ = $('board'), msg$ = $('msg');
+
+function say(html, kind=''){
+  msg$.className = 'msg' + (kind ? ' '+kind : '');
+  msg$.innerHTML = html;
+}
+
+/* ---------- 화면 전환 ---------- */
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  $(id).classList.add('on');
+  window.scrollTo(0,0);
+}
+
+/* ---------- 옵션 버튼 ---------- */
+function bindOpts(wrapId, cb){
+  $(wrapId).querySelectorAll('.opt').forEach(b=>{
+    b.onclick = ()=>{
+      $(wrapId).querySelectorAll('.opt').forEach(x=>x.classList.remove('sel'));
+      b.classList.add('sel'); cb(b.dataset.v);
+    };
+  });
+}
+bindOpts('optDiff', v => { G.easy = (v==='easy'); renderBest(); });
+bindOpts('optMode', v => {
+  G.mode = v;
+  $('nameRow').classList.toggle('on', v==='vs');
+  renderBest();
+});
+
+/* ---------- 기록 표시 ---------- */
+function renderBest(){
+  const r = loadRec();
+  const dk = G.easy ? 'easy' : 'full';
+  let html = '';
+  if (G.mode === 'solo'){
+    const t = r['solo_'+dk];
+    html = t ? `🏅 혼자 연습 최고 기록 (${G.easy?'쉬움':'정식'}): <b>${fmt(t)}</b>` : '아직 기록이 없어요. 첫 기록에 도전!';
+  } else {
+    const w = r.wins || {};
+    const keys = Object.keys(w);
+    html = keys.length ? '🏆 누적 승수 · ' + keys.map(k=>`${k} ${w[k]}승`).join(' / ') : '누적 승수는 게임이 끝나면 쌓여요.';
+  }
+  $('bestBox').innerHTML = html;
+}
+function fmt(ms){
+  const s = Math.floor(ms/1000);
+  return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+}
+
+/* =========================================================
+   7. 게임 시작 / 보드 관리
+   ========================================================= */
+function startGame(){
+  ac(); // 오디오 잠금 해제
+  G.names = [$('n1').value.trim() || '플레이어 1', $('n2').value.trim() || '플레이어 2'];
+  G.deck = shuffle(makeDeck(G.easy));
+  G.board = [];
+  G.scores = [0,0];
+  G.active = G.mode === 'solo' ? 1 : 0;
+  G.sel = []; G.busy = false;
+  G.hintLevel = 0; G.hintSet = null; G.hintsUsed = 0; G.found = 0;
+  G.boardMin = G.easy ? 9 : 12;
+  clearTimers();
+
+  renderPlayers();
+  fillBoard(true);
+  ensureSetOnBoard();
+  renderBoard();
+  updateDeckInfo();
+
+  if (G.mode === 'solo'){
+    G.startTime = Date.now();
+    G.tickId = setInterval(updateDeckInfo, 500);
+    say('시간이 흘러가요! 카드 세 장을 골라 SET을 만들어보세요 ⏱️');
+  } else {
+    say(`먼저 SET을 찾으면 위에 있는 <b>자기 이름 버튼</b>을 누르세요!`);
+  }
+  show('scr-game');
+}
+
+function fillBoard(initial=false){
+  while (G.board.filter(Boolean).length < G.boardMin && G.deck.length > 0){
+    const empty = G.board.indexOf(null);
+    const card = G.deck.pop();
+    if (empty >= 0) G.board[empty] = card; else G.board.push(card);
+  }
+  // null 제거(덱이 비었을 때 정리)
+  if (G.deck.length === 0) G.board = G.board.filter(Boolean);
+}
+
+function ensureSetOnBoard(){
+  let guard = 0;
+  while (findAllSets(G.board.filter(Boolean)).length === 0 && G.deck.length > 0 && guard++ < 30){
+    for (let i=0;i<3 && G.deck.length;i++) G.board.push(G.deck.pop());
+  }
+}
+
+function updateDeckInfo(){
+  let t = `남은 카드 ${G.deck.length}장 · 찾은 SET ${G.found}개`;
+  if (G.mode === 'solo' && G.startTime) t += ` · ⏱️ ${fmt(Date.now()-G.startTime)}`;
+  $('deckInfo').textContent = t;
+}
+
+/* ---------- 플레이어 패널 ---------- */
+function renderPlayers(){
+  const p = $('players');
+  p.className = 'players' + (G.mode==='solo' ? ' solo' : '');
+  if (G.mode === 'solo'){
+    p.innerHTML = `<div class="pbtn" data-p="1" style="border-color:var(--ok); color:var(--ok); cursor:default">
+        <div class="pname">혼자 연습</div>
+        <div class="pscore" id="s0">0</div>
+        <div class="phint">찾은 SET 개수</div></div>`;
+    return;
+  }
+  p.innerHTML = [0,1].map(i=>`
+    <button class="pbtn" data-p="${i+1}" id="pb${i}">
+      <div class="pname">${escapeHtml(G.names[i])}</div>
+      <div class="pscore" id="s${i}">0</div>
+      <div class="phint">${i===0?'키보드 Q':'키보드 P'} · 눌러서 도전!</div>
+      <div class="timerbar" id="tb${i}" style="transform:scaleX(0)"></div>
+    </button>`).join('');
+  [0,1].forEach(i => $('pb'+i).onclick = ()=>buzz(i+1));
+}
+function escapeHtml(s){ return s.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function updateScores(){
+  if (G.mode === 'solo'){ const e = $('s0'); if (e) e.textContent = G.found; return; }
+  [0,1].forEach(i=>{ const e=$('s'+i); if(e) e.textContent = G.scores[i]; });
+}
+
+/* ---------- 보드 크기 계산 (화면 안에 3줄이 다 들어오도록) ---------- */
+function layoutBoard(){
+  const live = G.board.filter(Boolean).length || 12;
+  const cols = Math.max(3, Math.ceil(live/3));
+  const root = document.documentElement.style;
+  root.setProperty('--cols', cols);
+  // 세로로 3줄이 화면에 들어오는 카드 폭을 계산 (헤더·점수판·버튼 영역 ≈ 300px)
+  const byHeight = ((window.innerHeight - 300) / 3) * 5 / 7;
+  const per = Math.max(88, Math.min(172, byHeight));
+  root.setProperty('--boardw', Math.round(cols * per) + 'px');
+}
+window.addEventListener('resize', ()=>{ if ($('scr-game').classList.contains('on')) layoutBoard(); });
+
+/* ---------- 보드 렌더 ---------- */
+function renderBoard(){
+  board$.innerHTML = '';
+  layoutBoard();
+  G.board.forEach((card, idx)=>{
+    if (!card) { const ph=document.createElement('div'); ph.style.visibility='hidden'; ph.className='card'; board$.appendChild(ph); return; }
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.style.animationDelay = Math.min(idx*22, 400) + 'ms';
+    el.innerHTML = cardSVG(card);
+    el.dataset.idx = idx;
+    el.onclick = ()=>clickCard(idx);
+    board$.appendChild(el);
+  });
+  applySelStyles();
+}
+function cardEl(idx){ return board$.querySelector(`.card[data-idx="${idx}"]`); }
+function applySelStyles(){
+  board$.querySelectorAll('.card').forEach(el=>el.classList.remove('sel'));
+  G.sel.forEach(i=>{ const e = cardEl(i); if (e) e.classList.add('sel'); });
+}
+
+/* =========================================================
+   8. 버저 / 턴 제어
+   ========================================================= */
+function buzz(p){
+  if (G.busy || G.active !== 0) return;
+  G.active = p; G.sel = [];
+  SFX.buzz();
+  const btn = $('pb'+(p-1)), other = $('pb'+(2-p));
+  btn.classList.add('active'); other.classList.add('locked');
+  say(`<b>${escapeHtml(G.names[p-1])}</b> 차례! 카드 세 장을 골라주세요 👆`);
+  startClaimTimer(p);
+}
+function startClaimTimer(p){
+  const limit = G.easy ? 15000 : 10000;
+  const bar = $('tb'+(p-1));
+  bar.style.transition = 'none'; bar.style.transform = 'scaleX(1)';
+  requestAnimationFrame(()=>{
+    bar.style.transition = `transform ${limit}ms linear`;
+    bar.style.transform = 'scaleX(0)';
+  });
+  G.timerId = setTimeout(()=>{
+    SFX.time();
+    say(`시간이 끝났어요! 다시 도전해봐요 ⏰`, 'bad');
+    endTurn(p, true);
+  }, limit);
+}
+function endTurn(p, penalty){
+  clearTimeout(G.timerId); G.timerId = null;
+  G.sel = []; applySelStyles();
+  if (G.mode === 'solo'){ G.active = 1; return; }
+  const btn = $('pb'+(p-1)), other = $('pb'+(2-p));
+  btn.classList.remove('active');
+  const bar = $('tb'+(p-1));
+  bar.style.transition='none'; bar.style.transform='scaleX(0)';
+  G.active = 0;
+  other.classList.remove('locked');
+  if (penalty){
+    btn.classList.add('locked');
+    clearTimeout(G.lockTimers[p-1]);
+    G.lockTimers[p-1] = setTimeout(()=>{ btn.classList.remove('locked'); }, 3000);
+  }
+}
+function clearTimers(){
+  clearTimeout(G.timerId); G.timerId=null;
+  clearInterval(G.tickId); G.tickId=null;
+  G.lockTimers.forEach(t=>clearTimeout(t));
+}
+
+/* =========================================================
+   9. 카드 선택 & 판정
+   ========================================================= */
+function clickCard(idx){
+  if (G.busy || !G.board[idx]) return;
+  if (G.mode === 'vs' && G.active === 0){
+    say('먼저 위에 있는 <b>이름 버튼</b>을 눌러야 카드를 고를 수 있어요!', 'bad');
+    SFX.bad();
+    return;
+  }
+  const at = G.sel.indexOf(idx);
+  if (at >= 0) G.sel.splice(at,1);
+  else if (G.sel.length < 3) { G.sel.push(idx); SFX.pick(); }
+  applySelStyles();
+  if (G.sel.length === 3) judge();
+}
+
+function judge(){
+  const [i,j,k] = G.sel;
+  const a = G.board[i], b = G.board[j], c = G.board[k];
+  const p = G.mode==='solo' ? 1 : G.active;
+  G.busy = true;
+  clearTimeout(G.timerId);
+
+  if (isSet(a,b,c)){
+    SFX.good(); confetti(28);
+    [i,j,k].forEach(x=>{ const e=cardEl(x); if(e){ e.classList.remove('sel'); e.classList.add('good'); } });
+    G.found++;
+    if (G.mode==='vs') G.scores[p-1]++;
+    clearHint();
+    const who = G.mode==='solo' ? '좋았어!' : `<b>${escapeHtml(G.names[p-1])}</b> 정답!`;
+    say(`${who} 🎉 ${describeSet(a,b,c)}`, 'good');
+    setTimeout(()=>{
+      // 카드 제거 후 보충
+      [i,j,k].forEach(x=>{ G.board[x] = null; });
+      if (G.deck.length > 0 && G.board.filter(Boolean).length < G.boardMin){
+        [i,j,k].forEach(x=>{ if (G.deck.length) G.board[x] = G.deck.pop(); });
+      }
+      G.board = G.board.filter(Boolean);
+      fillBoard();
+      ensureSetOnBoard();
+      renderBoard(); updateScores(); updateDeckInfo();
+      G.busy = false;
+      endTurn(p, false);
+      checkEnd();
+    }, 620);
+  } else {
+    SFX.bad();
+    [i,j,k].forEach(x=>{ const e=cardEl(x); if(e) e.classList.add('bad'); });
+    say(explainFail(a,b,c), 'bad');
+    setTimeout(()=>{
+      [i,j,k].forEach(x=>{ const e=cardEl(x); if(e){ e.classList.remove('bad'); } });
+      G.busy = false;
+      endTurn(p, G.mode==='vs');
+      if (G.mode==='vs') say(msg$.innerHTML + '<br><span style="color:var(--muted)">3초 뒤에 다시 도전할 수 있어요</span>', 'bad');
+    }, 900);
+  }
+}
+
+function describeSet(a,b,c){
+  const parts = [];
+  const keys=['c','s','n','f'], dicts=[COLOR_KO,SHAPE_KO,NUM_KO,SHADE_KO];
+  const lim = G.easy ? 3 : 4;
+  for (let i=0;i<lim;i++){
+    const k=keys[i];
+    const same = a[k]===b[k] && b[k]===c[k];
+    parts.push(`${josa(ATTR_KO[i],'은','는')} ${same ? '모두 같음' : '모두 다름'}`);
+  }
+  return `<span style="font-weight:400;color:var(--muted)">(${parts.join(' · ')})</span>`;
+}
+
+/* =========================================================
+   10. 힌트 / SET 없음
+   ========================================================= */
+function clearHint(){
+  G.hintLevel = 0; G.hintSet = null;
+  board$.querySelectorAll('.card').forEach(e=>e.classList.remove('hintglow'));
+}
+$('btnHint').onclick = ()=>{
+  if (G.busy) return;
+  const live = G.board.map((c,i)=>({c,i})).filter(x=>x.c);
+  const sets = findAllSets(live.map(x=>x.c));
+  if (!sets.length){ say('지금 보드에는 SET이 없어요! <b>“SET 없어요”</b> 버튼을 눌러보세요 🙅', 'bad'); SFX.bad(); return; }
+  if (!G.hintSet){
+    const pick = sets[Math.floor(Math.random()*sets.length)];
+    G.hintSet = pick.map(idx => live[idx].i);
+    G.hintLevel = 0;
+    G.hintsUsed++;
+  }
+  G.hintLevel = Math.min(G.hintLevel+1, 3);
+  board$.querySelectorAll('.card').forEach(e=>e.classList.remove('hintglow'));
+  G.hintSet.slice(0, G.hintLevel).forEach(i=>{ const e=cardEl(i); if(e) e.classList.add('hintglow'); });
+  SFX.hint();
+  const txts = ['이 카드로 시작해보세요! 💡', '두 장을 찾았어요. 나머지 한 장은? 💡💡', '세 장 모두 알려줄게요 — 왜 SET인지 보세요! 💡💡💡'];
+  say(txts[G.hintLevel-1]);
+};
+
+$('btnNoSet').onclick = ()=>{
+  if (G.busy) return;
+  const live = G.board.filter(Boolean);
+  const sets = findAllSets(live);
+  if (sets.length === 0){
+    if (G.deck.length === 0){ checkEnd(true); return; }
+    SFX.deal();
+    for (let i=0;i<3 && G.deck.length;i++) G.board.push(G.deck.pop());
+    ensureSetOnBoard();
+    renderBoard(); updateDeckInfo(); clearHint();
+    say('맞아요! SET이 없었어요. 카드 세 장을 더 놓을게요 🃏', 'good');
+  } else {
+    SFX.bad();
+    say(`아직 SET이 <b>${sets.length}개</b> 숨어 있어요! 더 찾아보세요 🔍`, 'bad');
+  }
+};
+
+/* =========================================================
+   11. 종료 처리
+   ========================================================= */
+function checkEnd(force=false){
+  const live = G.board.filter(Boolean);
+  const noMore = findAllSets(live).length === 0 && G.deck.length === 0;
+  if (!noMore && !force) return;
+  if (force && !(findAllSets(live).length === 0 && G.deck.length === 0)) return;
+  clearTimers();
+  SFX.win(); confetti(90);
+
+  const rec = loadRec();
+  let body = '';
+  if (G.mode === 'solo'){
+    const el = Date.now() - G.startTime;
+    const dk = 'solo_' + (G.easy?'easy':'full');
+    const prev = rec[dk];
+    const best = !prev || el < prev;
+    if (best) { rec[dk] = el; saveRec(rec); }
+    body = `<div class="winner">
+      <div class="trophy">🎉</div><h2>더 이상 SET이 없어요!</h2>
+      <div class="scoreline">⏱️ 걸린 시간 ${fmt(el)}</div>
+      <div class="scoreline">🔍 찾은 SET ${G.found}개 · 💡 힌트 ${G.hintsUsed}번</div>
+      <p style="color:var(--muted)">${best ? '🏅 새로운 최고 기록이에요!' : `이전 최고 기록: ${fmt(prev)}`}</p>`;
+  } else {
+    const [a,b] = G.scores;
+    const tie = a===b;
+    const winIdx = a>b ? 0 : 1;
+    if (!tie){
+      rec.wins = rec.wins || {};
+      const nm = G.names[winIdx];
+      rec.wins[nm] = (rec.wins[nm]||0)+1;
+      saveRec(rec);
+    }
+    body = `<div class="winner">
+      <div class="trophy">${tie ? '🤝' : '🏆'}</div>
+      <h2>${tie ? '무승부예요!' : escapeHtml(G.names[winIdx]) + ' 승리!'}</h2>
+      <div class="scoreline" style="color:var(--p1)">${escapeHtml(G.names[0])} ${a}점</div>
+      <div class="scoreline" style="color:var(--p2)">${escapeHtml(G.names[1])} ${b}점</div>
+      <p style="color:var(--muted)">힌트 ${G.hintsUsed}번 사용</p>`;
+  }
+  body += `<button class="big-btn" style="margin-top:14px" id="ovAgain">한 판 더!</button>
+           <button class="link" style="margin-top:10px" id="ovHome">처음 화면으로</button></div>`;
+  openOverlay(body);
+  $('ovAgain').onclick = ()=>{ closeOverlay(); startGame(); };
+  $('ovHome').onclick = ()=>{ closeOverlay(); renderBest(); show('scr-home'); };
+}
+
+/* =========================================================
+   12. 오버레이 / 규칙 / 튜토리얼
+   ========================================================= */
+function openOverlay(html){ $('ovBody').innerHTML = html; $('ov').classList.add('on'); }
+function closeOverlay(){ $('ov').classList.remove('on'); }
+$('ov').onclick = e => { if (e.target === $('ov')) closeOverlay(); };
+
+function miniCards(list){
+  return `<div class="rule-demo">${list.map(c=>`<div class="card">${cardSVG(c)}</div>`).join('')}</div>`;
+}
+function rulesHTML(){
+  return `<h2>📖 SET 규칙</h2>
+  <p>카드마다 <b>4가지 특징</b>이 있어요.</p>
+  <ul>
+    <li><b>색깔</b> — 빨강 / 초록 / 보라</li>
+    <li><b>모양</b> — 마름모 / 물결 / 타원</li>
+    <li><b>개수</b> — 1개 / 2개 / 3개</li>
+    <li><b>무늬</b> — 꽉 참 / 줄무늬 / 비어 있음 <span style="color:var(--muted)">(쉬움 모드에선 안 나와요)</span></li>
+  </ul>
+  <p style="background:#fff6ec;border-radius:12px;padding:12px 14px;">
+    <b>세 장을 고를 때</b>, 각 특징이<br>
+    ✅ <b>셋 다 같거나</b> ✅ <b>셋 다 다르면</b> SET!<br>
+    ❌ 두 개만 같으면 SET이 아니에요.
+  </p>
+  <div><span class="tag y">SET 맞음</span></div>
+  ${miniCards([{c:0,s:0,n:0,f:0},{c:1,s:0,n:1,f:0},{c:2,s:0,n:2,f:0}])}
+  <p style="margin-top:0;font-size:13px;color:var(--muted)">색은 모두 다름 · 모양 모두 같음 · 개수 모두 다름 → SET!</p>
+  <div><span class="tag n">SET 아님</span></div>
+  ${miniCards([{c:0,s:0,n:0,f:0},{c:0,s:1,n:1,f:0},{c:1,s:2,n:2,f:0}])}
+  <p style="margin-top:0;font-size:13px;color:var(--muted)">색이 “빨강 · 빨강 · 초록” — 두 개만 같아서 안 돼요.</p>
+  <button class="big-btn" style="margin-top:12px" onclick="document.getElementById('ov').classList.remove('on')">알겠어요!</button>`;
+}
+$('btnRules').onclick = ()=>openOverlay(rulesHTML());
+$('btnRules2').onclick = ()=>openOverlay(rulesHTML());
+
+/* ---------- 튜토리얼 ---------- */
+const TUT = [
+  { q:[{c:0,s:2,n:0,f:0},{c:1,s:2,n:1,f:0},{c:2,s:2,n:2,f:0}], a:true,
+    why:'색깔 모두 다름 · 모양 모두 같음 · 개수 모두 다름 → SET!' },
+  { q:[{c:0,s:0,n:0,f:0},{c:0,s:1,n:0,f:0},{c:1,s:2,n:0,f:0}], a:false,
+    why:'색깔이 “빨강 · 빨강 · 초록”. 두 개만 같으면 안 돼요.' },
+  { q:[{c:2,s:1,n:1,f:0},{c:2,s:1,n:0,f:0},{c:2,s:1,n:2,f:0}], a:true,
+    why:'색·모양은 모두 같고, 개수만 1·2·3으로 모두 달라요 → SET!' },
+  { q:[{c:1,s:0,n:0,f:0},{c:1,s:0,n:1,f:0},{c:1,s:0,n:1,f:0}], a:false,
+    why:'개수가 “1개 · 2개 · 2개”. 셋 다 같거나 셋 다 달라야 해요.' },
+  { q:[{c:0,s:0,n:2,f:0},{c:1,s:1,n:2,f:1},{c:2,s:2,n:2,f:2}], a:true,
+    why:'색·모양·무늬는 모두 다르고, 개수는 모두 같아요 → SET!' }
+];
+let tutIdx = 0, tutScore = 0;
+function renderTut(){
+  const t = TUT[tutIdx];
+  openOverlay(`<h2>🎓 연습 문제 ${tutIdx+1}/${TUT.length}</h2>
+    <p>이 세 장은 SET일까요?</p>
+    ${miniCards(t.q)}
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="tool" style="flex:1;padding:15px;border-color:#bfe3cb;background:#f2fbf5;color:var(--ok)" id="tYes">⭕ SET 맞아요</button>
+      <button class="tool" style="flex:1;padding:15px;border-color:#f2c9c9;background:#fef4f4;color:var(--no)" id="tNo">❌ 아니에요</button>
+    </div>
+    <div id="tFb" style="margin-top:14px;font-size:14.5px;line-height:1.7"></div>`);
+  const answer = ok=>{
+    const right = (ok === t.a);
+    if (right){ tutScore++; SFX.good(); confetti(14); } else SFX.bad();
+    $('tYes').disabled = $('tNo').disabled = true;
+    $('tFb').innerHTML = `<b style="color:${right?'var(--ok)':'var(--no)'}">${right?'정답이에요! 👏':'앗, 아니에요.'}</b><br>
+      <span style="color:var(--muted)">${t.why}</span>
+      <button class="big-btn" style="margin-top:12px" id="tNext">${tutIdx<TUT.length-1?'다음 문제 →':'결과 보기'}</button>`;
+    $('tNext').onclick = ()=>{
+      tutIdx++;
+      if (tutIdx < TUT.length) renderTut();
+      else {
+        confetti(50); SFX.win();
+        openOverlay(`<div class="winner"><div class="trophy">🎓</div>
+          <h2>${TUT.length}문제 중 ${tutScore}개 정답!</h2>
+          <p style="color:var(--muted)">${tutScore===TUT.length?'완벽해요! 이제 진짜 게임을 해볼까요?':'규칙을 한 번 더 보고 도전해봐요.'}</p>
+          <button class="big-btn" style="margin-top:10px" onclick="document.getElementById('ov').classList.remove('on')">닫기</button></div>`);
+      }
+    };
+  };
+  $('tYes').onclick = ()=>answer(true);
+  $('tNo').onclick  = ()=>answer(false);
+}
+$('btnTutorial').onclick = ()=>{ ac(); tutIdx=0; tutScore=0; renderTut(); };
+
+/* =========================================================
+   13. 기타 버튼 / 키보드
+   ========================================================= */
+$('btnStart').onclick = startGame;
+$('btnHome').onclick = ()=>{ clearTimers(); renderBest(); show('scr-home'); };
+$('btnSound').onclick = ()=>{
+  soundOn = !soundOn;
+  const r = loadRec(); r.sound = soundOn; saveRec(r);
+  $('btnSound').textContent = soundOn ? '🔊 소리 켜짐' : '🔇 소리 꺼짐';
+  if (soundOn){ ac(); SFX.pick(); }
+};
+$('btnSound').textContent = soundOn ? '🔊 소리 켜짐' : '🔇 소리 꺼짐';
+
+document.addEventListener('keydown', e=>{
+  if (!$('scr-game').classList.contains('on')) return;
+  const k = e.key.toLowerCase();
+  if (G.mode==='vs'){
+    if (k==='q') buzz(1);
+    if (k==='p') buzz(2);
+  }
+  if (k==='h') $('btnHint').click();
+  if (k==='escape') closeOverlay();
+});
+
+/* ---------- 홈 데모 카드 ---------- */
+(function(){
+  const demo = [{c:0,s:0,n:0,f:0},{c:1,s:1,n:1,f:1},{c:2,s:2,n:2,f:2}];
+  $('demoRow').innerHTML = demo.map(c=>`<div class="card">${cardSVG(c)}</div>`).join('');
+})();
+renderBest();
+
+/* ---------- 자가 점검 (콘솔) ---------- */
+(function selfTest(){
+  const full = makeDeck(false), easy = makeDeck(true);
+  const ok1 = full.length === 81 && easy.length === 27;
+  const ok2 = isSet({c:0,s:0,n:0,f:0},{c:1,s:1,n:1,f:1},{c:2,s:2,n:2,f:2});
+  const ok3 = !isSet({c:0,s:0,n:0,f:0},{c:0,s:0,n:1,f:0},{c:1,s:0,n:2,f:0});
+  // 무작위 두 장에 대해 완성 카드는 항상 유일하게 존재해야 함
+  let ok4 = true;
+  for (let t=0;t<200;t++){
+    const a = full[Math.floor(Math.random()*81)], b = full[Math.floor(Math.random()*81)];
+    if (a.id===b.id) continue;
+    const c = {c:(6-a.c-b.c)%3, s:(6-a.s-b.s)%3, n:(6-a.n-b.n)%3, f:(6-a.f-b.f)%3};
+    if (!isSet(a,b,c)) ok4 = false;
+  }
+  console.log('[SET selfTest]', {deck:ok1, positive:ok2, negative:ok3, completion:ok4});
+})();
+</script>
+</body>
+</html>
