@@ -158,6 +158,7 @@
         <b>둘이서 대결</b><small>한 화면에서 버저 대결</small>
       </button>
     </div>
+    <button class="btn big" style="width:100%;margin-top:12px;border:0;cursor:pointer;font-family:inherit" onclick="openVersus()">🌐 친구랑 온라인 대결</button>
     <div class="row-label">난이도</div>
     <div class="seg" id="diffSeg">
       <button data-d="easy">쉬움 🐣</button>
@@ -171,8 +172,14 @@
       <button data-r="5" class="sel">5판</button>
       <button data-r="7">7판</button>
     </div>
+    <div class="row-label">제한시간</div>
+    <div class="seg" id="timerSeg">
+      <button data-t="1" class="sel">⏱ 켜기</button>
+      <button data-t="0">🕊 끄기 (천천히)</button>
+    </div>
     <div class="howto">
       <b>혼자 하기</b> — 위에 뜬 목표 그림을 그림판에서 찾아 클릭! 시간이 남을수록 보너스 점수. 힌트는 라운드당 1번.<br>
+      <b>제한시간 끄기</b> — 쫓기지 않고 천천히 찾을 수 있어요. 시간 보너스는 없고 걸린 시간만 세어줘요. 게임 중에도 위쪽 <span class="kbd">⏱</span> 버튼으로 바꿀 수 있어요.<br>
       <b>둘이서 대결</b> — 같은 화면을 함께 보다가 찾은 사람이 먼저 버저를 누르고(1P <span class="kbd">Q</span> · 2P <span class="kbd">P</span>, 터치는 아래 버튼) 4초 안에 그림을 클릭하세요. 틀리면 감점!
     </div>
   </div>
@@ -187,6 +194,7 @@
     <div class="pill" id="scorePill">⭐ 0</div>
     <div class="spacer"></div>
     <button class="ghost-btn" id="hintBtn" onclick="useHint()">💡 힌트 1</button>
+    <button class="ghost-btn" id="timerBtn" onclick="toggleTimer()" title="제한시간 켜기/끄기">⏱ ON</button>
     <button class="ghost-btn" onclick="toggleSound()" id="sndBtn">🔊</button>
     <button class="ghost-btn" onclick="quitGame()">✕ 나가기</button>
   </div>
@@ -218,6 +226,7 @@
 <div id="toast"></div>
 <div id="banner"><b id="bannerText"></b></div>
 
+<script src="../../../common/versus.js"></script>
 <script>
 /* 아이템 일러스트 라이브러리 (0~100 좌표계) */
 const BR = '#9a6b4a', LF = '#6cc47f', EY = '#413c52', WH = '#fffdf6';
@@ -540,7 +549,7 @@ const SCENES = [
 const S = {
   mode: 'solo', diff: 'normal', rounds: 5, round: 0,
   targets: [], found: 0, score: 0, p: [0, 0],
-  time: 0, timer: null, hints: 1, hintsUsed: 0,
+  time: 0, timer: null, timerOn: true, hints: 1, hintsUsed: 0,
   active: null, buzzT: null, buzzLeft: 0, lock: [false, false],
   playing: false, totalFound: 0, wrongs: 0, startedAt: 0, sound: true,
   W: 1200, H: 760
@@ -598,6 +607,10 @@ document.querySelectorAll('#roundSeg button').forEach(b => b.onclick = () => {
   document.querySelectorAll('#roundSeg button').forEach(x => x.classList.remove('sel'));
   b.classList.add('sel'); S.rounds = +b.dataset.r; beep(700, .05, 'square', .08);
 });
+document.querySelectorAll('#timerSeg button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#timerSeg button').forEach(x => x.classList.remove('sel'));
+  b.classList.add('sel'); S.timerOn = b.dataset.t === '1'; beep(700, .05, 'square', .08);
+});
 
 /* ══════════════ 장면 생성 ══════════════ */
 function buildScene() {
@@ -605,7 +618,10 @@ function buildScene() {
   const stage = $('stage');
   const wrap = $('stageWrap').getBoundingClientRect();
   const W = 1200;
-  const H = Math.max(520, Math.min(1500, Math.round(1200 * (wrap.height - 24) / Math.max(240, wrap.width - 24))));
+  /* 온라인 대결에서는 화면 크기가 달라도 똑같은 그림이 나오도록 높이를 고정한다 */
+  const H = (S.mode === 'online')
+    ? 760
+    : Math.max(520, Math.min(1500, Math.round(1200 * (wrap.height - 24) / Math.max(240, wrap.width - 24))));
   S.W = W; S.H = H;
   stage.setAttribute('viewBox', `0 0 ${W} ${H}`);
   stage.setAttribute('preserveAspectRatio', 'xMidYMid meet');
@@ -731,9 +747,11 @@ function nextRound() {
   S.active = null; S.lock = [false, false];
   clearBuzz(); updateBuzzUI();
   $('roundPill').textContent = `라운드 ${S.round}/${S.rounds}`;
-  buildScene();
+  if (S.mode === 'online') { Versus.reseed(S.round); Versus.seeded(buildScene); }
+  else buildScene();
   updateHUD();
-  S.time = S.mode === 'vs' ? 120 : DIFF[S.diff].time;
+  S.time = S.timerOn ? (S.mode === 'vs' ? 120 : DIFF[S.diff].time) : 0;
+  updateTimerBtn();
   startTimer();
   banner(`라운드 ${S.round}`, 850);
   beep(760, .1, 'triangle');
@@ -744,6 +762,7 @@ function startTimer() {
   updateTime();
   S.timer = setInterval(() => {
     if (!S.playing) return;
+    if (!S.timerOn) { S.time++; updateTime(); return; }
     S.time--;
     updateTime();
     if (S.time <= 5 && S.time > 0) beep(880, .06, 'square', .09);
@@ -752,14 +771,39 @@ function startTimer() {
 }
 function updateTime() {
   const p = $('timePill');
-  p.textContent = '⏱ ' + Math.max(0, S.time);
-  p.classList.toggle('warn', S.time <= 10);
+  p.textContent = (S.timerOn ? '⏱ ' : '🕊 ') + Math.max(0, S.time);
+  p.classList.toggle('warn', S.timerOn && S.time <= 10);
+}
+function updateTimerBtn() {
+  const b = $('timerBtn');
+  if (!b) return;
+  b.textContent = S.timerOn ? '⏱ ON' : '🕊 OFF';
+  b.style.opacity = S.timerOn ? 1 : .55;
+  const seg = document.querySelectorAll('#timerSeg button');
+  seg.forEach(x => x.classList.toggle('sel', (x.dataset.t === '1') === S.timerOn));
+}
+/* 게임 중에도 제한시간을 켜고 끌 수 있다 */
+function toggleTimer() {
+  S.timerOn = !S.timerOn;
+  if (S.timerOn) {
+    // 끄기 → 켜기: 이번 라운드 제한시간을 새로 준다
+    S.time = S.mode === 'vs' ? 120 : DIFF[S.diff].time;
+    toast('제한시간 켜짐 — ' + S.time + '초부터 다시 시작!');
+  } else {
+    // 켜기 → 끄기: 지금부터는 걸린 시간을 세기만 한다
+    S.time = 0;
+    toast('제한시간 꺼짐 — 천천히 찾아도 돼요 🕊');
+  }
+  updateTimerBtn();
+  updateTime();
+  beep(700, .05, 'square', .08);
 }
 function updateHUD() {
   $('scorePill').textContent = '⭐ ' + S.score;
   $('s1').textContent = S.p[0]; $('s2').textContent = S.p[1];
   $('hintBtn').textContent = '💡 힌트 ' + S.hints;
   $('hintBtn').style.opacity = S.hints > 0 ? 1 : .4;
+  if (S.mode === 'online' && Versus.active() && S.score !== S._sent) { S._sent = S.score; Versus.setScore(S.score); }
 }
 
 /* ══════════════ 클릭 처리 ══════════════ */
@@ -943,11 +987,11 @@ function endRound(cleared) {
   S.playing = false;
   clearInterval(S.timer); clearBuzz();
 
-  if (S.mode === 'solo') {
+  if (S.mode !== 'vs') {
     if (cleared) {
-      const bonus = S.time * 5;
+      const bonus = S.timerOn ? S.time * 5 : 0;
       S.score += bonus;
-      banner('클리어! +' + bonus, 1100);
+      banner(bonus ? '클리어! +' + bonus : '클리어!', 1100);
       sWin();
     } else {
       banner('시간 종료!', 1100);
@@ -967,7 +1011,10 @@ function finish() {
   S.playing = false;
   const secs = Math.round((Date.now() - S.startedAt) / 1000);
   const r = $('rStats');
-  if (S.mode === 'solo') {
+  /* 온라인에서는 대결 결과창의 "한 판 더!"를 쓰므로 이 화면의 버튼은 감춘다 */
+  document.querySelector('#result .btn.pri').style.display = S.mode === 'online' ? 'none' : '';
+  if (S.mode === 'online' && Versus.active()) Versus.finish(S.score);
+  if (S.mode !== 'vs') {
     $('rTitle').textContent = S.score >= 500 ? '대단해요! 🏆' : '수고했어요! 🎉';
     $('rSub').textContent = `${DIFF[S.diff].label} · ${S.rounds}라운드 완주`;
     r.innerHTML = `
@@ -990,10 +1037,41 @@ function finish() {
   confetti();
 }
 
-function replay() { startGame(S.mode); }
+function replay() {
+  if (S.mode === 'online') return; // 온라인은 대결 결과창의 "한 판 더!"로 다시 시작
+  startGame(S.mode);
+}
 function quitGame() {
   S.playing = false; clearInterval(S.timer); clearBuzz();
+  if (S.mode === 'online' && Versus.active()) { Versus.leave(); return; }
   show('menu');
+}
+
+/* ══════════════ 온라인 대결 ══════════════ */
+function openVersus() {
+  Versus.open({
+    game: 'hidden-object',
+    /* 방장의 설정(난이도·라운드·제한시간)을 참가자에게도 그대로 적용한다 */
+    getSettings: () => ({ diff: S.diff, rounds: S.rounds, timerOn: S.timerOn }),
+    settingsHTML: () => '<div class="vs-note">방장이 고른 <b>난이도 · 라운드 수 · 제한시간</b>으로 둘 다 플레이해요. ' +
+      '똑같은 그림판에서 각자 찾고, 점수가 높은 사람이 이겨요!</div>',
+    onStart: (ctx) => {
+      if (ctx.settings) {
+        S.diff = ctx.settings.diff;
+        S.rounds = ctx.settings.rounds;
+        S.timerOn = !!ctx.settings.timerOn;
+        document.querySelectorAll('#diffSeg button').forEach(x => x.classList.toggle('sel', x.dataset.d === S.diff));
+        document.querySelectorAll('#roundSeg button').forEach(x => x.classList.toggle('sel', +x.dataset.r === S.rounds));
+      }
+      S._sent = -1;
+      startGame('online');
+    },
+    onLeave: () => {
+      S.playing = false; clearInterval(S.timer); clearBuzz();
+      show('menu');
+    },
+    onCancel: () => show('menu')
+  });
 }
 
 /* 색종이 */

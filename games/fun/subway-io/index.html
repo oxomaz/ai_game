@@ -93,6 +93,14 @@
   @media (max-width:420px){ h1{font-size:22px;} .lines{grid-template-columns:repeat(auto-fill,minmax(84px,1fr));} }
   a.hub-link{display:block;text-align:center;margin:18px auto 2px;padding:6px;color:#8a94a6;font-size:13px;text-decoration:none;font-family:inherit;}
   a.hub-link:hover{text-decoration:underline;}
+
+  /* ---------- 온라인 대결(VS바가 화면 맨 위를 덮으므로 살짝 내려준다) ---------- */
+  body.vs-playing #score, body.vs-playing #board{top:44px;}
+  body.vs-playing .screen{padding-top:44px;}
+  #vsNote{position:absolute; left:50%; transform:translateX(-50%); top:44px; display:none;
+    font-size:11.5px; color:#cfe0ff; background:rgba(11,18,32,.75); padding:5px 12px; border-radius:20px;
+    white-space:nowrap;}
+  #vsNote.on{display:block;}
 </style>
 </head>
 <body>
@@ -113,6 +121,7 @@
   <canvas id="mini" width="208" height="208"></canvas>
   <div id="boost">부스터</div>
   <div id="hint">마우스로 조향 · 클릭 또는 스페이스로 가속</div>
+  <div id="vsNote">👻 상대 열차는 보이기만 해요 — 부딪히지 않아요! · AI 열차는 각자 화면에서 따로 움직여요</div>
 </div>
 
 <!-- 1단계: 노선 -->
@@ -126,6 +135,7 @@
     <div class="lines" id="lineList"></div>
 
     <div class="row"><button class="btn" id="toStep2" disabled>다음 →</button></div>
+    <div class="row"><button class="btn ghost" id="vsOpen">🌐 친구랑 온라인 대결</button></div>
     <div class="tip">
       <b>조작</b> · PC: 마우스 방향으로 이동, 클릭(또는 스페이스) 길게 누르면 가속<br>
       <b>모바일</b>: 화면을 누른 방향으로 이동, 왼쪽 아래 부스터 버튼으로 가속<br>
@@ -154,7 +164,7 @@
     <h1 id="overTitle">탈선!</h1>
     <p class="lead" id="overSub"></p>
     <div class="res" id="resBox"></div>
-    <div class="row">
+    <div class="row" id="overBtns">
       <button class="btn" id="again">다시 출발</button>
       <button class="btn ghost" id="change">열차 바꾸기</button>
     </div>
@@ -162,6 +172,7 @@
   </div>
 </div>
 
+<script src="../../../common/versus.js"></script>
 <script>
 /* =========================================================
    지하철 슬리더 — slither.io 스타일 지하철 게임
@@ -329,6 +340,101 @@ let trains=[], food=[], stations=[], player=null;
 let cam={x:0,y:0}, zoom=1, running=false, lastT=0, frame=0;
 let pick={line:null, grade:null};
 let deadInfo=null;
+
+/* ══════════════════ 온라인 대결 ══════════════════ */
+/* 같은 맵에서 친구와 동시에 달리는 모드.
+   상대 열차는 100ms마다 받은 좌표로 "유령"처럼 그려주기만 한다 —
+   서로 다른 컴퓨터에서 따로 계산하기 때문에 충돌 판정은 하지 않는다. */
+const VS = {
+  on:false,        // 온라인 대결로 플레이 중인가
+  ghost:null,      // 상대 열차 {pts:[x,y,...], col, len, name}
+  lastSend:0,      // 마지막으로 내 모양을 보낸 시각
+  sentScore:-1     // 마지막으로 알린 점수
+};
+const GHOST_MAX_PTS = 40;   // 한 번에 보낼 좌표 개수 상한 (너무 크면 느려진다)
+const GHOST_HZ_MS   = 100;  // 보내는 간격
+
+/* 대결 로비 열기 (시작화면 버튼) */
+function openVersus(){
+  if(!pick.line) pick.line=LINES[0];
+  if(!pick.grade) pick.grade=GRADES[0];
+  Versus.open({
+    game:'subway-io',
+    settingsHTML:()=>'<div class="vs-note">둘 다 <b>똑같은 노선 지도</b>에서 동시에 출발해요. ' +
+      '승객을 더 많이 태운 사람이 이겨요!<br>👻 상대 열차는 <b>보이기만</b> 해요 — 부딪히지 않아요.<br>' +
+      '🤖 AI 열차는 <b>출발할 때만 똑같고</b> 그 뒤로는 각자 화면에서 따로 움직여요.</div>',
+    onStart:()=>{ startGame(true); },
+    onData:(m)=>{
+      if(m.t!=='snake') return;
+      VS.ghost={ pts:m.pts||[], col:m.col||'#ffffff', len:m.len||BASE_CARS,
+                 ang:m.ang||0, name:m.name||Versus.oppName };
+    },
+    onLeave:()=>{ endOnline(); },
+    onCancel:()=>{ show(s1); }
+  });
+}
+
+/* 온라인 모드 정리 후 첫 화면으로 */
+function endOnline(){
+  running=false; VS.on=false; VS.ghost=null;
+  document.getElementById('vsNote').classList.remove('on');
+  document.getElementById('overBtns').style.display='';
+  show(s1);
+}
+
+/* 매 프레임: 점수 알림 + 내 열차 모양 전송 */
+function vsTick(ts){
+  if(!window.Versus || !Versus.active() || !player || !player.alive) return;
+  if(player.pax!==VS.sentScore){ VS.sentScore=player.pax; Versus.setScore(player.pax); }
+  if(ts-VS.lastSend < GHOST_HZ_MS) return;
+  VS.lastSend=ts;
+  const cp=player.carsPos;
+  if(!cp || !cp.length) return;
+  const step=Math.max(1, Math.ceil(cp.length/GHOST_MAX_PTS));
+  const pts=[];
+  for(let i=0;i<cp.length;i+=step){ pts.push(Math.round(cp[i].x), Math.round(cp[i].y)); }
+  Versus.send({ t:'snake', pts, col:player.line.color, len:player.cars,
+                ang:+player.ang.toFixed(2), name:player.name });
+}
+
+/* 상대 열차 그리기 — 반투명 "유령" 열차 + 이름표 */
+function drawGhost(g){
+  const gh=VS.ghost;
+  if(!gh || !gh.pts || gh.pts.length<2) return;
+  const n=gh.pts.length>>1;
+  const sc=1+Math.min(.45,(gh.len-BASE_CARS)*.011);
+  const len=CAR_L*sc, wid=CAR_W*sc;
+  g.save();
+  g.globalAlpha=.40;
+  for(let i=n-1;i>=0;i--){
+    const x=gh.pts[i*2], y=gh.pts[i*2+1];
+    let a;
+    if(i===0) a = n>1 ? Math.atan2(y-gh.pts[3], x-gh.pts[2]) : gh.ang;
+    else      a = Math.atan2(gh.pts[(i-1)*2+1]-y, gh.pts[(i-1)*2]-x);
+    g.save(); g.translate(x,y); g.rotate(a);
+    g.fillStyle=gh.col;
+    rr(g,-len/2,-wid/2,len,wid,i===0?wid*0.5:3.4); g.fill();
+    g.strokeStyle='rgba(255,255,255,.75)'; g.lineWidth=1.2; g.stroke();
+    g.fillStyle='rgba(10,16,28,.85)';
+    rr(g,-len*0.34,-wid*0.20,len*0.68,wid*0.40,1.6); g.fill();
+    g.restore();
+  }
+  g.restore();
+  // 이름표
+  const hx=gh.pts[0], hy=gh.pts[1];
+  const fs=12/zoom, pad=5/zoom, bh=15/zoom, off=wid*0.6+8/zoom;
+  g.save();
+  g.font='700 '+fs.toFixed(1)+'px "Malgun Gothic",sans-serif';
+  g.textAlign='center'; g.textBaseline='bottom';
+  const label='👻 '+gh.name;
+  const w=g.measureText(label).width;
+  g.fillStyle='rgba(8,12,22,.55)';
+  rr(g,hx-w/2-pad, hy-off-bh, w+pad*2, bh, bh/2); g.fill();
+  g.fillStyle='#c9dcff';
+  g.fillText(label, hx, hy-off-bh*0.22);
+  g.restore();
+}
+/* ══════════════ 온라인 대결 끝 ══════════════ */
 
 function resize(){
   dpr=Math.min(2, window.devicePixelRatio||1);
@@ -641,6 +747,7 @@ function drawWorld(){
     if(Math.hypot(t.x-cam.x,t.y-cam.y) > viewR+t.bodyLen) continue;
     drawTrain(g,t);
   }
+  if(VS.on) drawGhost(g);
   if(player && player.alive) drawTrain(g,player);
 
   g.restore();
@@ -656,6 +763,10 @@ function drawMini(){
     if(!t.alive||t.isPlayer) continue;
     g.fillStyle=t.line.color;
     g.beginPath(); g.arc(cx+t.x*k, cy+t.y*k, 2.6, 0,6.3); g.fill();
+  }
+  if(VS.on && VS.ghost && VS.ghost.pts.length>=2){   // 상대 위치도 미니맵에 표시
+    g.strokeStyle='#c9dcff'; g.lineWidth=2;
+    g.beginPath(); g.arc(cx+VS.ghost.pts[0]*k, cy+VS.ghost.pts[1]*k, 4.2,0,6.3); g.stroke();
   }
   if(player&&player.alive){
     g.fillStyle='#fff';
@@ -705,6 +816,7 @@ function loop(ts){
     zoom+=(tz-zoom)*Math.min(1,0.05*dt);
   }
   drawWorld(); drawMini(); drawHud();
+  if(VS.on) vsTick(ts);
   requestAnimationFrame(loop);
 }
 
@@ -782,19 +894,46 @@ document.getElementById('backTo1').onclick=()=>show(s1);
 document.getElementById('start').onclick=()=>startGame();
 document.getElementById('again').onclick=()=>startGame();
 document.getElementById('change').onclick=()=>{ show(s1); };
+document.getElementById('vsOpen').onclick=()=>openVersus();
 
 /* ---------- 게임 시작 / 종료 ---------- */
-function startGame(){
+function startGame(online){
   if(!pick.line) pick.line=LINES[0];
   if(!pick.grade) pick.grade=GRADES[0];
-  trains=[]; food=[]; stations=[]; frame=0;
-  for(let i=0;i<60;i++){ const p=randPos(120); stations.push({x:p.x,y:p.y,r:rnd(14,34)}); }
-  for(let i=0;i<14;i++) refillFood();
-  const p=randPos(500);
-  player=new Train(p.x,p.y,Math.atan2(-p.y,-p.x),pick.line,pick.grade,'나',true);
-  player.pax=6; player.computeCars();
-  trains.push(player);
-  for(let i=0;i<BOT_COUNT;i++) spawnBot();
+  VS.on=!!online; VS.ghost=null; VS.sentScore=-1; VS.lastSend=0;
+  document.getElementById('vsNote').classList.toggle('on', VS.on);
+  document.getElementById('overBtns').style.display = VS.on ? 'none' : '';
+
+  // 세상 만들기 — 온라인이면 시드 난수로 감싸서 양쪽이 똑같은 맵을 갖게 한다
+  const build=()=>{
+    trains=[]; food=[]; stations=[]; frame=0;
+    for(let i=0;i<60;i++){ const p=randPos(120); stations.push({x:p.x,y:p.y,r:rnd(14,34)}); }
+    for(let i=0;i<14;i++) refillFood();
+    const myName = VS.on ? (Versus.myName||'나') : '나';
+    const makeMe=(p)=>{
+      player=new Train(p.x,p.y,Math.atan2(-p.y,-p.x),pick.line,pick.grade,myName,true);
+      player.pax=6; player.computeCars();
+      trains.push(player);
+    };
+    if(VS.on){
+      /* 온라인은 봇을 "먼저" 배치한다.
+         spawnBot 은 이미 있는 열차와 겹치지 않는 자리를 찾을 때까지 다시 뽑는데,
+         플레이어를 먼저 넣으면 두 사람의 출발 위치가 서로 달라서
+         다시 뽑는 횟수가 갈리고 → 그 뒤 봇 배치가 전부 어긋난다. */
+      for(let i=0;i<BOT_COUNT;i++) spawnBot();
+      // 두 사람 자리도 봇만 보고 고른다 (양쪽 계산이 똑같아진다)
+      const spot=()=>{ let p,tries=0;
+        do{ p=randPos(500); tries++; }while(tries<20 && trains.some(t=>Math.hypot(t.x-p.x,t.y-p.y)<420));
+        return p; };
+      const pA=spot(), pB=spot();
+      makeMe(Versus.isHost?pA:pB);
+    }else{
+      makeMe(randPos(500));
+      for(let i=0;i<BOT_COUNT;i++) spawnBot();
+    }
+  };
+  if(VS.on){ Versus.reseed(0); Versus.seeded(build); } else build();
+
   cam.x=player.x; cam.y=player.y; zoom=clamp(Math.min(cssW,cssH)/640,0.60,1.15)*0.95;
   running=true; lastT=performance.now(); show(null);
   const hintEl=document.getElementById('hint');
@@ -823,6 +962,11 @@ function endGame(reason){
     `<div class="rrow"><span>최종 순위</span><b>${rank}위 / ${list.length}대</b></div>`+
     `<div class="rrow"><span>내 최고 기록</span><b class="best">${Math.max(bestPax,player.pax)}명 · ${Math.max(bestCars,player.cars)}칸${newBest?' 🎉신기록':''}</b></div>`;
   setTimeout(()=>show(over), 700);
+  // 온라인 대결이면 내 최종 점수를 알린다 (상대가 아직 달리는 중이면 라이브러리가 기다려준다)
+  if(VS.on && window.Versus && Versus.active()){
+    document.getElementById('overSub').textContent += ' 친구가 끝나기를 기다리는 중…';
+    Versus.finish(player.pax);
+  }
 }
 
 /* 초기 미리보기 */
@@ -831,7 +975,9 @@ renderGrades();
 /* 디버그/검증 훅 (헤드리스 테스트용) */
 window.SUBWAY={Train,LINES,GRADES,gradeStyle,startGame,
   get trains(){return trains;}, get food(){return food;}, get player(){return player;},
-  get running(){return running;},
+  get running(){return running;}, get stations(){return stations;}, get frame(){return frame;}, VS, endGame,
+  stop(){ running=false; },
+  resume(){ if(running) return; running=true; lastT=performance.now(); requestAnimationFrame(loop); },
   spawnOrb, killTrain, botThink, spawnBot,
   setPick(l,g){ pick.line=l; pick.grade=g; },
   render(){ drawWorld(); drawMini(); drawHud(); },

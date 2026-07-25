@@ -113,6 +113,13 @@ input[type=text]:focus{border-color:#7dd3fc}
 @keyframes tilt{0%,45%{transform:rotate(0)}55%,100%{transform:rotate(90deg)}}
   a.hub-link{display:block;text-align:center;margin:10px auto 0;padding:4px;color:#8a94a6;font-size:13px;text-decoration:none;font-family:inherit;}
   a.hub-link:hover{text-decoration:underline;}
+
+/* ══ 온라인 대결 ══ (온라인일 때만 보이는 HUD·여백) */
+.vsonly{display:none !important}
+body.vs-playing .vsonly{display:flex !important}
+body.vs-playing #hud .hbar{padding-top:3.1em}
+.vs-sel{width:100%;box-sizing:border-box;border:2px solid #e7e2f2;border-radius:14px;padding:10px 12px;
+  font-size:15px;font-weight:800;font-family:inherit;color:#4a4258;background:#faf8ff;outline:none;margin-bottom:2px}
 </style>
 </head>
 <body>
@@ -130,6 +137,9 @@ input[type=text]:focus{border-color:#7dd3fc}
       <div class="chip"><span class="lb">BEST</span><b id="hBest">-</b></div>
       <div class="chip"><b id="hStar">☆☆☆</b></div>
       <div class="chip"><span class="lb">사망</span><b id="hDie">0</b></div>
+      <div class="chip vsonly"><span class="lb">코스</span><b id="hProg">1/3</b></div>
+      <div class="chip vsonly"><span class="lb">남은시간</span><b id="hLeft">0</b></div>
+      <div class="chip vsonly"><span class="lb">내 점수</span><b id="hScore">0</b></div>
       <div class="spacer"></div>
       <div class="ibtn" id="bSfx" title="효과음">🔊</div>
       <div class="ibtn" id="bBgm" title="배경음">🎵</div>
@@ -149,6 +159,7 @@ input[type=text]:focus{border-color:#7dd3fc}
     <div class="sub">발판을 밟고 장애물을 피해 도착 지점까지!<br>레벨 1부터 100까지, 갈수록 점점 더 어려워집니다.</div>
     <div class="row">
       <button class="btn" id="bGo">시작하기</button>
+      <button class="btn ghost" id="bVs">🌐 친구랑 온라인 대결</button>
       <button class="btn ghost" id="bRankT">🏆 기록실</button>
     </div>
     <div class="keys">
@@ -224,6 +235,7 @@ input[type=text]:focus{border-color:#7dd3fc}
   </div></div>
 </div></div>
 
+<script src="../../../common/versus.js"></script>
 <script>
 (function(){
 'use strict';
@@ -661,10 +673,15 @@ var G={mode:'title',level:1,lvl:null,timeMs:0,deaths:0,started:false,
        cam:{x:0,y:0},shake:0,dying:0,parts:[],spawn:null,t:0,wallX:-9999,gotStars:0};
 var P={x:0,y:0,vx:0,vy:0,grounded:false,ride:null,coyote:0,jbuf:0,face:1,sq:1};
 var IN={left:false,right:false,jump:false,jumpRel:false};
+/* 온라인 대결 상태 (자세한 로직은 아래 "온라인 대결" 블록) */
+var VS={on:false,levels:[],idx:0,cleared:0,stars:0,leftMs:0,limitMs:0,bonus:0,live:0,
+        ghost:null,oppChar:'box',done:false,sent:-1,tick:0};
 
 function startLevel(L){
   G.level=clamp(L,1,100);
-  G.lvl=genLevel(G.level);
+  /* 온라인 대결에서는 시드 난수 안에서 만들어 양쪽 맵을 100% 똑같이 맞춘다 */
+  if(VS.on){ Versus.reseed(G.level); G.lvl=Versus.seeded(function(){ return genLevel(G.level); }); }
+  else G.lvl=genLevel(G.level);
   G.spawn={x:G.lvl.spawn.x,y:G.lvl.spawn.y};
   G.timeMs=0; G.deaths=0; G.started=false; G.dying=0; G.parts=[]; G.shake=0; G.t=0; G.gotStars=0;
   G.wallX=G.spawn.x-340;
@@ -747,6 +764,7 @@ function circHit(cx,cy,r,b){ var nx=clamp(cx,b.x,b.x+b.w), ny=clamp(cy,b.y,b.y+b
 function step(){
   if(G.mode!=='play') return;
   G.t++;
+  if(VS.on && vsStep()) return;   /* 온라인: 시간 관리 · 위치 전송 */
   updatePlats();
 
   if(G.dying>0){ G.dying--; stepParts();
@@ -853,6 +871,7 @@ function die(){
   hudLevel();
 }
 function clearLevel(){
+  if(VS.on){ vsClearLevel(); return; }   /* 온라인은 기록 저장 없이 다음 코스로 */
   G.mode='clear'; G.canResume=false;
   var pr=prof();
   var b=pr.best[G.level], isNew=(b==null||G.timeMs<b);
@@ -926,8 +945,10 @@ function draw(){
   G.parts.forEach(function(p){ ctx.globalAlpha=Math.max(0,p.l); ctx.fillStyle=p.c;
     ctx.fillRect(p.x-p.s/2,p.y-p.s/2,p.s,p.s); });
   ctx.globalAlpha=1;
+  if(VS.on && VS.ghost) drawGhost();      /* 상대 유령 */
   if(G.dying===0) drawPlayer();
   ctx.restore();
+  if(VS.on && VS.ghost) drawGhostHint(camx,camy);
 
   if(L.wallSpd>0){
     var near=clamp(1-(P.x-G.wallX)/420,0,1);
@@ -1171,6 +1192,7 @@ function frame(ts){
   if(guard>=5) acc=0;
   draw();
   if(G.mode==='play') $('hTime').textContent=fmt(G.timeMs);
+  if(VS.on){ $('hLeft').textContent=Math.ceil(VS.leftMs/1000)+'초'; $('hScore').textContent=vsScore(); }
 }
 requestAnimationFrame(frame);
 
@@ -1189,6 +1211,9 @@ function hudLevel(){
   $('hStar').textContent=['☆☆☆','★☆☆','★★☆','★★★'][clamp(G.gotStars,0,3)];
   if(pr){ $('hName').textContent=pr.name;
     var a=$('hAva'), gg=a.getContext('2d'); gg.clearRect(0,0,26,30); drawChar(gg,pr.ch,5,10,16,20,1,0); }
+  if(VS.on){ $('hName').textContent=Versus.myName;
+    var a2=$('hAva'), g2=a2.getContext('2d'); g2.clearRect(0,0,26,30); drawChar(g2,vsMyChar(),5,10,16,20,1,0);
+    $('hProg').textContent=(VS.idx+1)+'/'+VS.levels.length; }
 }
 function diffColor(L){ return L<=20?'#4ade80':L<=40?'#facc15':L<=60?'#fb923c':L<=80?'#f87171':'#c084fc'; }
 
@@ -1307,7 +1332,9 @@ $('bCreate').onclick=function(){
 };
 $('bSBack').onclick=function(){ SFX.click();
   if(G.lvl && G.mode==='select' && G.canResume){ show(null); G.mode='play'; } else show('scTitle'); };
-$('bList').onclick=$('bList2').onclick=function(){ SFX.click(); G.mode='select'; buildGrid(); show('scSelect'); };
+$('bList').onclick=$('bList2').onclick=function(){ SFX.click();
+  if(VS.on){ Versus.leave(); return; }            /* 온라인 중엔 대결에서 나가기 */
+  G.mode='select'; buildGrid(); show('scSelect'); };
 $('bRe').onclick=$('bRetry').onclick=function(){ SFX.click(); startLevel(G.level); };
 $('bNext').onclick=function(){ SFX.click(); startLevel(Math.min(100,G.level+1)); };
 function syncAudio(){ $('bSfx').classList.toggle('off',!save.sfx); $('bBgm').classList.toggle('off',!save.bgm); }
@@ -1320,7 +1347,8 @@ var CODES={left:['ArrowLeft','KeyA'],right:['ArrowRight','KeyD'],jump:['Space','
 function keyKind(c){ for(var k in CODES) if(CODES[k].indexOf(c)>=0) return k; return null; }
 window.addEventListener('keydown',function(e){
   if(document.activeElement&&document.activeElement.tagName==='INPUT') return;
-  if(e.code==='Escape'){ if(G.mode==='play'){ G.mode='select'; buildGrid(); show('scSelect'); } return; }
+  if(e.code==='Escape'){ if(VS.on){ Versus.leave(); return; }
+    if(G.mode==='play'){ G.mode='select'; buildGrid(); show('scSelect'); } return; }
   if(e.code==='KeyR'&&G.lvl&&G.mode==='play'){ startLevel(G.level); e.preventDefault(); return; }
   if(e.code==='Enter'&&G.mode==='clear'){ $('bNext').click(); return; }
   var k=keyKind(e.code); if(!k) return;
@@ -1353,8 +1381,169 @@ window.addEventListener('pointerdown',function(){ ac(); },{once:true});
 (function(){ var pr=prof();
   $('bGo').textContent = pr ? (pr.name+' 이어서 하기') : (save.profiles.length?'플레이어 고르기':'시작하기'); })();
 
+/* ══════════ 온라인 대결 ══════════ */
+/* 같은 맵 레이스: 방장이 고른 난이도로 양쪽이 똑같은 코스를 달린다.
+   점수 = 깬 코스 ×1000 + 모은 별 ×100 + 지금 코스 진행도(최대 500) + 완주 시 남은 시간(초) */
+
+function vsMyChar(){ var p=prof(); return p?p.ch:'box'; }
+
+/* 지금 코스에서 얼마나 갔는지 (끝나면 그 값에서 멈춘다) */
+function vsLive(){
+  if(VS.done || !G.lvl) return VS.live||0;
+  var L=G.lvl, p=clamp((P.x-L.plats[0].x)/(L.goal.x-L.plats[0].x),0,1);
+  VS.live=Math.floor(p*500)+clamp(G.gotStars,0,3)*100;
+  return VS.live;
+}
+function vsScore(){ return VS.cleared*1000 + VS.stars*100 + vsLive() + VS.bonus; }
+
+/* 매 프레임 — 시간 줄이기 · 내 위치 보내기. true 를 돌려주면 이번 프레임은 여기서 끝 */
+function vsStep(){
+  if(!Versus.active() && !VS.done){ G.mode='vsdone'; VS.ghost=null; return true; }
+  VS.leftMs-=1000/60;
+  if(VS.leftMs<=0){ VS.leftMs=0; vsFinish('시간 끝!'); return true; }
+  VS.tick++;
+  if(VS.tick%6===0)  /* 약 100ms 마다 내 위치를 보낸다 → 상대 화면에 고스트로 보임 */
+    Versus.send({t:'pos',x:Math.round(P.x),y:Math.round(P.y),lv:G.level,f:P.face});
+  var s=vsScore();
+  if(s!==VS.sent){ VS.sent=s; Versus.setScore(s); }
+  return false;
+}
+
+/* 코스 하나 클리어 → 바로 다음 코스로 (기록은 저장하지 않는다) */
+function vsClearLevel(){
+  SFX.clear();
+  VS.cleared++; VS.stars+=clamp(G.gotStars,0,3); VS.live=0;
+  for(var i=0;i<50;i++)
+    burst(G.lvl.goal.x+27,G.lvl.goal.y+30,['#fde047','#7dd3fc','#a78bfa','#34d399','#fb7185'][i%5],1,7);
+  VS.idx++;
+  if(VS.idx>=VS.levels.length){ vsFinish('모든 코스 완주!'); return; }
+  startLevel(VS.levels[VS.idx]);
+  VS.sent=vsScore(); Versus.setScore(VS.sent);
+  vsTip('코스 '+(VS.idx+1)+'/'+VS.levels.length+' 출발!',1600);
+}
+
+/* 내 대결 끝 */
+function vsFinish(msg){
+  if(VS.done) return;
+  VS.bonus=Math.floor(VS.leftMs/1000);   /* 빨리 끝낼수록 남은 시간이 점수 */
+  VS.done=true; G.mode='vsdone'; G.canResume=false;
+  vsTip((msg||'끝!')+' 내 점수 '+vsScore()+'점 · 친구를 기다리는 중…',0);
+  Versus.finish(vsScore());
+}
+
+function vsTip(txt,ms){
+  $('tip').textContent=txt; $('tip').style.opacity='.9';
+  if(ms) setTimeout(function(){ if(VS.on&&!VS.done) $('tip').style.opacity='0'; },ms);
+}
+
+/* 상대 고스트 (반투명 캐릭터) */
+function drawGhost(){
+  var g=VS.ghost;
+  g.x=lerp(g.x,g.tx,0.3); g.y=lerp(g.y,g.ty,0.3);
+  if(g.lv!==G.level) return;                 /* 다른 코스면 화면엔 안 그리고 힌트만 */
+  ctx.save();
+  ctx.globalAlpha=0.2; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(g.x+PW/2,g.y+PH+3,PW*0.45,4,0,0,6.3); ctx.fill();
+  ctx.globalAlpha=0.45;
+  drawChar(ctx,VS.oppChar,g.x,g.y,PW,PH,g.f||1,G.t);
+  ctx.globalAlpha=0.9;
+  ctx.fillStyle='#fff'; ctx.font='bold 12px sans-serif'; ctx.textAlign='center';
+  ctx.fillText(Versus.oppName,g.x+PW/2,g.y-9);
+  ctx.restore();
+}
+/* 고스트가 화면 밖이면 가장자리에 화살표로 알려준다 */
+function drawGhostHint(camx,camy){
+  var g=VS.ghost, sx=g.x-camx+PW/2, sy=g.y-camy+PH/2;
+  var other=(g.lv!==G.level);
+  if(!other && sx>28 && sx<VW-28 && sy>56 && sy<VH-28) return;
+  var ex=other?VW-30:clamp(sx,28,VW-28), ey=other?VH-46:clamp(sy,58,VH-30);
+  ctx.save();
+  ctx.globalAlpha=0.9;
+  ctx.fillStyle='rgba(10,14,28,.62)';
+  ctx.beginPath(); ctx.arc(ex,ey,15,0,6.3); ctx.fill();
+  ctx.strokeStyle='#a78bfa'; ctx.lineWidth=2; ctx.stroke();
+  if(!other){
+    ctx.save(); ctx.translate(ex,ey); ctx.rotate(Math.atan2(sy-ey,sx-ex));
+    ctx.fillStyle='#a78bfa'; ctx.beginPath();
+    ctx.moveTo(20,0); ctx.lineTo(11,-6); ctx.lineTo(11,6); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  ctx.fillStyle='#fff'; ctx.font='bold 10.5px sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(other?('LV'+g.lv):'친구',ex,ey);
+  ctx.textBaseline='alphabetic';
+  ctx.restore();
+}
+
+/* 로비 열기 */
+function openVersus(){
+  SFX.click(); ac();
+  Versus.open({
+    game:'jump-map',
+    /* 방장이 고른 설정을 참가자에게도 그대로 적용 */
+    getSettings:function(){
+      var d=$('vsJmDiff'), c=$('vsJmCnt'), t=$('vsJmTime');
+      return {start:d?+d.value:1, count:c?+c.value:3, limit:t?+t.value:180};
+    },
+    settingsHTML:function(){
+      if(!Versus.isHost)
+        return '<div class="vs-note">방장이 고른 <b>난이도 · 코스 수 · 제한 시간</b>으로 둘 다 <b>똑같은 맵</b>을 달려요!<br>' +
+               '점수 = 깬 코스 ×1000 + 별 ×100 + 지금 진행도 + 완주하면 남은 시간</div>';
+      return '<div style="text-align:left;font-weight:800;font-size:13px;color:#4a4258">' +
+        '<div style="margin:8px 0 4px">난이도 (시작 레벨)</div>' +
+        '<select class="vs-sel" id="vsJmDiff">' +
+          '<option value="1">쉬움 · 1레벨부터</option>' +
+          '<option value="21">보통 · 21레벨부터</option>' +
+          '<option value="41">어려움 · 41레벨부터</option>' +
+          '<option value="61">매우 어려움 · 61레벨부터</option>' +
+          '<option value="81">극악 · 81레벨부터</option>' +
+        '</select>' +
+        '<div style="margin:10px 0 4px">코스 수</div>' +
+        '<select class="vs-sel" id="vsJmCnt"><option value="2">2개</option>' +
+          '<option value="3" selected>3개</option><option value="5">5개</option></select>' +
+        '<div style="margin:10px 0 4px">제한 시간</div>' +
+        '<select class="vs-sel" id="vsJmTime"><option value="120">2분</option>' +
+          '<option value="180" selected>3분</option><option value="300">5분</option></select>' +
+        '</div>' +
+        '<div class="vs-note">둘 다 <b>똑같은 맵</b>을 달려요. 상대는 반투명 <b>고스트</b>로 보여요!<br>' +
+        '점수 = 깬 코스 ×1000 + 별 ×100 + 지금 진행도 + 완주하면 남은 시간</div>';
+    },
+    onStart:function(c){
+      var s=c.settings||{};
+      VS.on=true; VS.done=false; VS.idx=0; VS.cleared=0; VS.stars=0;
+      VS.bonus=0; VS.live=0; VS.ghost=null; VS.oppChar='box'; VS.sent=-1; VS.tick=0;
+      VS.limitMs=(s.limit||180)*1000; VS.leftMs=VS.limitMs;
+      VS.levels=[];
+      for(var i=0;i<(s.count||3);i++) VS.levels.push(clamp((s.start||1)+i,1,100));
+      Versus.send({t:'chr',c:vsMyChar()});
+      startLevel(VS.levels[0]);
+      VS.sent=vsScore(); Versus.setScore(VS.sent);
+      vsTip('코스 1/'+VS.levels.length+' 출발! 골에 먼저 닿아요',2600);
+    },
+    onData:function(m){
+      if(m.t==='pos'){
+        var g=VS.ghost;
+        if(!g || g.lv!==m.lv) VS.ghost={x:m.x,y:m.y,tx:m.x,ty:m.y,f:m.f||1,lv:m.lv};
+        else { g.tx=m.x; g.ty=m.y; g.f=m.f||1; }
+      } else if(m.t==='chr') VS.oppChar=m.c||'box';
+    },
+    onLeave:vsExit,
+    onCancel:function(){ show('scTitle'); }
+  });
+}
+/* 대결에서 빠져나오기 — 고스트도 지우고 조용히 메뉴로 */
+function vsExit(){
+  VS.on=false; VS.done=false; VS.ghost=null; VS.levels=[];
+  G.mode='title'; G.lvl=null; G.canResume=false;
+  document.body.classList.remove('vs-playing');
+  $('tip').textContent = TOUCH?'◀ ▶ 이동 · ▲ 점프':'← → 이동 · Space 점프';
+  $('tip').style.opacity='.85';
+  show('scTitle');
+}
+$('bVs').onclick=openVersus;
+
 /* 개발/테스트용 훅 */
-window.JM={start:startLevel,G:G,P:P,gen:genLevel,save:save,CHARS:CHARS,drawChar:drawChar};
+window.JM={start:startLevel,G:G,P:P,VS:VS,gen:genLevel,save:save,CHARS:CHARS,drawChar:drawChar,IN:IN};
 })();
 </script>
 </body>

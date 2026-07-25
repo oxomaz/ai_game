@@ -181,6 +181,7 @@
       </div>
 
       <button class="big-btn" id="btnStart">게임 시작하기</button>
+      <button class="big-btn" id="btnOnline" style="margin-top:10px;background:var(--p2);box-shadow:0 4px 0 #2c6f9e">🌐 친구랑 온라인 대결</button>
       <div class="link-row">
         <button class="link" id="btnRules">📖 규칙 보기</button>
         <button class="link" id="btnTutorial">🎓 연습 문제</button>
@@ -216,6 +217,7 @@
 <!-- ============ 오버레이 ============ -->
 <div class="overlay" id="ov"><div class="sheet" id="ovBody"></div></div>
 
+<script src="../../../common/versus.js"></script>
 <script>
 /* =========================================================
    1. 기본 데이터 & 카드 그리기
@@ -409,6 +411,8 @@ function bindOpts(wrapId, cb){
     };
   });
 }
+// 지금 선택돼 있는 옵션 값 읽기
+function selOpt(wrapId){ const b = $(wrapId).querySelector('.opt.sel'); return b ? b.dataset.v : ''; }
 bindOpts('optDiff', v => { G.easy = (v==='easy'); renderBest(); });
 bindOpts('optMode', v => {
   G.mode = v;
@@ -441,6 +445,10 @@ function fmt(ms){
    ========================================================= */
 function startGame(){
   ac(); // 오디오 잠금 해제
+  // 온라인 대결을 하고 온 경우가 있으니 화면에서 고른 값으로 되돌린다
+  G.easy = selOpt('optDiff') === 'easy';
+  G.mode = selOpt('optMode');
+  $('btnNoSet').style.display = '';
   G.names = [$('n1').value.trim() || '플레이어 1', $('n2').value.trim() || '플레이어 2'];
   G.deck = shuffle(makeDeck(G.easy));
   G.board = [];
@@ -494,6 +502,16 @@ function updateDeckInfo(){
 function renderPlayers(){
   const p = $('players');
   p.className = 'players' + (G.mode==='solo' ? ' solo' : '');
+  if (G.mode === 'online'){
+    // 온라인 대결 — 누르는 버튼 없이 양쪽 점수만 보여준다
+    p.innerHTML = [0,1].map(i=>`
+      <div class="pbtn" data-p="${i+1}" style="cursor:default">
+        <div class="pname">${escapeHtml(G.names[i])}${i===0?' (나)':''}</div>
+        <div class="pscore" id="s${i}">0</div>
+        <div class="phint">${i===0?'내가 찾은 SET':'친구가 찾은 SET'}</div>
+      </div>`).join('');
+    return;
+  }
   if (G.mode === 'solo'){
     p.innerHTML = `<div class="pbtn" data-p="1" style="border-color:var(--ok); color:var(--ok); cursor:default">
         <div class="pname">혼자 연습</div>
@@ -513,6 +531,12 @@ function renderPlayers(){
 function escapeHtml(s){ return s.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 function updateScores(){
+  if (G.mode === 'online'){
+    const a=$('s0'), b=$('s1');
+    if (a) a.textContent = G.found;
+    if (b) b.textContent = O.oppFound;
+    return;
+  }
   if (G.mode === 'solo'){ const e = $('s0'); if (e) e.textContent = G.found; return; }
   [0,1].forEach(i=>{ const e=$('s'+i); if(e) e.textContent = G.scores[i]; });
 }
@@ -581,7 +605,7 @@ function startClaimTimer(p){
 function endTurn(p, penalty){
   clearTimeout(G.timerId); G.timerId = null;
   G.sel = []; applySelStyles();
-  if (G.mode === 'solo'){ G.active = 1; return; }
+  if (G.mode !== 'vs'){ G.active = 1; return; }   // 혼자 연습 · 온라인 대결은 턴이 없다
   const btn = $('pb'+(p-1)), other = $('pb'+(2-p));
   btn.classList.remove('active');
   const bar = $('tb'+(p-1));
@@ -620,6 +644,7 @@ function clickCard(idx){
 function judge(){
   const [i,j,k] = G.sel;
   const a = G.board[i], b = G.board[j], c = G.board[k];
+  if (G.mode === 'online'){ judgeOnline(i,j,k,a,b,c); return; }
   const p = G.mode==='solo' ? 1 : G.active;
   G.busy = true;
   clearTimeout(G.timerId);
@@ -849,7 +874,11 @@ $('btnTutorial').onclick = ()=>{ ac(); tutIdx=0; tutScore=0; renderTut(); };
    13. 기타 버튼 / 키보드
    ========================================================= */
 $('btnStart').onclick = startGame;
-$('btnHome').onclick = ()=>{ clearTimers(); renderBest(); show('scr-home'); };
+$('btnHome').onclick = ()=>{
+  clearTimers();
+  if (G.mode === 'online' && Versus.active()){ Versus.leave(); return; }
+  renderBest(); show('scr-home');
+};
 $('btnSound').onclick = ()=>{
   soundOn = !soundOn;
   const r = loadRec(); r.sound = soundOn; saveRec(r);
@@ -875,6 +904,171 @@ document.addEventListener('keydown', e=>{
   $('demoRow').innerHTML = demo.map(c=>`<div class="card">${cardSVG(c)}</div>`).join('');
 })();
 renderBest();
+
+/* ══ 온라인 대결 ══ */
+/* ══════════════════════════════════════════════════════════
+   같은 판을 보고 "누가 먼저 SET을 찾나" 경쟁하는 모드.
+
+   · 덱 섞기를 Versus.seeded() 안에서 하므로 두 사람의 판이 100% 똑같다.
+   · 카드가 사라지는 순서는 **방장이 심판**이 되어 정한다.
+       - 방장이 찾음  → 바로 걷어내고 친구에게 sgo(적용해!) 전송
+       - 친구가 찾음  → sreq(이거 맞죠?) 를 방장에게 보내고 기다림
+                        방장이 확인 후 sgo 를 양쪽에 적용 / 늦었으면 sno
+     이렇게 하면 동시에 눌러도 두 판이 절대 어긋나지 않는다.
+   ══════════════════════════════════════════════════════════ */
+const O = { oppFound:0, waiting:false, renderPend:false };
+
+/* 로비 열기 */
+function openVersus(){
+  ac();
+  Versus.open({
+    game: 'set',
+    getSettings: () => ({ easy: selOpt('optDiff') === 'easy' }),
+    settingsHTML: () => '<div class="vs-note">방장이 고른 <b>난이도</b>로 둘 다 플레이해요.<br>' +
+      '<b>똑같은 카드 판</b>이 나오니까, SET을 먼저 찾아서 클릭하는 사람이 점수를 가져가요!</div>',
+    onStart: startOnline,
+    onData: onVersusData,
+    onLeave: () => { clearTimers(); renderBest(); show('scr-home'); },
+    onCancel: () => show('scr-home')
+  });
+}
+$('btnOnline').onclick = openVersus;
+
+/* 대결 시작 — 양쪽에서 동시에 불린다 */
+function startOnline(ctx){
+  ac();
+  G.mode = 'online';
+  G.easy = ctx.settings ? !!ctx.settings.easy : G.easy;
+  G.names = [ctx.myName, ctx.oppName];
+  G.scores = [0,0]; G.found = 0; G.hintsUsed = 0;
+  G.sel = []; G.busy = false; G.active = 1;
+  G.hintLevel = 0; G.hintSet = null;
+  G.boardMin = G.easy ? 9 : 12;
+  G.startTime = 0;
+  O.oppFound = 0; O.waiting = false; O.renderPend = false;
+  clearTimers();
+
+  // 여기 안에서 만든 것은 두 사람이 완전히 똑같다
+  Versus.reseed(0);
+  Versus.seeded(()=>{
+    G.deck = shuffle(makeDeck(G.easy));
+    G.board = [];
+    fillBoard(true);
+    ensureSetOnBoard();
+  });
+
+  $('btnNoSet').style.display = 'none';   // 카드 보충은 자동으로 맞춰지므로 숨김
+  renderPlayers();
+  renderBoard();
+  updateScores();
+  updateDeckInfo();
+  say(`<b>${escapeHtml(ctx.oppName)}</b> 님과 대결! SET을 먼저 찾아서 클릭하세요 ⚡`);
+  show('scr-game');
+}
+
+/* 내가 세 장을 골랐을 때 */
+function judgeOnline(i,j,k,a,b,c){
+  G.busy = true;
+  if (!isSet(a,b,c)){
+    SFX.bad();
+    [i,j,k].forEach(x=>{ const e=cardEl(x); if(e) e.classList.add('bad'); });
+    say(explainFail(a,b,c), 'bad');
+    setTimeout(()=>{
+      [i,j,k].forEach(x=>{ const e=cardEl(x); if(e) e.classList.remove('bad'); });
+      G.sel = []; applySelStyles(); G.busy = false;
+    }, 900);
+    return;
+  }
+  const ids = [a.id, b.id, c.id];
+  if (Versus.isHost){
+    // 내가 심판 — 바로 처리하고 친구에게 알린다
+    Versus.send({ t:'sgo', ids:ids, byHost:true });
+    applyClaim(ids, true);
+  } else {
+    // 방장에게 물어본다
+    O.waiting = true;
+    Versus.send({ t:'sreq', ids:ids });
+    say('찾았다! 확인 중이에요… ⚡');
+  }
+}
+
+/* 상대에게서 온 메시지 */
+function onVersusData(m){
+  if (G.mode !== 'online') return;
+  if (m.t === 'sreq'){
+    if (!Versus.isHost) return;
+    const cards = m.ids.map(id => G.board.find(cd => cd && cd.id === id));
+    if (cards.every(Boolean) && isSet(cards[0], cards[1], cards[2])){
+      Versus.send({ t:'sgo', ids:m.ids, byHost:false });
+      applyClaim(m.ids, false);
+    } else {
+      Versus.send({ t:'sno' });   // 이미 사라진 카드 → 무시
+    }
+  } else if (m.t === 'sgo'){
+    if (Versus.isHost) return;    // 방장은 이미 처리했다
+    if (m.byHost === false) O.waiting = false;
+    applyClaim(m.ids, m.byHost === false);
+  } else if (m.t === 'sno'){
+    O.waiting = false;
+    SFX.bad();
+    G.sel = []; applySelStyles(); G.busy = false;
+    say('앗, 한 발 늦었어요! 친구가 먼저 찾았어요 😮', 'bad');
+  }
+}
+
+/* SET 세 장을 걷어내고 덱에서 보충 — 양쪽이 똑같은 순서로 실행된다 */
+function applyClaim(ids, mine){
+  const idxs = ids.map(id => G.board.findIndex(cd => cd && cd.id === id));
+  if (idxs.some(x => x < 0)) return;
+  // 사라지는 카드 반짝
+  idxs.forEach(x=>{ const e=cardEl(x); if(e){ e.classList.remove('sel'); e.classList.add('good'); } });
+  idxs.forEach(x=>{ G.board[x] = null; });
+  if (G.deck.length > 0 && G.board.filter(Boolean).length < G.boardMin){
+    idxs.forEach(x=>{ if (G.deck.length) G.board[x] = G.deck.pop(); });
+  }
+  G.board = G.board.filter(Boolean);
+  fillBoard();
+  ensureSetOnBoard();
+
+  G.sel = []; clearHint();
+  if (mine){
+    G.found++;
+    Versus.setScore(G.found);
+    SFX.good(); confetti(24);
+    say('정답! 🎉 내가 먼저 찾았어요', 'good');
+  } else {
+    O.oppFound++;
+    SFX.time();
+    say(`<b>${escapeHtml(G.names[1])}</b> 님이 먼저 찾았어요! 다음엔 내가 먼저 🔥`);
+  }
+  updateDeckInfo();
+  scheduleOnlineRender();
+}
+
+/* 반짝임이 끝난 뒤 한 번만 다시 그린다 */
+function scheduleOnlineRender(){
+  G.busy = true;
+  if (O.renderPend) return;
+  O.renderPend = true;
+  setTimeout(()=>{
+    O.renderPend = false;
+    renderBoard(); updateScores(); updateDeckInfo();
+    G.busy = O.waiting;
+    checkEndOnline();
+  }, 430);
+}
+
+/* 더 이상 찾을 SET이 없으면 끝 */
+function checkEndOnline(){
+  if (G.mode !== 'online' || !Versus.active()) return;
+  const live = G.board.filter(Boolean);
+  if (G.deck.length === 0 && findAllSets(live).length === 0){
+    clearTimers();
+    G.busy = true;
+    say(`카드를 다 썼어요! 내가 찾은 SET <b>${G.found}개</b> 🎉`, 'good');
+    Versus.finish(G.found);
+  }
+}
 
 /* ---------- 자가 점검 (콘솔) ---------- */
 (function selfTest(){

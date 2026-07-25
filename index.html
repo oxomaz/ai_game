@@ -34,13 +34,15 @@
   a.card .emoji{font-size:32px; margin-bottom:8px; display:block;}
   a.card .title{font-weight:800; font-size:16px; margin-bottom:4px;}
   a.card .desc{font-size:12.5px; color:var(--sub); line-height:1.5;}
+  a.card .vsbadge{display:inline-block;margin-top:9px;font-size:11.5px;font-weight:800;color:#6b5ce7;
+    background:#efecff;border-radius:999px;padding:3px 9px;}
   footer{text-align:center; margin-top:32px; font-size:12px; color:var(--sub);}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="logo"><span>미</span><span>니</span><span>게</span><span>임</span></div>
-  <p class="sub">여기서 바로 플레이할 수 있는 게임 모음이에요.</p>
+  <p class="sub">여기서 바로 플레이할 수 있는 게임 모음이에요. <b>🌐</b> 표시가 있는 게임은 방 코드로 친구와 대결할 수 있어요!</p>
   <div id="sections"></div>
   <footer>새 게임은 <code>games/fun/</code> · <code>games/study/</code> 폴더에 계속 추가됩니다.</footer>
 </div>
@@ -51,11 +53,11 @@
     { path: "games/study/times-table-shooter/", emoji: "🚀", title: "구구단 슈팅",     desc: "내려오는 숫자 중 정답을 쏘는 액션 게임. 연습할 단 고르기 · 목숨 3개 · 오답 노트", category: "study" },
     { path: "games/study/word-cards/",          emoji: "🔤", title: "영단어 카드 퀴즈", desc: "초등 3학년 영단어 120개. 카드 외우기 · 영→뜻 · 뜻→영 · 발음 듣기", category: "study" },
     { path: "games/study/quiz-science/",        emoji: "🧠", title: "상식·과학 퀴즈",   desc: "과학·우주·동물·역사·한국·생활 6개 주제 43문제. 문제마다 해설이 나와요", category: "study" },
-    { path: "games/fun/kkeutmalitgi/",  emoji: "🔤", title: "끝말잇기",     desc: "컴퓨터와 3단계 난이도로 대결하거나, 최대 8명이 한 화면에서 돌아가며 단어 잇기", category: "fun" },
-    { path: "games/fun/hidden-object/", emoji: "🔍", title: "숨은그림찾기", desc: "매판 새로 그려지는 그림판에서 목표 찾기. 혼자서도, 둘이서 버저 대결로도", category: "fun" },
-    { path: "games/fun/set/",           emoji: "🃏", title: "SET 카드게임", desc: "네 속성이 모두 같거나 모두 다른 세 장 찾기. 규칙 설명과 연습 문제부터 시작", category: "fun" },
-    { path: "games/fun/jump-map/",      emoji: "🏃", title: "점프맵 100",   desc: "1~100단계 파쿠르 점프맵. 닉네임별 기록 · 캐릭터 12종 · 별 수집", category: "fun" },
-    { path: "games/fun/subway-io/",     emoji: "🚇", title: "지하철 슬리더", desc: "노선 18종·등급 7종 중 내 열차를 골라 승객을 태우고 편성을 늘리는 슬리더리오식 대전", category: "fun" }
+    { path: "games/fun/kkeutmalitgi/",  emoji: "🔤", title: "끝말잇기",     desc: "컴퓨터와 3단계 난이도로 대결하거나, 최대 8명이 한 화면에서 돌아가며 단어 잇기", category: "fun", vs: true },
+    { path: "games/fun/hidden-object/", emoji: "🔍", title: "숨은그림찾기", desc: "매판 새로 그려지는 그림판에서 목표 찾기. 혼자서도, 둘이서 버저 대결로도", category: "fun", vs: true },
+    { path: "games/fun/set/",           emoji: "🃏", title: "SET 카드게임", desc: "네 속성이 모두 같거나 모두 다른 세 장 찾기. 규칙 설명과 연습 문제부터 시작", category: "fun", vs: true },
+    { path: "games/fun/jump-map/",      emoji: "🏃", title: "점프맵 100",   desc: "1~100단계 파쿠르 점프맵. 닉네임별 기록 · 캐릭터 12종 · 별 수집", category: "fun", vs: true },
+    { path: "games/fun/subway-io/",     emoji: "🚇", title: "지하철 슬리더", desc: "노선 18종·등급 7종 중 내 열차를 골라 승객을 태우고 편성을 늘리는 슬리더리오식 대전", category: "fun", vs: true }
   ];
   const SECTIONS = [
     { key: "study", title: "📚 학습용 게임" },
@@ -75,7 +77,7 @@
       const a = document.createElement("a");
       a.className = "card";
       a.href = g.path;
-      a.innerHTML = `<span class="emoji">${g.emoji}</span><div class="title">${g.title}</div><div class="desc">${g.desc}</div>`;
+      a.innerHTML = `<span class="emoji">${g.emoji}</span><div class="title">${g.title}</div><div class="desc">${g.desc}</div>${g.vs ? '<span class="vsbadge">🌐 친구랑 온라인 대결</span>' : ""}`;
       grid.appendChild(a);
     });
     container.appendChild(grid);

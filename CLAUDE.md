@@ -17,6 +17,7 @@
    - 대신 **GitHub Desktop**(설치·로그인 완료)을 컴퓨터 사용 권한으로 직접 조작한다: `Current repository`가 `jerry-games`인지 확인 → Summary 입력 → **Commit to main** → **Push origin**.
    - 브랜치 기본값 변경·삭제·이름 변경처럼 깃허브 웹에서만 되는 작업은 **구글 크롬**으로 `github.com/oxomaz/jerry-games`에 들어가 처리한다.
    - 푸시 후에는 `https://oxomaz.github.io/jerry-games/` 와 새 게임 주소가 실제로 열리는지 확인한다. (Pages: `main` 브랜치 / root)
+7-1. **여러 게임이 함께 쓰는 코드는 루트 `common/` 폴더에 둔다.** 지금은 온라인 대결 라이브러리 `common/versus.js`와 그것이 쓰는 `common/peerjs.min.js`가 들어 있다. 게임에서는 `<script src="../../../common/versus.js"></script>`로 불러온다. PeerJS는 CDN이 막힌 환경에서도 되도록 저장소에 함께 넣어두고, 없으면 unpkg CDN으로 자동 대체된다.
 8. 한국어 게임명/설명을 기본으로 하되, 폴더/파일 경로는 영문으로 유지한다.
 9. **난이도가 있는 게임은 실제로 클리어 가능한지 검증한다.** 자동 생성 레벨을 쓰는 경우, 물리/규칙을 그대로 시뮬레이션해 모든 단계가 통과 가능한지 확인한 뒤 커밋한다.
 

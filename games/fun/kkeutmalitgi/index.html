@@ -160,6 +160,10 @@
           <div class="emoji">👥</div>
           <div><div>여러 명이서 함께</div><span class="sub">한 화면에서 순서대로 플레이 (2~8명)</span></div>
         </div>
+        <div class="big-btn" onclick="openVersus()">
+          <div class="emoji">🌐</div>
+          <div><div>친구랑 온라인 대결</div><span class="sub">방을 만들어 멀리 있는 친구와 한판!</span></div>
+        </div>
       </div>
     </div>
     <footer class="help-link"><button onclick="showHelp()">게임 방법 보기</button></footer>
@@ -269,7 +273,7 @@
         <div class="stat"><b id="stat-players">0</b><span>참가자 수</span></div>
       </div>
     </div>
-    <button class="primary-btn" onclick="restartSame()">같은 설정으로 다시하기</button>
+    <button class="primary-btn" id="btn-restart" onclick="restartSame()">같은 설정으로 다시하기</button>
     <button class="ghost-btn" onclick="goHome()">처음으로</button>
   </div>
 
@@ -291,6 +295,7 @@
   </div>
 </div>
 
+<script src="../../../common/versus.js"></script>
 <script>
 /* ===================== 단어 사전 ===================== */
 const WORDS = ["가족", "가방", "가수", "가위", "가을", "가게", "가로등", "가스", "가치", "가정", "가구", "가로수", "가마솥", "가발", "가지", "가창력", "가면", "가락지", "가입", "가난", "갈매기", "갈비", "갈등", "갈색", "갈치", "감기", "감자", "감동", "감사", "감각", "감정", "감옥", "감독", "강아지", "강물", "강산", "강도", "강의", "강당", "강풍", "강남", "강북", "개미", "개구리", "개나리", "개천", "개울", "개혁", "개인", "개학", "개발", "개미핥기", "거미", "거울", "거리", "거북이", "거지", "거절", "거인", "거짓말", "건물", "건강", "건전지", "건배", "건축", "건조기", "게임", "게시판", "게으름", "겨울", "겨자", "겨드랑이", "경찰", "경기", "경치", "경제", "경험", "경주", "경보", "계란", "계절", "계획", "계산기", "계단", "계약", "고양이", "고구마", "고추", "고래", "고향", "고기", "고생", "고민", "고백", "고집", "고드름", "고속도로", "고슴도치", "곤충", "곤란", "골목", "골프", "골짜기", "공원", "공기", "공주", "공부", "공룡", "공장", "공책", "공무원", "공휴일", "공포", "공연", "과일", "과자", "과학", "과거", "과속", "관광", "관계", "관심", "관광객", "광장", "광고", "광산", "교실", "교사", "교통", "교육", "교회", "교문", "교과서", "교차로", "구름", "구두", "구경", "구슬", "구두쇠", "구석", "구조", "구급차", "국수", "국화", "국물", "국가", "국기", "국경", "군인", "군대", "군것질", "굴뚝", "굴레", "귀신", "귀걸이", "귀뚜라미", "그림", "그늘", "그물", "그릇", "극장", "극지방", "근육", "근처", "근거", "금요일", "금붕어", "금메달", "금고", "기린", "기타", "기차", "기억", "기술", "기분", "기침", "기적", "기자", "기타리스트", "기와", "기숙사", "기지개", "길거리", "길이", "김치", "김밥", "김장", "나비", "나무", "나라", "나이", "나침반", "나팔꽃", "나사", "낙엽", "낙타", "낙지", "낙하산", "난로", "난초", "난방", "날개", "날씨", "날짜", "남자", "남편", "남매", "남극", "남쪽", "남대문", "낭만", "내일", "내용", "내부", "냄새", "냄비", "냉장고", "냉면", "냉동실", "냉수", "너구리", "넝쿨", "네트워크", "네온사인", "노래", "노트", "노인", "노을", "노동", "노란색", "노트북", "노루", "녹차", "녹음", "녹색", "논밭", "논리", "농구", "농부", "농담", "농사", "농장", "누나", "누룽지", "누룩", "눈사람", "눈물", "눈썹", "눈동자", "뉴스", "느낌", "느티나무", "늑대", "능력", "능금", "다리", "다람쥐", "다이아몬드", "다행", "다짐", "다이어트", "다도", "단어", "단추", "단풍", "단짝", "단무지", "단소", "단독주택", "달력", "달팽이", "달걀", "담배", "담요", "담쟁이", "담임", "당근", "당나귀", "당구", "당황", "대나무", "대문", "대통령", "대학교", "대화", "대회", "대륙", "대장", "대기", "대야", "덕분", "덤불", "데이트", "도시", "도서관", "도토리", "도둑", "도넛", "도자기", "도로", "도장", "도전", "도착", "도서", "도끼", "도마뱀", "독수리", "독서", "독립", "독약", "독일", "돈가스", "돌고래", "돌멩이", "돌잔치", "동물", "동네", "동생", "동그라미", "동화책", "동전", "동굴", "동상", "동아리", "동요", "동해", "돼지", "두부", "두뇌", "두더지", "둥지", "드라마", "드론", "등대", "등산", "등교", "등불", "등껍질", "디자인", "디저트", "라디오", "라면", "라일락", "라켓", "래프팅", "러시아", "런닝", "레몬", "레스토랑", "레고", "로봇", "로켓", "로션", "로그인", "루비", "루돌프", "리본", "리듬", "리모컨", "리더", "리코더", "링거", "링크", "마늘", "마을", "마차", "마술", "마당", "마스크", "마이크", "마무리", "마라톤", "마법사", "마음", "막걸리", "막대기", "막내", "만두", "만화", "만족", "만우절", "만리장성", "말썽", "말투", "망치", "망원경", "매미", "매실", "매점", "매너", "매력", "매듭", "맥주", "맥락", "머리카락", "머플러", "먹구름", "메뚜기", "메아리", "메모", "메달", "메뉴", "며느리", "면접", "면허증", "면봉", "명절", "명함", "명예", "명작", "모기", "모래", "모자", "모래시계", "모험", "모임", "모델", "모니터", "모기향", "목걸이", "목도리", "목욕", "목표", "목장", "목소리", "목차", "몸무게", "무지개", "무당벌레", "무릎", "무늬", "무게", "무술", "무대", "무기", "무당", "무한", "문어", "문화", "문제", "문구점", "문방구", "문학", "물고기", "물감", "물병", "물결", "물레방아", "미로", "미술", "미용실", "미역", "미소", "미래", "미인", "미역국", "민들레", "민속촌", "밀가루", "바나나", "바다", "바람", "바지", "바구니", "바퀴", "바이올린", "바닷가", "바둑", "바닥", "박물관", "박수", "박쥐", "반지", "반딧불이", "반찬", "반달", "반창고", "반란", "반사", "발가락", "발명", "발전", "발톱", "발자국", "밤하늘", "밤송이", "방울", "방학", "방송", "방귀", "방울토마토", "방석", "방패", "배구", "배꼽", "배낭", "배우", "배추", "배드민턴", "배관", "백조", "백화점", "백일홍", "백두산", "뱀장어", "버스", "버섯", "버드나무", "버릇", "버튼", "번개", "번지점프", "벌레", "벌집", "벌금", "법률", "벚꽃", "베개", "베짱이", "벽지", "벽난로", "벽화", "변신", "변명", "변호사", "별자리", "별명", "별똥별", "병아리", "병원", "병정", "보름달", "보물", "보석", "보라색", "보름", "보리", "보온병", "복숭아", "복권", "복도", "복사기", "볼링", "볼펜", "봄바람", "봉투", "봉지", "봉사", "부엌", "부채", "부모", "부엉이", "부츠", "부산", "부작용", "부지런", "북극", "북소리", "북쪽", "분수", "분필", "분식점", "분홍색", "불꽃놀이", "불고기", "불빛", "붕어빵", "비누", "비둘기", "비행기", "비타민", "비밀", "비상", "비교", "비빔밥", "빙수", "빙하", "사자", "사과", "사슴", "사탕", "사진", "사랑", "사막", "사다리", "사무실", "사이렌", "사춘기", "사냥꾼", "사물함", "산책", "산타클로스", "산소", "산불", "산봉우리", "삼각형", "삼촌", "삼겹살", "상어", "상자", "상추", "상장", "상상", "상점", "상담", "새우", "새싹", "새벽", "새마을호", "색종이", "색연필", "색깔", "생일", "생선", "생각", "생쥐", "생물", "샤워", "서점", "서랍", "서울", "서예", "서핑", "석류", "석유", "석양", "선물", "선생님", "선풍기", "선인장", "설날", "설탕", "설명", "성격", "성적", "성탄절", "성문", "세탁기", "세계", "세수", "세뱃돈", "소나무", "소방차", "소풍", "소원", "소나기", "소름", "소설", "소포", "소리", "소금", "속담", "속옷", "손톱", "손수건", "손녀", "손자", "솔방울", "솔직", "송편", "송아지", "송이버섯", "쇠고기", "수박", "수영", "수제비", "수달", "수영장", "수업", "수건", "수첩", "수학", "수리", "수화기", "숙제", "숙소", "순두부", "순서", "술래잡기", "숲속", "스케이트", "스웨터", "스마트폰", "스카프", "스티커", "슬리퍼", "슬픔", "습관", "승리", "승객", "시계", "시소", "시금치", "시장", "시골", "시험", "시간", "시나리오", "시멘트", "식탁", "식당", "식물", "식빵", "식혜", "신발", "신문", "신호등", "신비", "신랑", "신부", "실내화", "실수", "실습", "심장", "심부름", "싱크대", "싸움", "쌀밥", "쓰레기통", "아침", "아빠", "아기", "아이스크림", "아파트", "아저씨", "아줌마", "아프리카", "아령", "악어", "악기", "악당", "악몽", "안경", "안개", "안전", "안내", "알람시계", "알사탕", "알약", "암호", "암탉", "앙금", "애벌레", "애완동물", "애국가", "액자", "앵무새", "야구", "야채", "야옹", "야경", "야시장", "야영", "약속", "약국", "약수터", "양파", "양말", "양초", "양동이", "양치", "양보", "어머니", "어부", "어항", "어린이", "어깨", "어둠", "언덕", "언어", "언니", "얼음", "얼굴", "엄마", "엄지손가락", "에너지", "에어컨", "여우", "여행", "여름", "여동생", "여배우", "역사", "역할", "역도", "역시", "연필", "연못", "연날리기", "연극", "연기", "연예인", "연습장", "연꽃", "연어", "열쇠", "열매", "열기구", "열정", "염소", "엽서", "영화", "영어", "영웅", "영양제", "예술", "예의", "예방", "예언", "오이", "오리", "오뚝이", "오후", "오전", "오빠", "오징어", "오솔길", "오케스트라", "오렌지", "옥수수", "옥상", "온도계", "온천", "올림픽", "와플", "왕관", "왕비", "왕자", "왕국", "외투", "외갓집", "요리사", "요구르트", "요정", "요요", "욕조", "욕심", "용기", "용돈", "용왕", "용수철", "우산", "우주", "우체국", "우유", "우박", "우물", "우편함", "우표", "우정", "우연", "우주선", "운동장", "운동화", "운전기사", "운명", "울음소리", "움직임", "웅덩이", "워터파크", "원숭이", "원피스", "원인", "원두막", "월요일", "월급", "위성", "위인", "위로", "유치원", "유리창", "유령", "유물", "유행", "유리병", "육상", "육지", "육개장", "윤리", "율동", "은행", "은하수", "은메달", "음악", "음식", "음료수", "음료", "읍내", "응원", "응급실", "의사", "의자", "의상", "의견", "이슬", "이불", "이야기", "이빨", "이웃", "이발소", "이사", "이집트", "익살", "인형", "인사", "인간", "인기", "인생", "인터넷", "일요일", "일기예보", "일기", "일생", "임금님", "입술", "입장권", "자동차", "자전거", "자석", "자물쇠", "자유", "자연", "자매", "자판기", "자장가", "자갈", "자수정", "작가", "작곡가", "작품", "잔디", "잔치", "잔소리", "잠자리", "잠옷", "잠수함", "장난감", "장미", "장갑", "장화", "장수풍뎅이", "장난꾸러기", "장마", "장수", "재채기", "재활용", "재능", "재산", "저녁", "저금통", "저울", "전화기", "전기", "전쟁", "전등", "전설", "전학", "전복", "절벽", "절약", "점심", "점토", "점프", "접시", "접시꽃", "정원", "정거장", "정글", "정치", "정성", "제비", "제사", "제주도", "젤리", "조개", "조미료", "조각", "조명", "조상", "조종사", "조끼", "족발", "족제비", "존댓말", "졸업식", "종이", "종이접기", "종소리", "종류", "종업원", "좌석", "죄인", "주머니", "주스", "주말", "주전자", "주소", "주인", "주차장", "주름", "죽순", "줄넘기", "줄기", "중학교", "중심", "중간", "쥐포", "증거", "지구", "지도", "지우개", "지팡이", "지붕", "지진", "지하철", "지도자", "지혜", "지렁이", "직업", "직선", "진달래", "진주", "진동", "질문", "질투", "집게", "집안일", "징검다리", "차례", "차창", "차밭", "차림새", "착각", "찬장", "찰흙", "참새", "참기름", "참외", "참치", "창문", "창고", "창의력", "채소", "채집", "채점", "책상", "책가방", "책장", "책방", "처음", "천둥", "천사", "천장", "천체망원경", "철도", "철봉", "철학", "청소기", "청소년", "청개구리", "체육관", "체온계", "체험", "초콜릿", "초대장", "초승달", "초록색", "초등학교", "촛불", "총각", "최고", "추석", "추억", "추리", "축구", "축제", "축하", "춘향전", "출발점", "춤사위", "충치", "취미", "치과", "치마", "치즈", "치킨", "치아", "친구", "친척", "칠판", "칠면조", "침대", "침묵", "카메라", "카드", "카레", "카펫", "카네이션", "칸막이", "캐릭터", "캐나다", "커튼", "커피", "컴퓨터", "케이크", "케첩", "코끼리", "코스모스", "코피", "코알라", "콘서트", "콘센트", "콩나물", "쿠키", "크레용", "크리스마스", "클립", "키위", "키보드", "타조", "타자기", "타이어", "타악기", "탁구", "탁자", "탄산음료", "태양", "태권도", "태극기", "태풍", "탱크", "터널", "텃밭", "테니스", "테이블", "토끼", "토마토", "토요일", "토스트", "토네이도", "톱니바퀴", "통역", "통조림", "통나무", "투명인간", "트럭", "트럼펫", "트램펄린", "특기", "티셔츠", "파도", "파리", "파인애플", "파란색", "파티", "파충류", "판다", "판사", "팔찌", "팔레트", "편지", "편의점", "평화", "평상", "포도", "포크", "포탄", "포옹", "폭포", "폭죽", "표범", "표지판", "표현", "푸딩", "풀잎", "풀밭", "품질", "풍선", "풍경", "풍차", "프라이팬", "프린터", "플루트", "피아노", "피자", "피부", "피망", "피구", "피리", "핀란드", "필통", "필기구", "하늘", "하마", "하루", "하품", "하늘색", "하모니카", "하수구", "하이에나", "학교", "학생", "학원", "학용품", "한복", "한글", "한강", "한여름", "할머니", "할아버지", "할인", "함박눈", "함정", "항구", "항아리", "항공기", "해바라기", "해변", "해적", "해달", "해수욕장", "해파리", "해오라기", "햄버거", "햄스터", "행복", "행사", "행진", "향기", "향수", "허수아비", "허리케인", "헌책방", "헤어드라이어", "헬리콥터", "헬멧", "현미경", "현관", "형제", "형광펜", "호랑이", "호수", "호빵", "호루라기", "호기심", "호박", "호떡", "호랑나비", "혹등고래", "혼자", "혼란", "홀씨", "홍수", "홍당무", "홍합", "화산", "화분", "화가", "화장실", "화요일", "화살", "화물차", "확인", "환경", "환자", "환영", "활동", "활주로", "황소", "황사", "회전목마", "회의", "회사원", "효자", "후추", "후식", "후회", "훈련", "휘파람", "휴가", "휴지", "휴대전화", "흉내", "흑설탕", "흙탕물", "흥미", "희망", "희극"];
@@ -361,7 +366,11 @@ function goHome(){ clearInterval(timerId); showScreen("screen-home"); }
 function goSetupAI(){ showScreen("screen-setup-ai"); }
 function goSetupMulti(){ renderMultiSetup(); showScreen("screen-setup-multi"); }
 function confirmQuit(){
-  if(confirm("게임을 그만두고 처음으로 돌아갈까요?")){ goHome(); }
+  if(confirm("게임을 그만두고 처음으로 돌아갈까요?")){
+    /* 온라인 대결 중이면 상대에게도 알리고 나간다 */
+    if(state && state.online && window.Versus && Versus.active()){ clearInterval(timerId); Versus.leave(); return; }
+    goHome();
+  }
 }
 function showHelp(){ document.getElementById("help-modal").classList.remove("hidden"); }
 function hideHelp(){ document.getElementById("help-modal").classList.add("hidden"); }
@@ -471,8 +480,16 @@ function initGame(players, opts){
   state = {
     players, currentIndex: 0, used: [], usedSet: new Set(),
     requiredChar: null, timerOn: opts.timerOn, freeMode: opts.freeMode,
-    aiDiff: opts.aiDiff, timeLeft: 15, isFirstMove: true
+    aiDiff: opts.aiDiff, timeLeft: 15, isFirstMove: true,
+    online: !!opts.online, myId: opts.myId || null, oppName: opts.oppName || "친구", over: false
   };
+  /* 온라인 대결은 제시어(첫 단어)를 양쪽이 똑같이 받아서 시작한다 */
+  if(opts.startWord){
+    state.used.push({word: opts.startWord, playerId: null});
+    state.usedSet.add(opts.startWord);
+    state.requiredChar = opts.startWord[opts.startWord.length-1];
+    state.isFirstMove = false;
+  }
   showScreen("screen-game");
   document.getElementById("timer-wrap").classList.toggle("hidden", !opts.timerOn);
   document.getElementById("error-msg").textContent = "";
@@ -499,7 +516,20 @@ function takeTurn(){
   clearInterval(timerId);
   renderGame();
   const p = currentPlayer();
+  if(state.online && p.id !== state.myId){
+    /* 상대 차례 — 입력을 막고 기다린다 */
+    const box = document.getElementById("ai-thinking");
+    box.textContent = "⏳ " + p.name + " 님이 생각하는 중…";
+    box.classList.remove("hidden");
+    document.getElementById("human-input-area").classList.add("hidden");
+    document.getElementById("timer-wrap").classList.add("hidden");
+    return;
+  }
+  if(state.online){
+    document.getElementById("timer-wrap").classList.toggle("hidden", !state.timerOn);
+  }
   if(p.isAI){
+    document.getElementById("ai-thinking").textContent = "🤖 컴퓨터가 단어를 생각하고 있어요...";
     document.getElementById("ai-thinking").classList.remove("hidden");
     document.getElementById("human-input-area").classList.add("hidden");
     setTimeout(()=> aiPlay(), 700 + Math.random()*700);
@@ -607,11 +637,13 @@ function submitWord(){
   acceptWord(raw);
 }
 
-function acceptWord(word){
+function acceptWord(word, fromRemote){
   state.used.push({word, playerId: currentPlayer().id});
   state.usedSet.add(word);
   state.requiredChar = word[word.length-1];
   state.isFirstMove = false;
+  /* 온라인: 내가 낸 단어는 상대에게 보내고, 내 점수를 갱신한다 */
+  if(state.online && !fromRemote) onlineSentWord(word);
   const alive = aliveCount();
   if(alive <= 1) return;
   state.currentIndex = nextAliveIndex(state.currentIndex);
@@ -625,6 +657,7 @@ function giveUp(){
 
 function handleFail(player, reason){
   clearInterval(timerId);
+  if(state.online){ onlineLose(reason); return; }
   player.alive = false;
   const remaining = state.players.filter(p=>p.alive);
   if(remaining.length <= 1){
@@ -652,7 +685,9 @@ function renderGame(){
   document.getElementById("req-alt").textContent = (alt && alt !== state.requiredChar) ? `(두음법칙: '${alt}'로 시작해도 OK)` : "";
 
   const p = currentPlayer();
-  document.getElementById("turn-indicator").textContent = (p.isAI ? "🤖 " : "🙋 ") + p.name + "의 차례";
+  let turnText = (p.isAI ? "🤖 " : "🙋 ") + p.name + "의 차례";
+  if(state.online) turnText = (p.id === state.myId) ? "🙋 내 차례예요!" : ("⏳ " + p.name + " 님 차례");
+  document.getElementById("turn-indicator").textContent = turnText;
 
   const hist = document.getElementById("history");
   hist.innerHTML = "";
@@ -664,8 +699,18 @@ function renderGame(){
   });
 }
 
-function endGame(winner, reason){
+function endGame(winner, reason, note){
   showScreen("screen-result");
+  /* 온라인 대결에서는 '같은 설정으로 다시하기'가 의미가 없어 숨긴다 */
+  document.getElementById("btn-restart").classList.toggle("hidden", !!(state && state.online));
+  if(note){
+    document.getElementById("result-emoji").textContent = note.emoji;
+    document.getElementById("result-title").textContent = note.title;
+    document.getElementById("result-sub").textContent = note.sub;
+    document.getElementById("stat-words").textContent = state.used.length;
+    document.getElementById("stat-players").textContent = state.players.length;
+    return;
+  }
   const emoji = document.getElementById("result-emoji");
   const title = document.getElementById("result-title");
   const sub = document.getElementById("result-sub");
@@ -685,6 +730,99 @@ function endGame(winner, reason){
   }
   document.getElementById("stat-words").textContent = state.used.length;
   document.getElementById("stat-players").textContent = state.players.length;
+}
+
+/* ══════════════════ 온라인 대결 ══════════════════ */
+/* 턴제 대결: 방장이 선공, 서로 번갈아 단어를 이어간다.
+   단어가 맞는지(사전·두음법칙)는 단어를 낸 사람이 검사하고,
+   통과한 단어만 상대에게 보내므로 받은 쪽은 다시 검사하지 않는다. */
+
+const ONLINE_WORD_POINT = 10;   // 단어 하나를 이으면 10점
+const ONLINE_WIN_BONUS  = 30;   // 이기면 보너스 30점
+
+function myOnlineScore(){
+  let n = 0;
+  state.used.forEach(u=>{ if(u.playerId === state.myId) n++; });
+  return n * ONLINE_WORD_POINT;
+}
+
+/* 내가 낸 단어 → 상대에게 전송 + 점수 갱신 */
+function onlineSentWord(word){
+  if(!window.Versus || !Versus.active()) return;
+  Versus.send({t:"word", word: word});
+  Versus.setScore(myOnlineScore());
+}
+
+/* 내가 졌을 때 (시간 초과 / 포기) */
+function onlineLose(reason){
+  if(state.over) return;
+  state.over = true;
+  clearInterval(timerId);
+  const sub = reason === "timeout" ? "시간 안에 단어를 못 냈어요. 다음엔 더 빨리!"
+            : reason === "giveup"  ? "포기했어요. 다음 판에 다시 도전해요!"
+            : "이어갈 단어를 찾지 못했어요.";
+  if(window.Versus && Versus.active()){
+    Versus.send({t:"kover", reason: reason});
+    Versus.finish(myOnlineScore());
+  }
+  endGame(null, reason, {emoji:"💪", title:"아깝다! " + state.oppName + " 님 승리", sub: sub});
+}
+
+/* 상대가 졌을 때 */
+function onlineWin(reason){
+  if(state.over) return;
+  state.over = true;
+  clearInterval(timerId);
+  const sub = reason === "timeout" ? state.oppName + " 님이 시간 안에 답하지 못했어요."
+            : reason === "giveup"  ? state.oppName + " 님이 포기했어요."
+            : state.oppName + " 님이 단어를 잇지 못했어요.";
+  if(window.Versus && Versus.active()) Versus.finish(myOnlineScore() + ONLINE_WIN_BONUS);
+  endGame(null, reason, {emoji:"🎉", title:"이겼다! 내가 승리", sub: sub});
+}
+
+function openVersus(){
+  Versus.open({
+    game: "kkeutmalitgi",
+    /* 방장이 고른 규칙을 양쪽에 똑같이 적용한다 */
+    getSettings: ()=>({ timerOn:true, freeMode:false }),
+    settingsHTML: ()=>'<div class="vs-note">첫 <b>제시어</b>는 둘에게 똑같이 나와요. ' +
+      '<b>방장이 먼저</b> 단어를 잇고, 한 턴에 <b>15초</b>씩! ' +
+      '시간을 넘기거나 포기하면 져요.</div>',
+    onStart: (ctx)=>{
+      const timerOn  = ctx.settings ? !!ctx.settings.timerOn  : true;
+      const freeMode = ctx.settings ? !!ctx.settings.freeMode : false;
+      const hostName  = ctx.isHost ? ctx.myName  : ctx.oppName;
+      const guestName = ctx.isHost ? ctx.oppName : ctx.myName;
+      /* 양쪽이 똑같은 순서(0=방장, 1=참가자)로 만든다 */
+      const players = [
+        {id:"H", name:hostName,  isAI:false, color:PALETTE[0], alive:true},
+        {id:"G", name:guestName, isAI:false, color:PALETTE[1], alive:true}
+      ];
+      /* 시드 난수로 제시어를 뽑으면 양쪽이 완전히 같은 단어를 받는다 */
+      Versus.reseed(0);
+      const startWord = Versus.seeded(()=> WORDS[Math.floor(Math.random()*WORDS.length)]);
+      lastSettings = null;
+      initGame(players, {
+        timerOn, freeMode, aiDiff:null, online:true,
+        myId: ctx.isHost ? "H" : "G",
+        oppName: ctx.oppName,
+        startWord: startWord
+      });
+      Versus.setScore(0);
+    },
+    onData: (m)=>{
+      if(!state || !state.online) return;
+      if(m.t === "word"){
+        if(state.over) return;
+        clearInterval(timerId);
+        acceptWord(m.word, true);       // 상대가 이미 검사한 단어 — 그대로 잇는다
+      } else if(m.t === "kover"){
+        onlineWin(m.reason);            // 상대가 졌다고 알려왔다
+      }
+    },
+    onLeave: ()=>{ clearInterval(timerId); showScreen("screen-home"); },
+    onCancel: ()=> showScreen("screen-home")
+  });
 }
 
 /* init */
