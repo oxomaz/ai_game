@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>연산 스피드 퀴즈</title>
 <style>
   :root{
@@ -91,6 +91,9 @@
   .wrongs{max-height:170px; overflow:auto; font-size:14px; color:var(--sub); line-height:1.9;}
   .wrongs b{color:var(--red);}
   a.back{display:block; text-align:center; margin-top:14px; color:var(--sub); font-size:13px;}
+  /* 플레이어 칩 · 기록 상자 */
+  #jgChip{display:flex; justify-content:center; margin-bottom:4px;}
+  #jgRes{margin:14px 0 0; text-align:left;}
 </style>
 </head>
 <body>
@@ -98,6 +101,7 @@
 
   <!-- ===== 시작 화면 ===== -->
   <section id="home">
+    <div id="jgChip"></div>
     <h1>⚡ 연산 스피드 퀴즈</h1>
     <p class="tag">제한 시간 안에 최대한 많이 맞혀보세요!</p>
 
@@ -178,6 +182,7 @@
       </div>
       <div class="label" id="wrongLabel">틀린 문제 다시 보기</div>
       <div class="wrongs" id="wrongList"></div>
+      <div id="jgRes"></div>
     </div>
     <button class="btn" id="againBtn">한 번 더</button>
     <button class="btn ghost" id="homeBtn" style="margin-top:9px;">설정 바꾸기</button>
@@ -186,23 +191,11 @@
 
 </div>
 
+<script src="../../../common/profile.js"></script>
 <script src="../../../common/versus.js"></script>
 <script>
 var $ = function(id){ return document.getElementById(id); };
-
-/* ---------- 저장소 (없거나 막혀 있어도 게임이 멈추지 않게) ---------- */
-var memStore = {};
-function loadBest(){
-  try{
-    var raw = localStorage.getItem("mathSpeedBest");
-    if(raw) return JSON.parse(raw);
-  }catch(e){}
-  return memStore.best || {};
-}
-function saveBest(obj){
-  memStore.best = obj;
-  try{ localStorage.setItem("mathSpeedBest", JSON.stringify(obj)); }catch(e){}
-}
+/* 기록·배지는 common/profile.js 의 JG 가 맡는다 (자체 localStorage 최고기록 없음) */
 
 /* ---------- 나이 단계 (4단계: 6살 ~ 초6) ----------
    ops   : 그 나이에 고를 수 있는 연산
@@ -268,11 +261,30 @@ $("tmBox").addEventListener("click", function(e){
   $("tmBox").querySelectorAll(".opt").forEach(function(o){ o.classList.remove("on"); });
   el.classList.add("on"); readCfg();
 });
-function bestKey(){ return cfg.lv + "|" + cfg.ops.slice().sort().join("") + "|" + cfg.tm; }
+/* 기록에 남길 모드 이름 — 사람이 읽을 수 있게 (예: "덧셈·뺄셈 · 초1~2 · 60초") */
+var OP_SHORT = { "+":"덧셈", "-":"뺄셈", "*":"곱셈", "/":"나눗셈", "m":"혼합" };
+var OP_ORDER = ["+","-","*","/","m"];
+function recMode(online){
+  if(online) return "온라인 대결";
+  var ops = OP_ORDER.filter(function(o){ return cfg.ops.indexOf(o) >= 0; })
+                    .map(function(o){ return OP_SHORT[o]; }).join("·");
+  return ops + " · " + AGE[cfg.lv].nm + " · " + cfg.tm + "초";
+}
 function showBest(){
-  var b = loadBest()[bestKey()];
-  $("bestTxt").textContent =
-    b ? (b + "점  (" + AGE[cfg.lv].emo + " " + AGE[cfg.lv].nm + " · " + cfg.tm + "초)") : "아직 없어요";
+  var box = $("bestTxt");
+  if(!box) return;
+  if(!window.JG){ box.textContent = "아직 없어요"; return; }
+  try{
+    var b = JG.best("math-speed", recMode());
+    box.innerHTML = (b != null)
+      ? ("🏅 <b>" + b + "점</b> <span style='color:var(--sub);font-weight:700'>(" +
+         AGE[cfg.lv].emo + " " + recMode() + ")</span><br>" +
+         "<span style='color:var(--sub);font-size:13px;font-weight:700'>지금까지 " +
+         JG.plays("math-speed") + "판 풀었어요</span>")
+      : ("아직 이 설정 기록이 없어요. 첫 기록에 도전!<br>" +
+         "<span style='color:var(--sub);font-size:13px;font-weight:700'>지금까지 " +
+         JG.plays("math-speed") + "판 풀었어요</span>");
+  }catch(e){ box.textContent = "아직 없어요"; }
 }
 
 /* ---------- 문제 만들기 ---------- */
@@ -428,6 +440,36 @@ function qMix(){
   return { txt: txt+" = ?", ans:ans, kind:"int", ansStr:String(ans) };
 }
 
+/* ---------- 같은 문제가 연달아 나오지 않게 ----------
+   JG.recentFilter 를 쓰고, JG 가 없으면 똑같이 동작하는 대체품을 쓴다.
+   (온라인 대결은 양쪽 동작이 100% 같아야 문제 세트가 어긋나지 않는다) */
+function makeFilter(size){
+  if(window.JG && JG.recentFilter){
+    try{ return JG.recentFilter(size); }catch(e){}
+  }
+  var q = [];
+  return {
+    ok: function(k){ return q.indexOf(k) < 0; },
+    push: function(k){ q.push(k); if(q.length > size) q.shift(); },
+    pick: function(makeFn, keyFn, tries){
+      var v, k, n = tries || 12;
+      for(var i = 0; i < n; i++){
+        v = makeFn();
+        k = keyFn ? keyFn(v) : v;
+        if(q.indexOf(k) < 0) break;
+      }
+      q.push(k);
+      if(q.length > size) q.shift();
+      return v;
+    }
+  };
+}
+var qFilter = makeFilter(14);
+/* 최근에 낸 문제와 겹치지 않는 문제 하나 뽑기 */
+function nextProblem(f){
+  return (f || qFilter).pick(makeQ, function(q){ return q.txt; }, 12);
+}
+
 /* 입력한 답이 맞는지 확인 */
 function checkAns(q, s){
   s = String(s).trim();
@@ -463,6 +505,7 @@ function beginGame(mode){
   S = { mode:mode, left:cfg.tm, score:0, hit:0, miss:0, combo:0, best:0,
         input:"", q:null, wrongs:[], lock:false, idx:0, total:0, over:false };
   if(mode === "online"){ S.total = VS.count; S.left = 0; }
+  else qFilter = makeFilter(14);       // 판마다 새 출제 큐
   $("home").classList.add("hide");
   $("over").classList.add("hide");
   $("play").classList.remove("hide");
@@ -485,7 +528,7 @@ function nextQ(){
     if(S.idx >= VS.list.length){ finish(); return; }
     S.q = VS.list[S.idx++];
   }else{
-    S.q = makeQ();
+    S.q = nextProblem();
   }
   S.input = "";
   var t = $("qTxt");
@@ -582,6 +625,23 @@ document.addEventListener("keydown", function(e){
   else if(e.key === "Backspace" || e.key === "Escape") key("C");
 });
 
+/* 한 판이 끝나면 기록과 배지를 저장한다 (JG 가 없거나 막혀도 게임은 그대로) */
+function saveRecord(){
+  if(!window.JG) return null;
+  try{
+    var mode = recMode(S.mode === "online");
+    var res = JG.submit("math-speed", { score:S.score, mode:mode, unit:"점" });
+    var badges = JG.awardAll({
+      "ms-hit20":   S.hit >= 20,
+      "ms-hit40":   S.hit >= 40,
+      "ms-combo15": S.best >= 15,
+      "ms-perfect": S.hit >= 10 && S.miss === 0,
+      "ms-hard":    cfg.lv === 3 && S.hit >= 15
+    });
+    return { res:res, badges:badges, mode:mode };
+  }catch(e){ return null; }
+}
+
 function finish(){
   if(!S || S.over) return;
   S.over = true;
@@ -603,14 +663,19 @@ function finish(){
     wl.innerHTML = "<div style='color:var(--green); font-weight:800;'>전부 다 맞혔어요! 대단해요 👏</div>";
   }
 
-  if(S.mode === "single"){
-    var all = loadBest(), k = bestKey();
-    if(!all[k] || S.score > all[k]){ all[k] = S.score; saveBest(all); $("newBest").classList.remove("hide"); }
-    else $("newBest").classList.add("hide");
+  var info = saveRecord();
+  $("newBest").classList.toggle("hide", !(info && info.res && info.res.isNewBest));
+  if(S.mode !== "single" && window.Versus && Versus.active()) Versus.finish(S.score);
+
+  if(info){
+    JG.resultBox("jgRes", {
+      gameId:"math-speed", score:S.score, res:info.res, unit:"점", badges:info.badges,
+      extra:[["모드", info.mode], ["맞힌 문제", S.hit + "개"], ["최고 연속", S.best + "연속"]]
+    });
   }else{
-    $("newBest").classList.add("hide");
-    if(window.Versus && Versus.active()) Versus.finish(S.score);
+    $("jgRes").innerHTML = "";
   }
+  showBest();
 
   $("play").classList.add("hide");
   $("over").classList.remove("hide");
@@ -694,8 +759,8 @@ function openVersus(){
          cfg.lv / cfg.ops 는 방장 설정으로 양쪽 모두 같은 값이므로 난수 소비도 같다. */
       Versus.reseed(0);
       VS.list = Versus.seeded(function(){
-        var arr = [];
-        for(var i = 0; i < VS.count; i++) arr.push(makeQ());
+        var f = makeFilter(14), arr = [];
+        for(var i = 0; i < VS.count; i++) arr.push(nextProblem(f));
         return arr;
       });
       beginGame("online");
@@ -715,14 +780,35 @@ function openVersus(){
       $("home").classList.remove("hide");
     }
   });
+  seedVersusName();
 }
 $("vsBtn").onclick = openVersus;
+
+/* ---------- 플레이어 프로필 ---------- */
+/* 온라인 대결 로비의 이름칸을 내 프로필 이름으로 채워준다 */
+function seedVersusName(){
+  if(!window.JG) return;
+  try{
+    var fill = function(){
+      var i = document.getElementById("vsName");
+      if(i && !i.value) i.value = JG.player().name.slice(0,8);
+    };
+    fill(); setTimeout(fill, 40);
+  }catch(e){}
+}
+if(window.JG){
+  try{
+    JG.mountChip("jgChip");
+    JG.on("change", showBest);
+  }catch(e){}
+}
 
 /* ---------- 시작 ---------- */
 renderAge(); renderOps(); renderTimes(); showBest();
 
 /* 검증 스크립트에서 문제 생성기를 그대로 불러 쓰기 위한 통로 */
-window.__mathTest = { cfg:cfg, makeQ:makeQ, checkAns:checkAns, AGE:AGE, VS:VS, S:function(){ return S; } };
+window.__mathTest = { cfg:cfg, makeQ:makeQ, checkAns:checkAns, AGE:AGE, VS:VS, S:function(){ return S; },
+                      nextProblem:nextProblem, makeFilter:makeFilter, recMode:recMode };
 </script>
 </body>
 </html>

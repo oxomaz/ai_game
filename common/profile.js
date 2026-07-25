@@ -271,6 +271,11 @@
   }
   on('change', bindRecords);
 
+  /* 로컬 gameId → 서버(api/_lib.js GAMES) 키가 다른 경우만 적어 둔다.
+     끝말잇기는 폴더가 word-chain 으로 바뀌면서 서버 키도 'word-chain' 이 됐지만,
+     로컬 기록·배지 키는 기존 'kkeutmalitgi' 를 그대로 쓴다(예전 기록 유지). */
+  var SERVER_KEY = { 'kkeutmalitgi': 'word-chain' };
+
   /* 이 게임/모드가 온라인 순위표 대상인가 */
   function rankedInfo(gameId, mode) {
     var rk = RANKED[gameId];
@@ -317,7 +322,7 @@
     if (rk.ranked && global.Records && global.Records.submit) {
       try {
         bindRecords();
-        online = global.Records.submit(gameId, Math.max(0, Math.round(score)), { mode: mode, unit: opts.unit || '점' });
+        online = global.Records.submit(SERVER_KEY[gameId] || gameId, Math.max(0, Math.round(score)), { mode: mode, unit: opts.unit || '점' });
       } catch (e) { online = null; }
     }
 
@@ -754,7 +759,7 @@
     badges: badges, hasBadge: hasBadge, award: award, awardAll: awardAll,
     toast: toast, mountChip: mountChip, openPicker: openPicker, resultBox: resultBox,
     shuffle: shuffle, shuffleBag: shuffleBag, recentFilter: recentFilter,
-    RANKED: RANKED, rankedInfo: rankedInfo,
+    RANKED: RANKED, rankedInfo: rankedInfo, SERVER_KEY: SERVER_KEY,
     _read: read, _write: write, _reset: function () { mem = null; try { global.localStorage.removeItem(KEY); } catch (e) {} }
   };
 })(window);

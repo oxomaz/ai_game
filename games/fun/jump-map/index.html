@@ -168,8 +168,13 @@ body.vs-playing #hud .hbar{padding-top:3.1em}
     <h1>점프맵 200</h1>
     <div class="sub">발판을 밟고 장애물을 피해 도착 지점까지!<br>레벨 1부터 200까지, 갈수록 점점 더 어려워집니다.</div>
 
-    <!-- 닉네임 고르기 / 만들기 -->
-    <div id="tProf" style="width:100%;max-width:44em;margin-top:1.5em"></div>
+    <!-- 기록·배지 주인 (common/profile.js 의 플레이어) -->
+    <div id="jgChip" style="display:flex;justify-content:center;margin-top:1.5em"></div>
+    <div class="sub" id="jgBest" style="margin-top:.5em;font-size:.92em"></div>
+
+    <!-- 점프맵 안에서 쓰는 캐릭터 닉네임 고르기 / 만들기 -->
+    <div class="sub" style="margin-top:1.4em;font-size:.92em">🏃 <b>점프맵 캐릭터</b> — 레벨 진행과 기록실 순위표에 쓰는 이름이에요</div>
+    <div id="tProf" style="width:100%;max-width:44em;margin-top:.7em"></div>
     <div class="row" style="margin-top:.9em;gap:.5em">
       <input type="text" id="tNew" maxlength="10" placeholder="새 닉네임 만들기" autocomplete="off" style="max-width:11em;font-size:1em;padding:.6em .8em">
       <button class="btn sm" id="tMake">+ 만들기</button>
@@ -252,9 +257,11 @@ body.vs-playing #hud .hbar{padding-top:3.1em}
       <button class="btn ghost" id="bRetry">다시하기</button>
       <button class="btn ghost" id="bList2">레벨 목록</button>
     </div>
+    <div id="jgRes" style="width:100%;max-width:24em;margin-top:1.1em;text-align:left;font-size:.95em"></div>
   </div></div>
 </div></div>
 
+<script src="../../../common/profile.js"></script>
 <script src="../../../common/versus.js"></script>
 <script>
 (function(){
@@ -465,6 +472,64 @@ function writeSave(){
 }
 function prof(){ for(var i=0;i<save.profiles.length;i++) if(save.profiles[i].id===save.cur) return save.profiles[i]; return null; }
 loadSave();
+
+/* ══════════ 기록 · 배지 (common/profile.js 의 JG) ══════════
+   ▸ JG 플레이어  = 기록·배지의 주인 (모든 게임 공통)
+   ▸ 점프맵 닉네임 = 레벨 진행·기록실 순위표에 쓰는 이 게임 안 이름
+   이름이 같으면 서로 자동으로 따라가게 맞춰 준다.
+   JG 가 없거나 저장이 막혀도 게임은 그대로 돌아가야 하므로 전부 감싼다. */
+function jgSafe(fn, dflt){
+  if(!window.JG) return dflt;
+  try{ return fn(); }catch(e){ return dflt; }
+}
+/* JG 플레이어 → 점프맵 닉네임 맞추기 */
+var tNewTouched=false;   /* 아이가 직접 적은 이름은 덮어쓰지 않는다 */
+function syncFromJG(){
+  var nm=jgSafe(function(){ return JG.player().name; }, null);
+  if(nm){
+    var hit=null;
+    for(var i=0;i<save.profiles.length;i++) if(save.profiles[i].name===nm) hit=save.profiles[i];
+    if(hit){ if(save.cur!==hit.id){ save.cur=hit.id; writeSave(); } }
+    else { var el=$('tNew'); if(el && !tNewTouched) el.value=nm.slice(0,10); }
+    var vn=$('vsName'); if(vn && !vn.value.trim()) vn.value=nm.slice(0,8);
+  }
+  buildTitle(); renderJGBest();
+}
+/* 점프맵 닉네임 → 같은 이름의 JG 플레이어로 맞추기 (없으면 그대로 둔다) */
+function syncToJG(name){
+  jgSafe(function(){
+    JG.players().forEach(function(p){
+      if(p.name===name && JG.player().id!==p.id) JG.setActive(p.id);
+    });
+  });
+}
+/* 첫 화면에 지금까지의 최고 기록 보여주기 */
+function renderJGBest(){
+  var box=$('jgBest'); if(!box) return;
+  box.innerHTML=jgSafe(function(){
+    var b=JG.best('jump-map','혼자'), n=JG.plays('jump-map');
+    return (b!=null)
+      ? '🏅 최고 <b>'+b+'단계</b>까지 깼어요 · 지금까지 <b>'+n+'판</b>'
+      : '🏅 아직 기록이 없어요. 한 단계만 깨도 기록이 남아요!';
+  }, '');
+}
+/* 레벨 하나를 깼을 때 기록·배지 저장 */
+function jgClearLevel(level){
+  return jgSafe(function(){
+    var pr=prof();
+    var stars=pr?starSum(pr):0;
+    var res=JG.submit('jump-map', {score:level, mode:'혼자', unit:'단계'});
+    var badges=JG.awardAll({
+      'jm-10':     level>=10,
+      'jm-30':     level>=30,
+      'jm-60':     level>=60,
+      'jm-100':    level>=100,
+      'jm-200':    level>=200,
+      'jm-star30': stars>=30
+    });
+    return {res:res, badges:badges, stars:stars};
+  }, null);
+}
 
 /* ══════════ 사운드 ══════════ */
 var actx=null;
@@ -1063,6 +1128,20 @@ function clearLevel(){
     ? '<b style="opacity:.6;font-size:.9em">이 레벨 순위</b><br>'+lst.map(function(p,i){
         return ['🥇','🥈','🥉'][i]+' '+esc(p.name)+' <b>'+fmt(p.best[G.level])+'</b>'+(p.id===pr.id?' ←':''); }).join('<br>')
     : '';
+  /* 플레이어별 기록·배지 */
+  var info=jgClearLevel(G.level);
+  var jr=$('jgRes');
+  if(jr){
+    jr.innerHTML='';
+    if(info) jgSafe(function(){
+      JG.resultBox('jgRes', {
+        gameId:'jump-map', score:G.level, res:info.res, unit:'단계', badges:info.badges,
+        extra:[['걸린 시간', fmt(G.timeMs)],
+               ['모은 별 전부', info.stars+'개']]
+      });
+    });
+  }
+  renderJGBest();
   show('scClear');
 }
 
@@ -1509,7 +1588,8 @@ function delProfile(id){
 function pickProfile(id){
   SFX.click(); ac(); save.cur=id; writeSave();
   var el=$('vsName'); if(el){ var pp=prof(); if(pp) el.value=pp.name.slice(0,8); }
-  buildTitle(); buildGrid(); show('scSelect');
+  var me=prof(); if(me) syncToJG(me.name);
+  buildTitle(); renderJGBest(); buildGrid(); show('scSelect');
 }
 
 /* 첫 화면 — 닉네임 고르기 / 만들기 */
@@ -1628,6 +1708,7 @@ function goPlay(){
 $('bGo').onclick=function(){ SFX.click(); ac(); goPlay(); };
 $('tMake').onclick=newFromTitle;
 $('tNew').onkeydown=function(e){ if(e.key==='Enter') newFromTitle(); e.stopPropagation(); };
+$('tNew').oninput=function(){ tNewTouched = $('tNew').value.trim().length>0; };
 $('bRankT').onclick=$('bRankP').onclick=$('bRankS').onclick=function(){ SFX.click(); buildRank(); show('scRank'); };
 $('bRBack').onclick=function(){ SFX.click(); if(prof()){buildGrid();show('scSelect');} else if(save.profiles.length){buildProfiles();show('scProfile');} else show('scTitle'); };
 $('bPBack').onclick=function(){ SFX.click(); show('scTitle'); };
@@ -1639,7 +1720,8 @@ $('bCreate').onclick=function(){
   var nm=$('inName').value.trim().slice(0,10); if(!nm) return;
   if(save.profiles.some(function(p){return p.name===nm;})){ alert('같은 닉네임이 이미 있어요.'); return; }
   var p=newProfile(nm,pickChar); save.profiles.push(p); save.cur=p.id; writeSave();
-  $('tNew').value=''; buildTitle();
+  syncToJG(nm);
+  $('tNew').value=''; buildTitle(); renderJGBest();
   var vn=$('vsName'); if(vn) vn.value=nm.slice(0,8);
   SFX.cp(); buildGrid(); show('scSelect');
 };
@@ -1740,6 +1822,8 @@ function vsFinish(msg){
   VS.bonus=Math.floor(VS.leftMs/1000);   /* 빨리 끝낼수록 남은 시간이 점수 */
   VS.done=true; G.mode='vsdone'; G.canResume=false;
   vsTip((msg||'끝!')+' 내 점수 '+vsScore()+'점 · 친구를 기다리는 중…',0);
+  /* 온라인 대결 기록은 혼자 플레이와 따로 쌓인다 */
+  jgSafe(function(){ JG.submit('jump-map', {score:vsScore(), mode:'온라인 대결', unit:'점'}); });
   Versus.finish(vsScore());
 }
 
@@ -1792,7 +1876,9 @@ function openVersus(){
   SFX.click(); ac();
   /* 골라둔 닉네임이 있으면 대결 로비 이름칸 기본값으로 채워준다 */
   setTimeout(function(){ var el=$('vsName'), pp=prof();
-    if(el && pp && !el.value.trim()) el.value=pp.name.slice(0,8); },0);
+    if(!el || el.value.trim()) return;
+    var nm = pp ? pp.name : jgSafe(function(){ return JG.player().name; }, '');
+    if(nm) el.value=nm.slice(0,8); },0);
   Versus.open({
     game:'jump-map',
     /* 방장이 고른 설정을 참가자에게도 그대로 적용 */
@@ -1859,9 +1945,19 @@ function vsExit(){
 }
 $('bVs').onclick=openVersus;
 
+/* 플레이어 칩 (기록·배지 주인) — 누르면 전환·추가 */
+if(window.JG){
+  try{
+    JG.mountChip('jgChip');
+    JG.on('change', syncFromJG);
+  }catch(e){}
+}
+syncFromJG();
+
 /* 개발/테스트용 훅 */
 window.JM={start:startLevel,G:G,P:P,VS:VS,gen:genLevel,save:save,CHARS:CHARS,drawChar:drawChar,IN:IN,
-           step:step,reset:resetPlayer,show:show,buildTitle:buildTitle};
+           step:step,reset:resetPlayer,show:show,buildTitle:buildTitle,
+           syncFromJG:syncFromJG,renderJGBest:renderJGBest};
 })();
 </script>
 </body>

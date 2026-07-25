@@ -26,8 +26,11 @@
    - 게임이 자체 `localStorage` 최고기록을 따로 두지 않는다. 진행상황 저장(점프맵 같은)은 예외로 유지하되, 기록·배지는 JG 로 일원화한다.
    - 학습용 게임은 `JG.shuffleBag()` / `JG.recentFilter()` 로 **같은 문제가 짧은 간격으로 반복되지 않게** 출제한다.
 7-3. **모바일에서 화면이 잘리지 않게 만든다.** viewport meta 는 `width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover`. CSS 에서 `100vh` 대신 `var(--jg-vh, 100vh)` 를 쓴다(`profile.js` 가 visualViewport 기준 실제 높이를 채워준다). 노치·홈바는 `env(safe-area-inset-*)` 로 피한다. **가로 320px 에서 가로 스크롤 0**, 세로 640px·가로 740×360 에서 보드/캔버스/조작 버튼이 스크롤 없이 다 보여야 하며, 좌표 계산이 있는 게임은 스케일 변경 후 실제 클릭이 맞는지 반드시 테스트한다.
-7-4. **기록은 서버에 남긴다.** 점수·이력·오답노트·대결 전적은 `common/records.js`를 통해 `api/`(Vercel Functions + Upstash Redis)에 저장한다. 게임에서는 `<script src="../../../common/records.js"></script>`를 불러온 뒤 `Records.submit('<게임폴더명>', 점수)` / `Records.note(...)` / `Records.versus(...)`를 호출하고, 결과 화면에 `Records.showBoard('<게임폴더명>')` 버튼을 둔다. 새 게임을 추가할 때는 `api/_lib.js`의 `GAMES` 목록에도 게임 키와 점수 상한을 등록해야 한다(등록 안 된 게임은 서버가 거부한다). 자세한 내용은 `api/README.md` 참고.
-   - `localStorage`에 최고점수를 저장하던 기존 코드는 그대로 두어도 된다. 서버 기록은 그 위에 얹는 것이고, 서버가 없거나 인터넷이 끊겨도 게임은 정상 동작해야 한다.
+7-4. **기록은 로컬이 먼저, 서버는 그 위에 얹는다.** 게임 코드는 `JG`(profile.js)만 부르면 된다 — `profile.js`가 옆 폴더의 `common/records.js`를 자동으로 불러오고, `Records.useProfile(프로필id, 이름)`으로 묶어 **플레이어마다 서버 pid를 따로** 발급한다. 게임 파일에 `records.js` script 태그를 직접 넣지 않는다.
+   - `JG.submit()`은 **`profile.js`의 `RANKED` 표에 적힌 "순위표 모드"로 플레이한 판만** 서버(`api/` + Upstash Redis)에 올린다. 서버는 게임당 순위표(`lb:<game>` ZSET)가 하나뿐이라 난이도·주제가 섞이면 순위가 무의미해지기 때문이다. 게임의 `mode` 문자열을 바꾸면 `RANKED`의 정규식도 같이 고칠 것.
+   - 점수가 **작을수록 좋은 게임**(SET의 클리어 시간 등)은 서버 ZSET이 큰 값을 이긴 것으로 보므로 순위표에서 제외한다. 로컬 기록·배지는 그대로 남긴다.
+   - 새 게임을 추가하면 `api/_lib.js`의 `GAMES` 목록에도 게임 키와 점수 상한을 등록해야 한다(등록 안 된 게임은 서버가 거부한다). 자세한 내용은 `api/README.md` 참고.
+   - 서버가 없거나 인터넷이 끊겨도 게임은 정상 동작해야 한다. 못 보낸 기록은 `records.js`가 큐에 쌓아 두었다가 다음 접속에 자동 재전송한다.
 8. 한국어 게임명/설명을 기본으로 하되, 폴더/파일 경로는 영문으로 유지한다.
 9. **난이도가 있는 게임은 실제로 클리어 가능한지 검증한다.** 자동 생성 레벨을 쓰는 경우, 물리/규칙을 그대로 시뮬레이션해 모든 단계가 통과 가능한지 확인한 뒤 커밋한다.
 

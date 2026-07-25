@@ -94,6 +94,7 @@
 <div class="wrap">
 
   <section id="home">
+    <div id="jgChip" style="display:flex; justify-content:center; margin-bottom:6px;"></div>
     <h1>🔤 영단어 카드 퀴즈</h1>
     <p class="tag" id="homeTag">나이에 맞는 단계를 골라보세요</p>
 
@@ -126,6 +127,11 @@
         <div class="opt" data-n="20">20개</div>
         <div class="opt" data-n="0">전부</div>
       </div>
+    </div>
+
+    <div class="panel">
+      <div class="label">최고 기록</div>
+      <div id="bestTxt" style="font-size:15px; font-weight:700;">아직 없어요</div>
     </div>
 
     <button class="btn" id="startBtn">시작하기</button>
@@ -185,6 +191,7 @@
         <div class="row"><span>맞힌 단어</span><b id="rHit">0</b></div>
         <div class="row"><span>틀린 단어</span><b id="rMiss">0</b></div>
       </div>
+      <div id="jgRes" style="margin:12px 0;"></div>
       <div class="label" id="wrongLabel">틀린 단어 다시 보기</div>
       <div class="wrongs" id="wrongList"></div>
     </div>
@@ -196,9 +203,11 @@
 
 </div>
 
+<script src="../../../common/profile.js"></script>
 <script src="../../../common/versus.js"></script>
 <script>
 var $ = function(id){ return document.getElementById(id); };
+var GAME_ID = "word-cards";
 
 /* =========================================================
    단어장 — 나이 4단계
@@ -444,19 +453,21 @@ function buildCats(){
   });
   $("lvHint").textContent = L.hint;
   $("homeTag").textContent = L.label + " 단계 · 단어 " + allOf(curLv).length + "개";
+  showBest();
 }
-buildCats();
 
 catBox.addEventListener("click", function(e){
   var el = e.target.closest(".opt"); if(!el) return;
   el.classList.toggle("on");
   if(!catBox.querySelector(".opt.on")) el.classList.add("on");
+  showBest();
 });
 $("allBtn").onclick = function(){
   var opts = catBox.querySelectorAll(".opt");
   var allOn = catBox.querySelectorAll(".opt.on").length === opts.length;
   opts.forEach(function(o){ o.classList.toggle("on", !allOn); });
   if(!catBox.querySelector(".opt.on")) opts[0].classList.add("on");
+  showBest();
 };
 function pickOne(boxId){
   $(boxId).addEventListener("click", function(e){
@@ -470,15 +481,49 @@ function pickOne(boxId){
         m === "e2k"  ? "영어 단어를 보고 알맞은 뜻을 고릅니다." :
                        "한글 뜻을 보고 알맞은 영어 단어를 고릅니다.";
     }
+    showBest();
   });
 }
 pickOne("modeBox"); pickOne("numBox");
+buildCats();
 
 function selCats(){
   return [].map.call(catBox.querySelectorAll(".opt.on"), function(o){ return o.dataset.c; });
 }
 function selMode(){ return $("modeBox").querySelector(".opt.on").dataset.m; }
 function selNum(){ return +$("numBox").querySelector(".opt.on").dataset.n; }
+
+/* ---------- 기록 이름표 (플레이어별 기록은 common/profile.js 의 JG 가 맡는다) ----------
+   지금 고른 설정을 사람이 읽을 수 있는 한 줄로 만든다. 설정마다 최고 기록이 따로 쌓인다. */
+function lvNm(k){ return lvByKey(k).label.replace(/^\S+\s*/, ""); }   // "🐥 초3~4" → "초3~4"
+function catTxt(){
+  var sel = selCats();
+  return (sel.length === catsOf(curLv).length) ? "전체 주제" : sel.join("·");
+}
+function wayTxt(m){ return m === "k2e" ? "뜻→영어" : m === "card" ? "카드 외우기" : "영→뜻"; }
+function numTxt(){ var n = selNum(); return n > 0 ? (n + "문제") : "전부"; }
+function recMode(online){
+  if(online) return "온라인 대결";
+  return lvNm(curLv) + " · " + catTxt() + " · " + wayTxt(selMode()) + " · " + numTxt();
+}
+function showBest(){
+  var box = $("bestTxt");
+  if(!box) return;
+  if(!window.JG){ box.textContent = "아직 없어요"; return; }
+  try{
+    if(selMode() === "card"){
+      box.innerHTML = "카드 외우기는 기록이 남지 않아요. 퀴즈로 골라보세요!" +
+        "<br><span style='font-size:13px;color:var(--sub)'>🔤 지금까지 " + JG.plays(GAME_ID) + "판 플레이</span>";
+      return;
+    }
+    var b = JG.best(GAME_ID, recMode(false));
+    box.innerHTML = (b != null)
+      ? ("🏅 <b>" + b + "개</b> 맞힘  (" + recMode(false) + ")" +
+         "<br><span style='font-size:13px;color:var(--sub)'>🔤 지금까지 " + JG.plays(GAME_ID) + "판 플레이</span>")
+      : ("아직 없어요 — 첫 기록에 도전!" +
+         "<br><span style='font-size:13px;color:var(--sub)'>🔤 지금까지 " + JG.plays(GAME_ID) + "판 플레이</span>");
+  }catch(e){ box.textContent = "아직 없어요"; }
+}
 
 /* ---------- 발음 (지원 안 되면 조용히 무시) ---------- */
 function speak(text){
@@ -507,11 +552,40 @@ function makeChoices(w, all){
   return shuffle(others.concat([w]));
 }
 
+/* ---------- 같은 단어가 짧은 간격으로 또 나오지 않게 ----------
+   JG.shuffleBag 은 단어를 잘 섞어 한 바퀴씩 돌려준다. 그래서 "한 번 더"를
+   눌러도 이미 나온 단어가 바로 또 나오지 않고, 단어장을 골고루 훑게 된다.
+   ⚠ 온라인 대결은 양쪽이 똑같은 문제를 받아야 하므로 여기를 쓰지 않고
+      Versus.seeded() 안의 shuffle 을 그대로 쓴다. */
+var wcBag = null, wcBagKey = "", wcRecent = [];
+function drawWords(n){
+  var pool = wordsOf(curLv, selCats());
+  if(!pool.length) return [];
+  if(n <= 0 || n >= pool.length) return shuffle(pool);
+  if(!window.JG || !JG.shuffleBag) return shuffle(pool).slice(0, n);
+  try{
+    var key = curLv + "|" + selCats().join(",");
+    if(!wcBag || wcBagKey !== key){ wcBag = JG.shuffleBag(pool); wcBagKey = key; wcRecent = []; }
+    /* 한 바퀴가 끝나고 다시 섞일 때 방금 나온 단어가 또 나오지 않도록,
+       최근 memo개는 건너뛴다(건너뛴 단어는 다음 바퀴에 나온다). */
+    var memo = Math.max(4, Math.min(20, Math.floor(pool.length / 4)));
+    var out = [], seen = {}, tries = 0;
+    while(out.length < n && tries < pool.length * 4){
+      tries++;
+      var w = wcBag.next();
+      if(!w || seen[w.en]) continue;                        // 한 판 안에서는 절대 겹치지 않게
+      if(wcRecent.indexOf(w.en) >= 0 && tries < pool.length * 2) continue;
+      seen[w.en] = 1; out.push(w);
+      wcRecent.push(w.en);
+      if(wcRecent.length > memo) wcRecent.shift();
+    }
+    return out.length ? out : shuffle(pool).slice(0, n);
+  }catch(e){ return shuffle(pool).slice(0, n); }
+}
+
 function start(list){
   var mode = selMode();
-  var pool = list || shuffle(wordsOf(curLv, selCats()));
-  var n = selNum();
-  if(!list && n > 0) pool = pool.slice(0, n);
+  var pool = list ? shuffle(list) : drawWords(selNum());
   if(!pool.length){ return; }
   begin(mode, pool, curLv, null);
 }
@@ -629,12 +703,48 @@ function finish(){
   $("quizView").classList.add("hide");
   $("over").classList.remove("hide");
   if(window.Versus && Versus.active()) Versus.finish(S.hit);
+
+  var info = saveRecord();
+  if(info){
+    JG.resultBox("jgRes", {
+      gameId: GAME_ID, score: info.score, res: info.res, unit: "개", badges: info.badges,
+      extra: [["모드", info.label], ["정확도", (total ? Math.round(S.hit/total*100) : 0) + "%"]]
+    });
+  }else{
+    $("jgRes").innerHTML = "";
+  }
+  showBest();
+}
+
+/* 한 판이 끝나면 기록과 배지를 저장한다.
+   JG 가 없거나 저장이 막혀 있어도 게임은 그대로 굴러간다. */
+function saveRecord(){
+  if(!window.JG) return null;
+  try{
+    var online = !!(window.Versus && Versus.active());
+    var total = S.hit + S.miss;
+    var label = online ? "온라인 대결" : recMode(false);
+    var res = JG.submit(GAME_ID, { score: S.hit, mode: label, unit: "개" });
+
+    /* 누적 기록: 지금까지 맞힌 단어 수 · 풀어본 주제 */
+    var totalHit = JG.stat(GAME_ID, "correct", S.hit);
+    var topics = 0;
+    (S.list || []).forEach(function(w){ topics = JG.statAdd(GAME_ID, "topics", w.cat); });
+
+    var badges = JG.awardAll({
+      "wc-quiz18":   (total >= 20 && S.hit >= 18),
+      "wc-perfect":  (total > 0 && S.miss === 0),
+      "wc-total100": totalHit >= 100,
+      "wc-topics":   topics >= 5
+    });
+    return { res: res, score: S.hit, badges: badges, label: label };
+  }catch(e){ return null; }
 }
 
 $("startBtn").onclick = function(){ start(null); };
 $("againBtn").onclick = function(){ start(null); };
 $("retryWrong").onclick = function(){ start(shuffle(S.wrongs)); };
-$("homeBtn").onclick = function(){ $("over").classList.add("hide"); $("home").classList.remove("hide"); };
+$("homeBtn").onclick = function(){ $("over").classList.add("hide"); $("home").classList.remove("hide"); showBest(); };
 
 /* ══════════════════════════════════════════════════
    ══ 온라인 대결 ══
@@ -685,11 +795,35 @@ function openVersus(){
       Versus.setScore(0);
     },
     onData: function(){ /* 추가 메시지 없음 */ },
-    onLeave: function(){ goHomeScreen(); },
-    onCancel: function(){ goHomeScreen(); }
+    onLeave: function(){ goHomeScreen(); showBest(); },
+    onCancel: function(){ goHomeScreen(); showBest(); }
   });
 }
-$("vsBtn").onclick = openVersus;
+
+/* 온라인 로비의 이름칸을 내 프로필 이름으로 미리 채워준다 */
+function seedVersusName(){
+  if(!window.JG) return;
+  try{
+    var fill = function(){
+      var i = document.getElementById("vsName");
+      if(i && !i.value) i.value = JG.player().name.slice(0, 8);
+    };
+    fill(); setTimeout(fill, 40);
+  }catch(e){}
+}
+$("vsBtn").onclick = function(){ openVersus(); seedVersusName(); };
+
+/* ---------- 플레이어 프로필 ---------- */
+if(window.JG){
+  try{
+    JG.mountChip("jgChip");
+    JG.on("change", function(){ wcBag = null; wcRecent = []; showBest(); });
+  }catch(e){}
+}
+showBest();
+
+/* 검증 스크립트에서 출제기를 그대로 불러 쓰기 위한 통로 */
+window.__wcTest = { drawWords:drawWords, recMode:recMode, S:function(){ return S; } };
 </script>
 </body>
 </html>

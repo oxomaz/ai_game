@@ -91,6 +91,13 @@
   .res .rrow b{font-size:17px;}
   .best{color:#ffd76a;}
   @media (max-width:420px){ h1{font-size:22px;} .lines{grid-template-columns:repeat(auto-fill,minmax(84px,1fr));} }
+  /* ---------- 플레이어 칩 · 최고 기록 ---------- */
+  #jgChip{display:flex; justify-content:center; margin:2px 0 6px;}
+  #bestBox{margin:12px 0 0; background:#101a2c; border:1px solid var(--line); border-radius:12px;
+    padding:10px 13px; font-size:12.5px; color:var(--sub); line-height:1.7; text-align:center;}
+  #bestBox b{color:#ffd76a;}
+  #bestBox:empty{display:none;}
+  #jgRes{margin-bottom:14px; text-align:left;}
   a.hub-link{display:block;text-align:center;margin:18px auto 2px;padding:6px;color:#8a94a6;font-size:13px;text-decoration:none;font-family:inherit;}
   a.hub-link:hover{text-decoration:underline;}
 
@@ -127,6 +134,7 @@
 <!-- 1단계: 노선 -->
 <div class="screen on" id="s1">
   <div class="inner">
+    <div id="jgChip"></div>
     <div class="brand"><div class="mark">🚇</div></div>
     <h1>지하철 슬리더</h1>
     <p class="lead">승객을 태워 편성을 늘리고, 다른 열차의 옆구리를 들이받게 만드세요.<br>내 머리가 남의 차량에 닿으면 탈선입니다.</p>
@@ -136,6 +144,7 @@
 
     <div class="row"><button class="btn" id="toStep2" disabled>다음 →</button></div>
     <div class="row"><button class="btn ghost" id="vsOpen">🌐 친구랑 온라인 대결</button></div>
+    <div id="bestBox"></div>
     <div class="tip">
       <b>조작</b> · PC: 마우스 방향으로 이동, 클릭(또는 스페이스) 길게 누르면 가속<br>
       <b>모바일</b>: 화면을 누른 방향으로 이동, 왼쪽 아래 부스터 버튼으로 가속<br>
@@ -164,6 +173,7 @@
     <h1 id="overTitle">탈선!</h1>
     <p class="lead" id="overSub"></p>
     <div class="res" id="resBox"></div>
+    <div id="jgRes"></div>
     <div class="row" id="overBtns">
       <button class="btn" id="again">다시 출발</button>
       <button class="btn ghost" id="change">열차 바꾸기</button>
@@ -172,6 +182,7 @@
   </div>
 </div>
 
+<script src="../../../common/profile.js"></script>
 <script src="../../../common/versus.js"></script>
 <script>
 /* =========================================================
@@ -264,12 +275,41 @@ function rgb2hex(r){return '#'+r.map(v=>clamp(Math.round(v),0,255).toString(16).
 function mix(c1,c2,t){const a=hex2rgb(c1),b=hex2rgb(c2);return rgb2hex([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t]);}
 function rr(g,x,y,w,h,r){r=Math.min(r,w/2,h/2);g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath();}
 
-/* 저장소 (실패해도 게임은 정상 동작) */
-const Store = (()=>{ let mem={};
-  function get(k){ try{ const v=localStorage.getItem(k); return v===null?(k in mem?mem[k]:null):v; }catch(e){ return k in mem?mem[k]:null; } }
-  function set(k,v){ mem[k]=v; try{ localStorage.setItem(k,v); }catch(e){} }
-  return {get,set};
-})();
+/* ---------- 플레이어별 기록·배지 (common/profile.js 의 JG 가 맡는다) ----------
+   JG 가 없거나 저장이 막혀 있어도 게임은 그대로 돌아가야 한다.               */
+function recMode(){ return VS.on ? '온라인 대결' : '혼자'; }
+
+/* 시작 화면에 지금까지의 최고 기록을 보여준다 */
+function renderBest(){
+  const box = document.getElementById('bestBox');
+  if(!box) return;
+  if(!window.JG){ box.innerHTML=''; return; }
+  try{
+    const pax  = JG.best('subway-io', '혼자');
+    const cars = JG.stat('subway-io', 'bestCars');
+    let html = (pax != null)
+      ? `🏅 혼자 플레이 최고 기록 <b>${pax}명</b>${cars ? ` · 최장 편성 <b>${cars}칸</b>` : ''}`
+      : '🚇 아직 기록이 없어요. 첫 출발을 해보세요!';
+    html += `<br>지금까지 ${JG.plays('subway-io')}판 운행`;
+    box.innerHTML = html;
+  }catch(e){ box.innerHTML=''; }
+}
+
+/* 한 판이 끝나면 기록과 배지를 저장한다 */
+function saveRecord(pax, cars, rank){
+  if(!window.JG) return null;
+  try{
+    const mode = recMode();
+    const res = JG.submit('subway-io', { score: pax, mode, unit:'명' });
+    if(cars > (JG.stat('subway-io','bestCars')||0)) JG.stat('subway-io','bestCars', { set: cars });
+    const badges = JG.awardAll({
+      'sub-len20': cars >= 20,
+      'sub-len40': cars >= 40,
+      'sub-first': rank === 1
+    });
+    return { res, badges, mode };
+  }catch(e){ return null; }
+}
 
 /* ---------- 등급별 도색 ----------
    실제 전동차처럼 "은색(스테인리스) 차체 + 노선색 띠"가 기본이다.
@@ -408,6 +448,7 @@ function openVersus(){
     onLeave:()=>{ endOnline(); },
     onCancel:()=>{ show(s1); }
   });
+  seedVersusName();
 }
 
 /* 온라인 모드 정리 후 첫 화면으로 */
@@ -1276,11 +1317,7 @@ function endGame(reason){
   running=false;
   const list=trains.filter(t=>t.alive||t===player).sort((a,b)=>b.pax-a.pax);
   const rank=list.indexOf(player)+1;
-  const bestPax=parseInt(Store.get('subwayio_best_pax')||'0',10);
-  const bestCars=parseInt(Store.get('subwayio_best_cars')||'0',10);
-  const newBest=player.pax>bestPax;
-  if(newBest) Store.set('subwayio_best_pax', String(player.pax));
-  if(player.cars>bestCars) Store.set('subwayio_best_cars', String(player.cars));
+  const info=saveRecord(player.pax, player.cars, rank);
   document.getElementById('overTitle').textContent = reason==='wall' ? '선로 이탈!' : '탈선!';
   document.getElementById('overSub').textContent = reason==='wall'
     ? '노선 끝을 벗어났습니다.'
@@ -1289,8 +1326,15 @@ function endGame(reason){
     `<div class="rrow"><span>탑승 승객</span><b>${player.pax}명</b></div>`+
     `<div class="rrow"><span>최종 편성</span><b>${player.cars}칸</b></div>`+
     `<div class="rrow"><span>격파한 열차</span><b>${player.kills}대</b></div>`+
-    `<div class="rrow"><span>최종 순위</span><b>${rank}위 / ${list.length}대</b></div>`+
-    `<div class="rrow"><span>내 최고 기록</span><b class="best">${Math.max(bestPax,player.pax)}명 · ${Math.max(bestCars,player.cars)}칸${newBest?' 🎉신기록':''}</b></div>`;
+    `<div class="rrow"><span>최종 순위</span><b>${rank}위 / ${list.length}대</b></div>`;
+  const resEl=document.getElementById('jgRes');
+  if(info){
+    JG.resultBox('jgRes', {
+      gameId:'subway-io', score:player.pax, res:info.res, unit:'명', badges:info.badges,
+      extra:[['모드', info.mode], ['최종 편성', player.cars+'칸'], ['최종 순위', rank+'위']]
+    });
+  }else if(resEl){ resEl.innerHTML=''; }
+  renderBest();
   setTimeout(()=>show(over), 700);
   // 온라인 대결이면 내 최종 점수를 알린다 (상대가 아직 달리는 중이면 라이브러리가 기다려준다)
   if(VS.on && window.Versus && Versus.active()){
@@ -1299,8 +1343,25 @@ function endGame(reason){
   }
 }
 
+/* ---------- 플레이어 프로필 붙이기 ---------- */
+if(window.JG){
+  try{
+    JG.mountChip('jgChip');
+    JG.on('change', renderBest);
+  }catch(e){}
+}
+/* 온라인 대결 로비의 이름칸을 내 프로필 이름으로 채워준다 */
+function seedVersusName(){
+  if(!window.JG) return;
+  try{
+    const fill=()=>{ const i=document.getElementById('vsName'); if(i && !i.value) i.value=JG.player().name.slice(0,8); };
+    fill(); setTimeout(fill, 40);
+  }catch(e){}
+}
+
 /* 초기 미리보기 */
 renderGrades();
+renderBest();
 
 /* 디버그/검증 훅 (헤드리스 테스트용) */
 window.SUBWAY={Train,LINES,GRADES,gradeStyle,startGame,

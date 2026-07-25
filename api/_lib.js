@@ -41,7 +41,7 @@ export const GAMES = {
   'times-table-shooter': { max: 100000, label: '구구단 슈팅' },
   'word-cards': { max: 100000, label: '영단어 카드 퀴즈' },
   'quiz-science': { max: 100000, label: '상식·과학 퀴즈' },
-  kkeutmalitgi: { max: 100000, label: '끝말잇기' },
+  'word-chain': { max: 100000, label: '끝말잇기' },
   'hidden-object': { max: 100000, label: '숨은그림찾기' },
   set: { max: 100000, label: 'SET 카드게임' },
   'jump-map': { max: 100000, label: '점프맵 100' },

@@ -147,6 +147,13 @@
   }
   .dict-status.ready{background:#eafbf1; color:#1e8e3e;}
   .dict-status.failed{background:#fdf1f0; color:#c5372c;}
+  /* 내 최고 기록 안내 (플레이어별 기록은 common/profile.js 가 맡는다) */
+  .best-box{
+    margin-top:14px; background:#f8f9fb; border:1px solid var(--border); border-radius:12px;
+    padding:11px 13px; font-size:13px; line-height:1.6; color:var(--sub); font-weight:600; text-align:center;
+  }
+  .best-box:empty{display:none;}
+  .best-box b{color:var(--text);}
   /* 포기·시간초과했을 때 "이런 말이 있었어요" 안내 */
   .miss-note{
     margin-top:12px; background:#fff8e1; border:1px solid #f7e2a0; border-radius:12px;
@@ -161,6 +168,7 @@
 
   <!-- HOME -->
   <div id="screen-home">
+    <div id="jgChip" style="display:flex;justify-content:center;margin-bottom:14px;"></div>
     <div class="card">
       <h2>모드를 선택하세요</h2>
       <p class="desc">컴퓨터와 실력을 겨루거나, 여러 명이 한 화면으로 돌아가며 즐길 수 있어요.</p>
@@ -179,6 +187,7 @@
         </div>
       </div>
       <div class="dict-status" data-dict-status>📚 낱말 사전 준비 중…</div>
+      <div class="best-box" id="best-box"></div>
     </div>
     <footer class="help-link"><button onclick="showHelp()">게임 방법 보기</button></footer>
     <a class="hub-link" href="../../../">← 게임 목록</a>
@@ -213,6 +222,7 @@
         <div class="label">자유 모드<span class="sub">내장 사전에 없는 단어도 허용</span></div>
         <label class="switch"><input type="checkbox" id="ai-free-toggle"><span class="slider"></span></label>
       </div>
+      <div class="best-box" id="best-box-ai"></div>
       <button class="primary-btn" onclick="startAIGame()">게임 시작</button>
       <button class="ghost-btn" onclick="goHome()">뒤로가기</button>
       <div class="dict-status" data-dict-status>📚 낱말 사전 준비 중…</div>
@@ -290,6 +300,7 @@
         <div class="stat"><b id="stat-words">0</b><span>이어진 단어 수</span></div>
         <div class="stat"><b id="stat-players">0</b><span>참가자 수</span></div>
       </div>
+      <div id="jgRes" style="margin-top:14px;text-align:left"></div>
     </div>
     <button class="primary-btn" id="btn-restart" onclick="restartSame()">같은 설정으로 다시하기</button>
     <button class="ghost-btn" onclick="goHome()">처음으로</button>
@@ -315,6 +326,7 @@
   </div>
 </div>
 
+<script src="../../../common/profile.js"></script>
 <script src="../../../common/versus.js"></script>
 <script>
 /* ===================== 단어 사전 ===================== */
@@ -510,6 +522,10 @@ function renderMultiSetup(){
     input.type = "text";
     input.placeholder = "플레이어 " + (i+1);
     input.value = existing[i] || "";
+    /* 첫 번째 칸은 지금 플레이어 이름으로 미리 채워준다 */
+    if(i === 0 && !input.value && window.JG){
+      try{ input.value = JG.player().name.slice(0,10); }catch(e){}
+    }
     input.maxLength = 10;
     row.appendChild(avatar);
     row.appendChild(input);
@@ -878,7 +894,82 @@ function renderGame(){
   });
 }
 
-function endGame(winner, reason, note){
+/* ===================== 기록 · 배지 (common/profile.js 의 JG) =====================
+   기록은 플레이어별로 JG 가 모아준다. JG 가 없거나 저장이 막혀 있어도
+   게임은 그대로 돌아가야 하므로 전부 try/catch 로 감싼다. */
+const DIFF_KO = {easy:"쉬움", normal:"보통", hard:"어려움"};
+
+/* 사람이 읽을 수 있는 모드 이름 — 모드별로 최고 기록이 따로 쌓인다 */
+function recMode(){
+  if(!state) return "기타";
+  if(state.online) return "온라인 대결";
+  if(state.aiDiff) return "컴퓨터 · " + (DIFF_KO[state.aiDiff] || state.aiDiff);
+  return "여러 명 · " + state.players.length + "명";
+}
+
+/* 한 판이 끝났을 때 기록·배지 저장 */
+function saveRecord(iWon){
+  if(!window.JG || !state) return null;
+  try{
+    const words = state.used.length;
+    const mode = recMode();
+    const res = JG.submit("word-chain", {score: words, mode: mode, unit:"단어"});
+    const beatAI = !!iWon && !!state.aiDiff && !state.online;
+    const badges = JG.awardAll({
+      "kk-win":     beatAI,
+      "kk-hard":    beatAI && state.aiDiff === "hard",
+      "kk-chain15": words >= 15
+    });
+    return {res: res, score: words, mode: mode, badges: badges};
+  }catch(e){ return null; }
+}
+
+/* 결과 화면에 기록 상자 그리기 */
+function showRecord(info){
+  const box = document.getElementById("jgRes");
+  if(!box) return;
+  if(!info){ box.innerHTML = ""; return; }
+  try{
+    JG.resultBox("jgRes", {
+      gameId:"word-chain", score: info.score, res: info.res, unit:"단어",
+      badges: info.badges,
+      extra: [["모드", info.mode], ["참가자", state.players.length + "명"]]
+    });
+  }catch(e){ box.innerHTML = ""; }
+}
+
+/* 시작 화면 · 난이도 고르는 화면에 내 최고 기록 보여주기 */
+function renderBest(){
+  const home = document.getElementById("best-box");
+  const ai = document.getElementById("best-box-ai");
+  if(!window.JG){ if(home) home.innerHTML = ""; if(ai) ai.innerHTML = ""; return; }
+  try{
+    if(home){
+      const all = JG.allBest("word-chain");
+      let bestMode = null, bestVal = -1;
+      Object.keys(all).forEach(m=>{ if(all[m] > bestVal){ bestVal = all[m]; bestMode = m; } });
+      const plays = JG.plays("word-chain");
+      home.innerHTML = bestMode
+        ? `🏅 가장 길게 이은 기록: <b>${bestVal}단어</b> (${bestMode})<br>🗣️ 지금까지 <b>${plays}판</b> 놀았어요`
+        : "🏅 아직 기록이 없어요. 한 판 끝내면 기록이 쌓여요!";
+    }
+    if(ai){
+      const chip = document.querySelector("#ai-diff-chips .chip.active");
+      const diff = chip ? chip.dataset.val : "normal";
+      const b = JG.best("word-chain", "컴퓨터 · " + (DIFF_KO[diff] || diff));
+      ai.innerHTML = (b != null)
+        ? `🏅 ${DIFF_KO[diff]} 컴퓨터와의 최고 기록: <b>${b}단어</b>`
+        : `🏅 ${DIFF_KO[diff]} 난이도는 아직 기록이 없어요. 도전!`;
+    }
+  }catch(e){
+    if(home) home.innerHTML = "";
+    if(ai) ai.innerHTML = "";
+  }
+}
+
+function endGame(winner, reason, note, onlineWon){
+  const iWon = state && state.online ? !!onlineWon : !!(winner && !winner.isAI);
+  const rec = saveRecord(iWon);
   showScreen("screen-result");
   /* 온라인 대결에서는 '같은 설정으로 다시하기'가 의미가 없어 숨긴다 */
   document.getElementById("btn-restart").classList.toggle("hidden", !!(state && state.online));
@@ -893,6 +984,8 @@ function endGame(winner, reason, note){
     document.getElementById("result-sub").textContent = note.sub;
     document.getElementById("stat-words").textContent = state.used.length;
     document.getElementById("stat-players").textContent = state.players.length;
+    showRecord(rec);
+    renderBest();
     return;
   }
   const emoji = document.getElementById("result-emoji");
@@ -914,6 +1007,8 @@ function endGame(winner, reason, note){
   }
   document.getElementById("stat-words").textContent = state.used.length;
   document.getElementById("stat-players").textContent = state.players.length;
+  showRecord(rec);
+  renderBest();
 }
 
 /* ══════════════════ 온라인 대결 ══════════════════ */
@@ -949,7 +1044,7 @@ function onlineLose(reason){
     Versus.send({t:"kover", reason: reason});
     Versus.finish(myOnlineScore());
   }
-  endGame(null, reason, {emoji:"💪", title:"아깝다! " + state.oppName + " 님 승리", sub: sub});
+  endGame(null, reason, {emoji:"💪", title:"아깝다! " + state.oppName + " 님 승리", sub: sub}, false);
 }
 
 /* 상대가 졌을 때 */
@@ -963,10 +1058,20 @@ function onlineWin(reason){
             : reason === "giveup"  ? state.oppName + " 님이 포기했어요."
             : state.oppName + " 님이 단어를 잇지 못했어요.";
   if(window.Versus && Versus.active()) Versus.finish(myOnlineScore() + ONLINE_WIN_BONUS);
-  endGame(null, reason, {emoji:"🎉", title:"이겼다! 내가 승리", sub: sub});
+  endGame(null, reason, {emoji:"🎉", title:"이겼다! 내가 승리", sub: sub}, true);
+}
+
+/* 온라인 로비의 이름칸을 내 프로필 이름으로 미리 채워준다 */
+function seedVersusName(){
+  if(!window.JG) return;
+  try{
+    const fill = ()=>{ const i = document.getElementById("vsName"); if(i && !i.value.trim()) i.value = JG.player().name.slice(0,8); };
+    fill(); setTimeout(fill, 40);
+  }catch(e){}
 }
 
 function openVersus(){
+  seedVersusName();
   Versus.open({
     game: "word-chain",
     /* 방장이 고른 규칙을 양쪽에 똑같이 적용한다 */
@@ -1015,6 +1120,19 @@ function openVersus(){
 renderMultiSetup();
 renderDictStatus();
 loadBigDict();
+
+/* 플레이어 칩 · 기록 표시 */
+if(window.JG){
+  try{
+    JG.mountChip("jgChip");
+    JG.on("change", renderBest);
+  }catch(e){}
+}
+/* 난이도 칩을 바꾸면 그 난이도 기록을 다시 보여준다 */
+document.addEventListener("click", (e)=>{
+  if(e.target.closest("#ai-diff-chips .chip")) renderBest();
+});
+renderBest();
 </script>
 </body>
 </html>

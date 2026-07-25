@@ -98,6 +98,7 @@
 <div class="wrap">
 
   <section id="home">
+    <div id="jgChip" style="display:flex; justify-content:center; margin-bottom:6px;"></div>
     <h1>🚀 구구단 슈팅</h1>
     <p class="tag">내려오는 숫자 중에서 정답을 쏘세요!</p>
 
@@ -162,6 +163,7 @@
         <div class="row"><span>맞힌 개수</span><b id="rHit">0</b></div>
         <div class="row"><span>도달 단계</span><b id="rLv">1</b></div>
       </div>
+      <div id="jgRes" style="margin:12px 0;"></div>
       <div class="label" id="wrongLabel">헷갈렸던 문제</div>
       <div class="wrongs" id="wrongList"></div>
     </div>
@@ -172,17 +174,11 @@
 
 </div>
 
+<script src="../../../common/profile.js"></script>
 <script src="../../../common/versus.js"></script>
 <script>
 var $ = function(id){ return document.getElementById(id); };
-
-/* ---------- 저장소 (막혀 있으면 메모리로 대체) ---------- */
-var mem = {};
-function loadBest(){
-  try{ var r = localStorage.getItem("ttShooterBest"); if(r) return JSON.parse(r); }catch(e){}
-  return mem.best || {};
-}
-function saveBest(o){ mem.best = o; try{ localStorage.setItem("ttShooterBest", JSON.stringify(o)); }catch(e){} }
+var GAME_ID = "times-table-shooter";
 
 /* ---------- 나이 단계 (4단계: 6살 ~ 초6) ----------
    allow   : 고를 수 있는 단
@@ -255,12 +251,25 @@ $("spBox").addEventListener("click", function(e){
   $("spBox").querySelectorAll(".opt").forEach(function(o){ o.classList.remove("on"); });
   el.classList.add("on"); readCfg();
 });
-function bestKey(){ return cfg.lv + "|" + cfg.dans.slice().sort(function(a,b){return a-b;}).join(",") + "|" + cfg.sp; }
+/* ---------- 기록 이름표 (플레이어별 기록은 common/profile.js 의 JG 가 맡는다) ----------
+   지금 고른 설정을 사람이 읽을 수 있는 한 줄로 만든다. 설정마다 최고 기록이 따로 쌓인다. */
+function danTxt(){ return cfg.dans.slice().sort(function(a,b){ return a-b; }).join("·") + "단"; }
+function recMode(mode){
+  if(mode === "online") return "온라인 대결";
+  return AGE[cfg.lv].nm + " · " + danTxt() + " · " + SP_NAME[cfg.sp];
+}
 function showBest(){
-  var b = loadBest()[bestKey()];
-  $("bestTxt").textContent = b
-    ? (b + "점  (" + AGE[cfg.lv].emo + " " + AGE[cfg.lv].nm + " · " + cfg.dans.join("·") + "단 · " + SP_NAME[cfg.sp] + ")")
-    : "아직 없어요";
+  var box = $("bestTxt");
+  if(!box) return;
+  if(!window.JG){ box.textContent = "아직 없어요"; return; }
+  try{
+    var b = JG.best(GAME_ID, recMode("single"));
+    box.innerHTML = (b != null)
+      ? ("🏅 <b>" + b + "점</b>  (" + AGE[cfg.lv].emo + " " + recMode("single") + ")" +
+         "<br><span style='font-size:13px;color:var(--sub)'>🚀 지금까지 " + JG.plays(GAME_ID) + "판 플레이</span>")
+      : ("아직 없어요 — 첫 기록에 도전!" +
+         "<br><span style='font-size:13px;color:var(--sub)'>🚀 지금까지 " + JG.plays(GAME_ID) + "판 플레이</span>");
+  }catch(e){ box.textContent = "아직 없어요"; }
 }
 
 /* ---------- 별 배경 (시드와 무관 — 화면 장식일 뿐) ---------- */
@@ -326,6 +335,24 @@ function makeVals(ans, a, b, n, kind){
 
 var SLOTS = { 2:[0.30,0.70], 3:[0.20,0.50,0.80], 4:[0.16,0.38,0.62,0.84] };
 
+/* ---------- 같은 문제가 연달아 나오지 않게 ----------
+   makeQ() 자체는 손대지 않는다(온라인 대결이 seeded 안에서 그대로 써야 하므로).
+   싱글 플레이에서만 JG.recentFilter 로 최근에 낸 문제를 걸러 다시 뽑는다. */
+var qFilter = null, qFilterKey = "";
+function filterSize(){
+  // 지금 설정에서 만들 수 있는 구구단 문제 개수(대략)의 절반쯤만 기억한다.
+  var n = cfg.dans.length * 9;
+  return Math.max(2, Math.min(12, Math.floor(n / 2)));
+}
+function pickQ(){
+  if(!window.JG || !JG.recentFilter) return makeQ();
+  try{
+    var key = cfg.lv + "|" + cfg.dans.slice().sort().join(",");
+    if(!qFilter || qFilterKey !== key){ qFilter = JG.recentFilter(filterSize()); qFilterKey = key; }
+    return qFilter.pick(makeQ, function(q){ return q.txt; }, 16);
+  }catch(e){ return makeQ(); }
+}
+
 /* ---------- 게임 ---------- */
 var G = null, raf = null, lastT = 0;
 
@@ -337,7 +364,8 @@ function start(){
 function beginGame(mode){
   var A = AGE[cfg.lv];
   G = { mode:mode, score:0, hit:0, lv:1, life:A.life, maxLife:A.life,
-        bubbles:[], q:null, over:false, wrongs:{}, idx:0, total:0 };
+        bubbles:[], q:null, over:false, wrongs:{}, idx:0, total:0,
+        combo:0, bestCombo:0 };   // combo: 지금 연속 정답 수 / bestCombo: 이번 판 최고 연속
   if(mode === "online") G.total = VS.list.length;
   $("home").classList.add("hide"); $("over").classList.add("hide"); $("play").classList.remove("hide");
   stage.querySelectorAll(".bub").forEach(function(b){ b.remove(); });
@@ -366,7 +394,7 @@ function nextQ(){
     if(G.idx >= VS.list.length){ finish(); return; }
     G.q = VS.list[G.idx++];
   }else{
-    G.q = makeQ();
+    G.q = pickQ();
   }
   $("qbar").textContent = G.q.txt;
   hud();
@@ -449,6 +477,8 @@ stage.addEventListener("click", function(e){
   if(b.ok){
     el.classList.add("pop");
     G.hit++;
+    G.combo++;
+    if(G.combo > G.bestCombo) G.bestCombo = G.combo;
     G.score += 10 + (G.lv - 1) * 2 + cfg.lv * 3;         // 나이 단계 보너스
     if(G.mode === "single" && G.hit % 5 === 0){ G.lv++; toast("단계 " + G.lv + "!", "#FBBC05"); }
     hud();
@@ -465,6 +495,7 @@ stage.addEventListener("click", function(e){
 
 function loseLife(msg){
   G.life--;
+  G.combo = 0;
   hud();
   toast(msg, "#EA4335");
   clearBubbles();
@@ -493,17 +524,40 @@ function finish(){
     $("wrongList").innerHTML = "<div style='color:var(--green); font-weight:800;'>하나도 안 틀렸어요! 👏</div>";
   }
 
-  if(G.mode === "single"){
-    var all = loadBest(), k2 = bestKey();
-    if(!all[k2] || G.score > all[k2]){ all[k2] = G.score; saveBest(all); $("newBest").classList.remove("hide"); }
-    else $("newBest").classList.add("hide");
-  }else{
-    $("newBest").classList.add("hide");
-    if(window.Versus && Versus.active()) Versus.finish(G.score);
-  }
+  if(G.mode !== "single" && window.Versus && Versus.active()) Versus.finish(G.score);
+
+  var info = saveRecord();
+  $("newBest").classList.toggle("hide", !(info && info.res && info.res.isNewBest));
 
   $("play").classList.add("hide");
   $("over").classList.remove("hide");
+
+  if(info){
+    JG.resultBox("jgRes", {
+      gameId: GAME_ID, score: info.score, res: info.res, unit: "점", badges: info.badges,
+      extra: [["모드", info.label], ["맞힌 개수", G.hit + "개"], ["최고 연속", G.bestCombo + "연속"]]
+    });
+  }else{
+    $("jgRes").innerHTML = "";
+  }
+  showBest();
+}
+
+/* 한 판이 끝나면 기록과 배지를 저장한다.
+   JG 가 없거나 저장이 막혀 있어도 게임은 그대로 굴러간다. */
+function saveRecord(){
+  if(!window.JG) return null;
+  try{
+    var label = recMode(G.mode === "online" ? "online" : "single");
+    var res = JG.submit(GAME_ID, { score: G.score, mode: label, unit: "점" });
+    var badges = JG.awardAll({
+      "tt-score300": G.score >= 300,
+      "tt-score700": G.score >= 700,
+      "tt-nomiss":   (G.life === G.maxLife && G.hit >= 20),
+      "tt-combo15":  G.bestCombo >= 15
+    });
+    return { res: res, score: G.score, badges: badges, label: label };
+  }catch(e){ return null; }
 }
 
 $("startBtn").onclick = start;
@@ -537,6 +591,18 @@ function vsPickCount(n, el){
   VS.count = n;
   [].forEach.call(el.parentNode.children, function(c){ c.style.background = "#efeaf6"; c.style.color = "#4a4258"; });
   el.style.background = "#7f8bff"; el.style.color = "#fff";
+}
+
+/* 온라인 로비의 이름칸을 내 프로필 이름으로 미리 채워준다 */
+function seedVersusName(){
+  if(!window.JG) return;
+  try{
+    var fill = function(){
+      var i = document.getElementById("vsName");
+      if(i && !i.value) i.value = JG.player().name.slice(0, 8);
+    };
+    fill(); setTimeout(fill, 40);
+  }catch(e){}
 }
 
 function openVersus(){
@@ -603,13 +669,22 @@ function openVersus(){
     }
   });
 }
-$("vsBtn").onclick = openVersus;
+$("vsBtn").onclick = function(){ openVersus(); seedVersusName(); };
 
 /* ---------- 시작 ---------- */
 renderAge(); renderDans(); renderSp(); showBest();
 
+/* ---------- 플레이어 프로필 ---------- */
+if(window.JG){
+  try{
+    JG.mountChip("jgChip");
+    JG.on("change", showBest);
+  }catch(e){}
+}
+
 /* 검증 스크립트에서 문제 생성기를 그대로 불러 쓰기 위한 통로 */
-window.__ttTest = { cfg:cfg, makeQ:makeQ, AGE:AGE, VS:VS, G:function(){ return G; } };
+window.__ttTest = { cfg:cfg, makeQ:makeQ, pickQ:pickQ, AGE:AGE, VS:VS, G:function(){ return G; },
+                    recMode:recMode };
 </script>
 </body>
 </html>

@@ -2,93 +2,244 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>김재희의 게임천국</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>미니 게임 모음</title>
+<script src="common/profile.js"></script>
 <style>
   :root{
     --blue:#4285F4; --red:#EA4335; --yellow:#FBBC05; --green:#34A853;
     --bg:#f6f8fc; --card:#ffffff; --text:#202124; --sub:#5f6368; --border:#e0e3e7;
   }
-  *{box-sizing:border-box;}
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   body{
     margin:0; background:var(--bg); color:var(--text);
     font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",-apple-system,BlinkMacSystemFont,sans-serif;
-    display:flex; justify-content:center; padding:40px 16px;
+    display:flex; justify-content:center;
+    padding:calc(24px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right))
+            calc(24px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
+    overflow-x:hidden;
   }
-  .wrap{width:100%; max-width:640px;}
-  .logo{text-align:center; font-size:34px; font-weight:800; letter-spacing:-1px; margin-bottom:8px;}
+  .wrap{width:100%; max-width:660px; min-width:0;}
+  .logo{text-align:center; font-size:clamp(26px,8vw,34px); font-weight:800; letter-spacing:-1px; margin-bottom:8px;}
   .logo span:nth-child(1){color:var(--blue);}
   .logo span:nth-child(2){color:var(--red);}
   .logo span:nth-child(3){color:var(--yellow);}
   .logo span:nth-child(4){color:var(--blue);}
-  .logo span:nth-child(5){color:var(--green);}
-  p.sub{text-align:center; color:var(--sub); margin:0 0 28px; font-size:14px;}
-  h2.section{font-size:15px; font-weight:800; color:var(--sub); margin:28px 0 12px; padding-bottom:6px; border-bottom:2px solid var(--border);}
-  h2.section:first-of-type{margin-top:0;}
-  .grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:14px;}
+  p.sub{text-align:center; color:var(--sub); margin:0 0 18px; font-size:13.5px; line-height:1.6; word-break:keep-all;}
+
+  /* ── 프로필 카드 ── */
+  .me{
+    background:var(--card); border:2px solid var(--border); border-radius:16px;
+    padding:14px; margin-bottom:14px;
+  }
+  .me-top{display:flex; align-items:center; gap:11px;}
+  .me-av{
+    width:48px; height:48px; border-radius:50%; flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center; font-size:27px; background:#eef1f6;
+  }
+  .me-info{flex:1; min-width:0;}
+  .me-name{font-size:18px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .me-stat{font-size:12.5px; color:var(--sub); margin-top:3px; font-weight:600;}
+  .me-btn{
+    border:2px solid var(--border); background:#fff; color:var(--sub); border-radius:11px;
+    padding:9px 12px; font-size:13px; font-weight:800; cursor:pointer; font-family:inherit; flex:0 0 auto;
+  }
+  .me-btn:active{transform:scale(.97);}
+  .tabs{display:flex; gap:6px; margin-top:13px;}
+  .tab{
+    flex:1; text-align:center; padding:9px 4px; border-radius:10px; border:2px solid var(--border);
+    background:#fff; font-size:13px; font-weight:800; color:var(--sub); cursor:pointer; user-select:none;
+  }
+  .tab.on{border-color:var(--blue); background:#e8f0fe; color:var(--blue);}
+  .panel{margin-top:12px;}
+  .rec{display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:9px 2px; border-bottom:1px solid var(--border); font-size:14px;}
+  .rec:last-child{border-bottom:none;}
+  .rec .nm{display:flex; align-items:center; gap:7px; min-width:0;}
+  .rec .nm b{font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .rec .md{font-size:11.5px; color:var(--sub); font-weight:600;}
+  .rec .sc{font-weight:800; color:var(--blue); flex:0 0 auto; white-space:nowrap;}
+  .empty{color:var(--sub); font-size:13px; text-align:center; padding:16px 4px; line-height:1.6;}
+  .bgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(88px,1fr)); gap:8px;}
+  .bd{
+    border:2px solid var(--border); border-radius:12px; padding:9px 5px; text-align:center; background:#fff;
+  }
+  .bd.on{border-color:var(--green); background:#e6f4ea;}
+  .bd .e{font-size:23px; line-height:1.2; filter:grayscale(1); opacity:.35;}
+  .bd.on .e{filter:none; opacity:1;}
+  .bd .t{font-size:11px; font-weight:800; margin-top:3px; line-height:1.3; word-break:keep-all;}
+  .bd .d{font-size:10px; color:var(--sub); margin-top:2px; line-height:1.35; word-break:keep-all;}
+  .bd:not(.on) .t,.bd:not(.on) .d{color:#a8adb5;}
+  .bcount{font-size:12.5px; color:var(--sub); font-weight:700; margin-bottom:9px;}
+
+  h2.section{font-size:15px; font-weight:800; color:var(--sub); margin:26px 0 12px; padding-bottom:6px; border-bottom:2px solid var(--border);}
+  .grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:12px;}
   a.card{
     display:block; background:var(--card); border:2px solid var(--border); border-radius:14px;
-    padding:20px; text-decoration:none; color:var(--text); transition:.15s;
+    padding:17px; text-decoration:none; color:var(--text); transition:.15s; min-width:0;
   }
   a.card:hover{border-color:var(--blue); transform:translateY(-2px); box-shadow:0 4px 14px rgba(60,64,67,.1);}
-  a.card .emoji{font-size:32px; margin-bottom:8px; display:block;}
+  a.card .emoji{font-size:30px; margin-bottom:7px; display:block;}
   a.card .title{font-weight:800; font-size:16px; margin-bottom:4px;}
-  a.card .desc{font-size:12.5px; color:var(--sub); line-height:1.5;}
-  a.card .vsbadge{display:inline-block;margin-top:9px;font-size:11.5px;font-weight:800;color:#6b5ce7;
+  a.card .desc{font-size:12.5px; color:var(--sub); line-height:1.5; word-break:keep-all;}
+  a.card .foot{display:flex; flex-wrap:wrap; gap:6px; margin-top:9px;}
+  a.card .vsbadge{display:inline-block;font-size:11.5px;font-weight:800;color:#6b5ce7;
     background:#efecff;border-radius:999px;padding:3px 9px;}
-  a.records{
-    display:block; text-align:center; text-decoration:none; margin:0 0 24px;
-    background:var(--card); border:2px solid var(--border); border-radius:12px;
-    padding:13px; font-size:14px; font-weight:800; color:var(--blue); transition:.15s;
+  a.card .mybest{display:inline-block;font-size:11.5px;font-weight:800;color:#b06000;
+    background:#fef7e0;border-radius:999px;padding:3px 9px;}
+  footer{text-align:center; margin-top:28px; font-size:12px; color:var(--sub); line-height:1.7;}
+  @media (max-width:360px){
+    .grid{grid-template-columns:1fr;}
+    .bgrid{grid-template-columns:repeat(auto-fill,minmax(78px,1fr));}
   }
-  a.records:hover{border-color:var(--blue); background:#e8f0fe;}
-  footer{text-align:center; margin-top:32px; font-size:12px; color:var(--sub);}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="logo"><span>김</span><span>재</span><span>희</span>의 <span>게임</span><span>천국</span></div>
-  <p class="sub">재희가 만든 게임들이 모여 있어요. 여기서 바로 플레이할 수 있어요. <b>🌐</b> 표시가 있는 게임은 방 코드로 친구와 대결할 수 있어요!</p>
-  <a class="records" href="records.html">📊 내 기록 · 전체 랭킹 · 오답노트 보기</a>
+  <div class="logo"><span>미</span><span>니</span><span>게</span><span>임</span></div>
+  <p class="sub">여기서 바로 플레이할 수 있는 게임 모음이에요.<br><b>🌐</b> 표시가 있는 게임은 방 코드로 친구와 대결할 수 있어요!</p>
+
+  <!-- ===== 내 프로필 · 기록 · 배지 ===== -->
+  <div class="me">
+    <div class="me-top">
+      <div class="me-av" id="meAv">🦊</div>
+      <div class="me-info">
+        <div class="me-name" id="meName">플레이어1</div>
+        <div class="me-stat" id="meStat">아직 기록이 없어요</div>
+      </div>
+      <button class="me-btn" id="meBtn">바꾸기</button>
+    </div>
+    <div class="tabs">
+      <div class="tab on" data-t="rec">🏆 내 기록</div>
+      <div class="tab" data-t="bdg">🎖️ 배지</div>
+    </div>
+    <div class="panel" id="panel"></div>
+  </div>
+
   <div id="sections"></div>
-  <footer>새 게임은 <code>games/fun/</code> · <code>games/study/</code> 폴더에 계속 추가됩니다.</footer>
+  <p style="text-align:center;margin:22px 0 0;"><a href="records.html" style="color:var(--sub);font-size:13px;font-weight:700;">📊 온라인 기록 페이지 열기 →</a></p>
+  <footer>
+    기록과 배지는 <b>이 브라우저 안에만</b> 저장돼요.<br>
+    다른 사람이나 다른 기기(폰↔컴퓨터)에서는 보이지 않아요.
+  </footer>
 </div>
 <script>
   // 새 게임을 추가하면 여기에 한 줄씩 등록하세요. (category: "fun" 재미용 / "study" 학습용)
+  // id 는 common/profile.js 의 GAMES 키와 같아야 기록이 연결됩니다.
   const GAMES = [
-    { path: "games/study/math-speed/",          emoji: "⚡", title: "연산 스피드 퀴즈", desc: "제한 시간 안에 사칙연산 문제 풀기. 6~7살부터 초6까지 4단계 · 틀린 문제 다시 보기", category: "study", vs: true },
-    { path: "games/study/times-table-shooter/", emoji: "🚀", title: "구구단 슈팅",     desc: "내려오는 숫자 중 정답을 쏘는 액션 게임. 6~7살부터 초6까지 4단계 · 오답 노트", category: "study", vs: true },
-    { path: "games/study/word-cards/",          emoji: "🔤", title: "영단어 카드 퀴즈", desc: "영단어 484개를 나이 4단계로. 카드 외우기 · 영→뜻 · 뜻→영 · 발음 듣기", category: "study", vs: true },
-    { path: "games/study/quiz-science/",        emoji: "🧠", title: "상식·과학 퀴즈",   desc: "과학·우주·동물·역사·한국·생활 190문제를 나이 4단계로. 문제마다 해설이 나와요", category: "study", vs: true },
-    { path: "games/fun/word-chain/",  emoji: "🔤", title: "끝말잇기",     desc: "낱말 31만 개를 인정하는 사전. 컴퓨터·여럿이서·온라인으로 단어 잇기", category: "fun", vs: true },
-    { path: "games/fun/hidden-object/", emoji: "🔍", title: "숨은그림찾기", desc: "매판 새로 그려지는 그림판에서 목표 찾기. 혼자서도, 둘이서 버저 대결로도", category: "fun", vs: true },
-    { path: "games/fun/set/",           emoji: "🃏", title: "SET 카드게임", desc: "네 속성이 모두 같거나 모두 다른 세 장 찾기. 규칙 설명과 연습 문제부터 시작", category: "fun", vs: true },
-    { path: "games/fun/jump-map/",      emoji: "🏃", title: "점프맵 200",   desc: "1~200단계 파쿠르 점프맵. 닉네임 만들기 · 캐릭터 12종 · 101단계부터 새 장치", category: "fun", vs: true },
-    { path: "games/fun/subway-io/",     emoji: "🚇", title: "지하철 슬리더", desc: "노선 18종·등급 7종 중 내 열차를 골라 승객을 태우고 편성을 늘리는 슬리더리오식 대전", category: "fun", vs: true }
+    { id:"math-speed",          path: "games/study/math-speed/",          emoji: "⚡", title: "연산 스피드 퀴즈", desc: "제한 시간 안에 사칙연산 문제 풀기. 난이도 3단계 · 연속 보너스 · 틀린 문제 다시 보기", category: "study" },
+    { id:"times-table-shooter", path: "games/study/times-table-shooter/", emoji: "🚀", title: "구구단 슈팅",     desc: "내려오는 숫자 중 정답을 쏘는 액션 게임. 연습할 단 고르기 · 목숨 3개 · 오답 노트", category: "study" },
+    { id:"word-cards",          path: "games/study/word-cards/",          emoji: "🔤", title: "영단어 카드 퀴즈", desc: "초등 3학년 영단어 120개. 카드 외우기 · 영→뜻 · 뜻→영 · 발음 듣기", category: "study" },
+    { id:"quiz-science",        path: "games/study/quiz-science/",        emoji: "🧠", title: "상식·과학 퀴즈",   desc: "과학·우주·동물·역사·한국·생활 6개 주제 140문제. 문제마다 해설이 나와요", category: "study" },
+    { id:"kkeutmalitgi",  path: "games/fun/word-chain/",     emoji: "🗣️", title: "끝말잇기",     desc: "국어사전 단어로 컴퓨터와 3단계 난이도 대결, 또는 최대 8명이 한 화면에서 돌아가며 단어 잇기", category: "fun", vs: true },
+    { id:"hidden-object", path: "games/fun/hidden-object/", emoji: "🔍", title: "숨은그림찾기", desc: "매판 새로 그려지는 그림판에서 목표 찾기. 혼자서도, 둘이서 버저 대결로도", category: "fun", vs: true },
+    { id:"set",           path: "games/fun/set/",           emoji: "🃏", title: "SET 카드게임", desc: "네 속성이 모두 같거나 모두 다른 세 장 찾기. 규칙 설명과 연습 문제부터 시작", category: "fun", vs: true },
+    { id:"jump-map",      path: "games/fun/jump-map/",      emoji: "🏃", title: "점프맵 100",   desc: "1~100단계 파쿠르 점프맵. 캐릭터 12종 · 별 수집 · 폰 세로로도 플레이", category: "fun", vs: true },
+    { id:"subway-io",     path: "games/fun/subway-io/",     emoji: "🚇", title: "지하철 슬리더", desc: "노선 18종·등급 7종 중 내 열차를 골라 승객을 태우고 편성을 늘리는 슬리더리오식 대전", category: "fun", vs: true },
+    { id:"onitama",       path: "games/fun/onitama/",       emoji: "🥷", title: "오니타마",     desc: "5×5 판의 미니 체스. 카드가 움직임을 정하고, 쓴 카드는 상대에게 넘어간다. 컴퓨터 3단계", category: "fun", vs: true }
   ];
   const SECTIONS = [
     { key: "study", title: "📚 학습용 게임" },
     { key: "fun",   title: "🎈 재미용 게임" }
   ];
+
+  /* ---------- 게임 카드 ---------- */
   const container = document.getElementById("sections");
-  SECTIONS.forEach(sec => {
-    const items = GAMES.filter(g => g.category === sec.key);
-    if (!items.length) return;
-    const h2 = document.createElement("h2");
-    h2.className = "section";
-    h2.textContent = sec.title;
-    container.appendChild(h2);
-    const grid = document.createElement("div");
-    grid.className = "grid";
-    items.forEach(g=>{
-      const a = document.createElement("a");
-      a.className = "card";
-      a.href = g.path;
-      a.innerHTML = `<span class="emoji">${g.emoji}</span><div class="title">${g.title}</div><div class="desc">${g.desc}</div>${g.vs ? '<span class="vsbadge">🌐 친구랑 온라인 대결</span>' : ""}`;
-      grid.appendChild(a);
+  function drawCards(){
+    container.innerHTML = "";
+    SECTIONS.forEach(sec => {
+      const items = GAMES.filter(g => g.category === sec.key);
+      if (!items.length) return;
+      const h2 = document.createElement("h2");
+      h2.className = "section";
+      h2.textContent = sec.title;
+      container.appendChild(h2);
+      const grid = document.createElement("div");
+      grid.className = "grid";
+      items.forEach(g=>{
+        const a = document.createElement("a");
+        a.className = "card";
+        a.href = g.path;
+        let mine = "";
+        try{
+          const bests = JG.allBest(g.id);
+          const keys = Object.keys(bests);
+          if (keys.length){
+            let topK = keys[0];
+            keys.forEach(k => { if (bests[k] > bests[topK]) topK = k; });
+            mine = '<span class="mybest">🏆 내 최고 ' + bests[topK] + '</span>';
+          }
+        }catch(e){}
+        a.innerHTML = '<span class="emoji">' + g.emoji + '</span>' +
+          '<div class="title">' + g.title + '</div>' +
+          '<div class="desc">' + g.desc + '</div>' +
+          '<div class="foot">' + (g.vs ? '<span class="vsbadge">🌐 친구랑 온라인 대결</span>' : "") + mine + '</div>';
+        grid.appendChild(a);
+      });
+      container.appendChild(grid);
     });
-    container.appendChild(grid);
+  }
+
+  /* ---------- 프로필 / 기록 / 배지 ---------- */
+  let tab = "rec";
+  function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  function drawMe(){
+    const p = JG.player();
+    document.getElementById("meAv").textContent = p.emoji;
+    document.getElementById("meName").textContent = p.name;
+
+    let plays = 0, played = 0;
+    GAMES.forEach(g => { const n = JG.plays(g.id); plays += n; if (n) played++; });
+    const nb = Object.keys(JG.badges()).length;
+    document.getElementById("meStat").textContent =
+      plays ? (plays + "판 플레이 · 게임 " + played + "종 · 배지 " + nb + "개")
+            : "아직 기록이 없어요 — 아무 게임이나 해보세요!";
+
+    const panel = document.getElementById("panel");
+    if (tab === "rec"){
+      let rows = "";
+      GAMES.forEach(g => {
+        const bests = JG.allBest(g.id);
+        const keys = Object.keys(bests);
+        if (!keys.length) return;
+        let topK = keys[0];
+        keys.forEach(k => { if (bests[k] > bests[topK]) topK = k; });
+        const md = topK === "default" ? "" : '<span class="md">' + esc(topK) + '</span>';
+        rows += '<div class="rec"><span class="nm">' + g.emoji + '<b>' + g.title + '</b>' + md + '</span>' +
+                '<span class="sc">' + bests[topK] + '</span></div>';
+      });
+      panel.innerHTML = rows || '<div class="empty">아직 기록이 없어요.<br>게임을 한 판 끝내면 여기에 최고 기록이 쌓여요 🏆</div>';
+    } else {
+      const got = JG.badges();
+      const ids = Object.keys(JG.BADGES);
+      const mine = ids.filter(id => got[id]).length;
+      let html = '<div class="bcount">모은 배지 <b>' + mine + '</b> / ' + ids.length + '개</div><div class="bgrid">';
+      // 획득한 것 먼저, 그다음 아직 못 얻은 것
+      ids.sort((a,b) => (got[b]?1:0) - (got[a]?1:0));
+      ids.forEach(id => {
+        const b = JG.BADGES[id];
+        html += '<div class="bd' + (got[id] ? ' on' : '') + '"><div class="e">' + b.emoji + '</div>' +
+                '<div class="t">' + esc(b.title) + '</div><div class="d">' + esc(b.desc) + '</div></div>';
+      });
+      panel.innerHTML = html + '</div>';
+    }
+  }
+
+  document.querySelectorAll(".tab").forEach(t => {
+    t.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach(o => o.classList.remove("on"));
+      t.classList.add("on");
+      tab = t.dataset.t;
+      drawMe();
+    });
   });
+  document.getElementById("meBtn").addEventListener("click", () => JG.openPicker());
+  document.getElementById("meAv").addEventListener("click", () => JG.openPicker());
+
+  function drawAll(){ drawMe(); drawCards(); }
+  JG.on("change", drawAll);
+  drawAll();
 </script>
 </body>
 </html>
