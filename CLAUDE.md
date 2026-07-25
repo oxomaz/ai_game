@@ -27,6 +27,8 @@
    - 학습용 게임은 `JG.shuffleBag()` / `JG.recentFilter()` 로 **같은 문제가 짧은 간격으로 반복되지 않게** 출제한다.
 7-3. **모바일에서 화면이 잘리지 않게 만든다.** viewport meta 는 `width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover`. CSS 에서 `100vh` 대신 `var(--jg-vh, 100vh)` 를 쓴다(`profile.js` 가 visualViewport 기준 실제 높이를 채워준다). 노치·홈바는 `env(safe-area-inset-*)` 로 피한다. **가로 320px 에서 가로 스크롤 0**, 세로 640px·가로 740×360 에서 보드/캔버스/조작 버튼이 스크롤 없이 다 보여야 하며, 좌표 계산이 있는 게임은 스케일 변경 후 실제 클릭이 맞는지 반드시 테스트한다.
 7-4. **기록은 로컬이 먼저, 서버는 그 위에 얹는다.** 게임 코드는 `JG`(profile.js)만 부르면 된다 — `profile.js`가 옆 폴더의 `common/records.js`를 자동으로 불러오고, `Records.useProfile(프로필id, 이름)`으로 묶어 **플레이어마다 서버 pid를 따로** 발급한다. 게임 파일에 `records.js` script 태그를 직접 넣지 않는다.
+   - **오답노트**는 게임이 직접 보낸다. 학습용 게임은 판이 끝날 때 `if(window.Records && ...) Records.note("<서버 게임키>", [{q:문제, a:정답, my:내가_쓴_답}, ...])` 를 부른다 (한 번에 50개까지). 화면에 보여주는 오답 목록과 별개로 `{q,a,my}` 모양의 배열을 따로 쌓아 두면 된다.
+   - **온라인 대결 전적**은 게임이 신경 쓰지 않는다. `common/versus.js` 의 승패 화면(`showResult`) 한 곳에서 `Records.versus()` 를 부르므로 대결을 붙인 게임은 전부 자동으로 기록된다. 상대가 중간에 나간 판은 세지 않는다.
    - `JG.submit()`은 **`profile.js`의 `RANKED` 표에 적힌 "순위표 모드"로 플레이한 판만** 서버(`api/` + Upstash Redis)에 올린다. 서버는 게임당 순위표(`lb:<game>` ZSET)가 하나뿐이라 난이도·주제가 섞이면 순위가 무의미해지기 때문이다. 게임의 `mode` 문자열을 바꾸면 `RANKED`의 정규식도 같이 고칠 것.
    - 점수가 **작을수록 좋은 게임**(SET의 클리어 시간 등)은 서버 ZSET이 큰 값을 이긴 것으로 보므로 순위표에서 제외한다. 로컬 기록·배지는 그대로 남긴다.
    - 새 게임을 추가하면 `api/_lib.js`의 `GAMES` 목록에도 게임 키와 점수 상한을 등록해야 한다(등록 안 된 게임은 서버가 거부한다). 자세한 내용은 `api/README.md` 참고.
