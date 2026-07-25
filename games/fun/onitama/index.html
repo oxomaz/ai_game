@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>오니타마 · 카드 체스</title>
 <style>
   :root{
@@ -24,7 +24,8 @@
   body{
     font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,-apple-system,sans-serif;
     background:var(--bg); color:var(--ink);
-    min-height:100vh; overflow-x:hidden;
+    min-height:var(--jg-vh,100vh); overflow-x:hidden;
+    padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right);
   }
   button{font-family:inherit; cursor:pointer; border:none; background:none; color:inherit;}
 
@@ -32,8 +33,33 @@
   .screen.on{display:block;}
   @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
-  .wrap{max-width:640px; margin:0 auto; padding:16px;}
-  #scr-game .wrap{max-width:520px; padding:10px 12px 18px;}
+  .wrap{max-width:640px; margin:0 auto; padding:16px;
+        padding-top:calc(12px + env(safe-area-inset-top));
+        padding-bottom:calc(16px + env(safe-area-inset-bottom));}
+
+  /* 게임 화면은 스크롤 없이 한 화면에 — 영역을 그리드로 잡는다 */
+  #scr-game .wrap{
+    max-width:520px; padding:6px 10px;
+    padding-top:calc(6px + env(safe-area-inset-top));
+    padding-bottom:calc(4px + env(safe-area-inset-bottom));
+    display:grid; grid-template-columns:minmax(0,1fr);
+    grid-template-areas:"hd" "ht" "st" "bd" "hb" "ml" "hn";
+    row-gap:var(--rgap,6px); align-content:start; justify-items:stretch;
+  }
+  #scr-game .topbar{grid-area:hd; margin:0;}
+  #scr-game #handTop{grid-area:ht;}
+  #scr-game .status{grid-area:st; margin:0;}
+  #scr-game .boardwrap{grid-area:bd; margin:0; align-items:center;}
+  #scr-game #handBottom{grid-area:hb;}
+  #scr-game #meLabel{grid-area:ml; margin:0 !important;}
+  #scr-game .hint{grid-area:hn; margin:0;}
+  /* 가로모드 — 보드 왼쪽, 카드/정보 오른쪽 */
+  #scr-game.land .wrap{
+    max-width:none; column-gap:10px; align-content:center;
+    grid-template-columns:auto minmax(0,1fr);
+    grid-template-areas:"bd hd" "bd ht" "bd st" "bd hb" "bd ml" "bd hn";
+  }
+  #scr-game.land .hint{display:none;}
 
   /* ── 시작 화면 ── */
   .hero{text-align:center; padding:22px 0 6px;}
@@ -90,35 +116,38 @@
   .status.turn-b{border-color:var(--blue); color:var(--blue-d); background:#eef4fd;}
   .status.turn-r{border-color:var(--red); color:var(--red-d); background:#fdf0ec;}
 
-  .handrow{display:flex; gap:8px; justify-content:center; align-items:center; margin:8px 0;}
+  .handrow{display:flex; gap:6px; justify-content:center; align-items:center; margin:8px 0;}
 
-  .card{width:88px; background:#fff; border:2px solid var(--line); border-radius:13px; padding:7px 6px 6px; text-align:center;
-        transition:.12s; flex:0 0 auto;}
+  .card{width:var(--cw,88px); max-width:100%; background:#fff; border:2px solid var(--line); border-radius:13px;
+        padding:6% 6% 5%; text-align:center; flex:0 0 auto;
+        transition:border-color .12s, background-color .12s, box-shadow .12s, opacity .12s;}
   .card.pick{cursor:pointer;}
   .card.pick:hover{border-color:#cfc6b6;}
   .card.sel{border-color:var(--gold); background:#fffaee; box-shadow:0 0 0 3px rgba(216,166,63,.22);}
   .card.dim{opacity:.45;}
-  .card .cname{font-size:12px; font-weight:900; margin-bottom:4px; letter-spacing:-.3px;}
-  .card .cgrid{display:grid; grid-template-columns:repeat(5,1fr); gap:2px;}
+  .card .cname{font-size:clamp(8px,calc(var(--cw,88px)*.145),13px); font-weight:900; margin-bottom:3px; letter-spacing:-.3px;
+               line-height:1.15; white-space:nowrap;}
+  .card .cgrid{display:grid; grid-template-columns:repeat(5,1fr); gap:max(1px,calc(var(--cw,88px)*.024));}
   .card .cg{aspect-ratio:1/1; border-radius:3px; background:#f1ede4;}
   .card .cg.me{background:#4a4239;}
   .card .cg.mv{background:var(--gold);}
   .card.side{opacity:.95; border-style:dashed;}
-  .card.small{width:74px;}
-  .sidewrap{display:flex; flex-direction:column; align-items:center; gap:3px;}
-  .sidewrap span{font-size:11px; font-weight:800; color:var(--muted);}
+  .card.small{width:calc(var(--cw,88px)*.82);}
+  .sidewrap{display:flex; flex-direction:column; align-items:center; gap:2px;}
+  .sidewrap span{font-size:clamp(9px,calc(var(--cw,88px)*.125),11px); font-weight:800; color:var(--muted); line-height:1.1;}
 
   /* ── 보드 ── */
   .boardwrap{display:flex; justify-content:center; margin:6px 0;}
-  .board{width:min(92vw,392px); display:grid; grid-template-columns:repeat(5,1fr); gap:4px;
+  .board{width:var(--bw,min(92vw,392px)); display:grid; grid-template-columns:repeat(5,1fr); gap:4px;
          background:#cfc6b6; padding:4px; border-radius:14px; box-shadow:0 6px 20px rgba(90,75,55,.14);}
   .cell{position:relative; aspect-ratio:1/1; background:#faf7f0; border-radius:8px; display:flex; align-items:center; justify-content:center;
-        transition:.1s;}
+        transition:background-color .1s, box-shadow .1s;}
   .cell.temple-b{background:#e3ecfa; box-shadow:inset 0 0 0 2px #b9cef0;}
   .cell.temple-r{background:#fbe6de; box-shadow:inset 0 0 0 2px #f0c1ae;}
-  .cell .tp{position:absolute; bottom:3px; font-size:9px; font-weight:900; color:#b0a596; letter-spacing:-.5px;}
+  .cell .tp{position:absolute; bottom:3px; font-size:clamp(7px,calc(var(--bw,300px)*.028),10px); font-weight:900; color:#b0a596; letter-spacing:-.5px;}
   .piece{width:74%; aspect-ratio:1/1; border-radius:50%; display:flex; align-items:center; justify-content:center;
-         font-size:min(4.4vw,19px); font-weight:900; color:#fff; box-shadow:0 2px 5px rgba(0,0,0,.22); transition:.12s;}
+         font-size:clamp(11px,calc(var(--bw,300px)*.055),20px); font-weight:900; color:#fff; box-shadow:0 2px 5px rgba(0,0,0,.22);
+         transition:transform .12s;}
   .piece.b{background:linear-gradient(160deg,#5b96e6,#2f66b4);}
   .piece.r{background:linear-gradient(160deg,#ef8060,#c24e2b);}
   .piece.master{box-shadow:0 0 0 3px var(--gold),0 2px 6px rgba(0,0,0,.25);}
@@ -130,7 +159,9 @@
   .cell.pickable{cursor:pointer;}
   .cell.last{box-shadow:inset 0 0 0 3px rgba(55,163,95,.55);}
 
-  .hint{text-align:center; font-size:12px; color:var(--muted); margin-top:8px; line-height:1.6;}
+  .hint{text-align:center; font-size:12px; color:var(--muted); margin-top:8px; line-height:1.4;}
+  .best{margin-top:12px; text-align:center; font-size:12.5px; color:var(--muted); line-height:1.7;}
+  #jgChip{display:flex; justify-content:center; margin-bottom:2px;}
 
   /* ── 결과 ── */
   .result{background:var(--panel); border:1px solid var(--line); border-radius:22px; padding:28px 22px; text-align:center; margin-top:26px;}
@@ -139,8 +170,15 @@
   .result p{margin:0 0 18px; color:var(--muted); font-size:14px; line-height:1.6;}
 
   @media (max-width:400px){
-    .card{width:78px;} .card.small{width:66px;}
     .opts.three{grid-template-columns:1fr;}
+    .hero{padding:14px 0 4px;}
+  }
+  /* 화면이 낮을 때(가로모드 등) 위아래 UI를 줄여 보드 자리를 확보 */
+  @media (max-height:480px){
+    #scr-game .status{min-height:0; padding:5px 8px; font-size:12.5px;}
+    #scr-game .icobtn{padding:5px 9px; font-size:11.5px;}
+    #scr-game .topbar .who{font-size:11.5px;}
+    #scr-game .hint{font-size:11px;}
   }
 </style>
 </head>
@@ -149,6 +187,7 @@
 <!-- ══════════ 시작 화면 ══════════ -->
 <section id="scr-home" class="screen on">
   <div class="wrap">
+    <div id="jgChip"></div>
     <div class="hero">
       <h1>🥷 <b>오니</b><i>타마</i></h1>
       <p>5×5 판 위의 미니 체스.<br>움직임은 <b>카드</b>가 정하고, 쓴 카드는 <b>상대에게 넘어갑니다.</b></p>
@@ -178,6 +217,7 @@
 
       <button class="bigbtn" id="btnStart">게임 시작!</button>
       <button class="subbtn" id="btnRules">📖 규칙 배우기</button>
+      <div class="best" id="bestBox"></div>
     </div>
 
     <a class="hub-link" href="../../../">← 게임 목록</a>
@@ -254,6 +294,7 @@
       <div class="big" id="ovEmoji">🏆</div>
       <h2 id="ovTitle">승리!</h2>
       <p id="ovDesc"></p>
+      <div id="jgRes" style="margin:0 0 16px;text-align:left"></div>
       <button class="bigbtn" id="btnAgain">한 판 더</button>
       <button class="subbtn" id="btnHome">시작 화면으로</button>
     </div>
@@ -261,6 +302,7 @@
   </div>
 </section>
 
+<script src="../../../common/profile.js"></script>
 <script src="../../../common/versus.js"></script>
 <script>
 (function(){
@@ -314,7 +356,8 @@ var G = {
   moves:[],        // 현재 선택으로 갈 수 있는 칸
   last:[-1,-1],
   busy:false,
-  mustDiscard:false
+  mustDiscard:false,
+  turns:0          // 이번 판에 둔 수(양쪽 합계)
 };
 
 /* ══════════════════════════════════════════════
@@ -497,7 +540,102 @@ function show(id){
     $(s).classList.toggle('on', s===id);
   });
   window.scrollTo(0,0);
+  if(id==='scr-game'){ fitLayout(); setTimeout(fitLayout, 400); }   // 등장 애니메이션이 끝난 뒤 한 번 더
 }
+
+/* ══════════════════════════════════════════════
+   화면 맞추기 — 보드 + 양쪽 카드가 한 화면에 들어오게
+   (클릭은 칸 요소에 직접 걸려 있어 크기가 변해도 좌표가 어긋나지 않는다)
+   ══════════════════════════════════════════════ */
+function vpSize(){
+  var vv = window.visualViewport;
+  return { w: Math.round((vv && vv.width) || window.innerWidth),
+           h: Math.round((vv && vv.height) || window.innerHeight) };
+}
+function fitLayout(){
+  var g = $('scr-game');
+  if(!g || !g.classList.contains('on')) return;
+  var vp = vpSize();
+  var vw = vp.w, vh = vp.h;
+  var barTop = document.body.classList.contains('vs-playing') ? 34 : 0;   // 온라인 대결 점수바
+  var usable = vh - barTop;
+  var land = (usable <= 430 && vw > usable);
+  g.classList.toggle('land', land);
+
+  var padX = 22, padY = 14;
+  var cw, bw;
+
+  if(land){
+    /* 가로: 왼쪽 보드(높이에 맞춤) + 오른쪽 카드 */
+    bw = Math.min(usable - padY, vw * 0.55);
+    var rightW = vw - padX - bw - 12;
+    cw = Math.min(88, (rightW - 16) / 2.9, Math.max(38, (usable - 150) / 2.2));
+  } else {
+    /* 세로: 위아래 UI를 뺀 나머지를 보드와 카드가 나눠 갖는다 */
+    var chrome = 32 /*topbar*/ + 40 /*status*/ + 18 /*meLabel*/ + 24 /*hint*/ + 6*6 /*gap*/ + padY;
+    var H = usable - chrome;
+    var availW = Math.min(vw - padX, 420);
+    cw = Math.min(88, (vw - padX - 14) / 2.9, Math.max(40, H * 0.19));
+    bw = Math.min(availW, H - (1.18*cw + 8) - (0.99*cw + 8));
+    if(bw < availW * 0.8){                     /* 보드가 너무 작으면 카드를 줄인다 */
+      cw = Math.max(38, cw - (availW*0.8 - bw) / 2.2);
+      bw = Math.min(availW, H - (1.18*cw + 8) - (0.99*cw + 8));
+    }
+  }
+  var maxBw = land ? (usable - padY) : Math.min(vw - padX, 420);
+  var maxCw = Math.min(88, (vw - padX - (land ? bw + 12 : 0) - 14) / 2.9);
+  bw = Math.max(132, Math.min(bw, maxBw));
+  cw = Math.max(36, Math.min(cw, maxCw));
+
+  /* 게임 화면 안에서만 쓰도록 스코프를 준다 (규칙 화면의 예시 카드는 원래 크기 유지) */
+  var root = g.style;
+  function apply(){
+    root.setProperty('--bw', Math.round(bw) + 'px');
+    root.setProperty('--cw', Math.round(cw) + 'px');
+  }
+  function lowest(){
+    var b = 0;
+    ['board','handBottom','handTop','meLabel'].forEach(function(id){
+      var el = $(id); if(!el) return;
+      var r = el.getBoundingClientRect();
+      if(r.height > 0) b = Math.max(b, r.bottom);
+    });
+    var hintEl = g.querySelector('.hint');
+    if(hintEl && hintEl.offsetHeight) b = Math.max(b, hintEl.getBoundingClientRect().bottom);
+    return b;
+  }
+  var limit = vh - 3;
+  /* 남는 자리가 있으면 키우고, 넘치면 줄인다 (기기·폰트 차이 보정) */
+  function grow(){
+    for(var i=0;i<12;i++){
+      var b = lowest();
+      var room = limit - 8 - b;
+      if(b === 0 || room < 6) break;
+      if(bw >= maxBw - 0.5 && cw >= maxCw - 0.5) break;
+      var k = 1 + Math.min(0.10, room / (bw + 2.2*cw + 90));
+      bw = Math.min(maxBw, bw * k);
+      cw = Math.min(maxCw, cw * k);
+      apply();
+    }
+  }
+  function shrink(){
+    for(var i=0;i<10;i++){
+      var over = lowest() - limit;
+      if(over <= 0) break;
+      var k = Math.max(0.75, 1 - over / (bw + 2.2*cw + 90));
+      bw = Math.max(120, bw * k);
+      cw = Math.max(32, cw * k);
+      apply();
+    }
+  }
+  apply();
+  shrink();
+  grow();
+  shrink();
+}
+window.addEventListener('resize', fitLayout);
+window.addEventListener('orientationchange', function(){ setTimeout(fitLayout, 260); });
+if(window.visualViewport) window.visualViewport.addEventListener('resize', fitLayout);
 
 function cardHTML(cardIdx, color, opts){
   opts = opts||{};
@@ -596,6 +734,8 @@ function render(){
   } else {
     st.textContent = G.names[G.turn] + ' 생각 중…';
   }
+
+  fitLayout();
 }
 
 function myTurn(){
@@ -662,6 +802,7 @@ function applyMove(m, mine){
   G.hands[G.turn][m.slot] = G.side;
   G.side = used;
   G.turn = 1 - G.turn;
+  G.turns++;
   G.selSq = -1; G.moves = []; G.selCard = 0; G.mustDiscard = false;
 
   if(mine && G.mode==='online' && window.Versus && Versus.active()){
@@ -714,13 +855,42 @@ function startGame(){
   G.side = five[4];
   G.turn = CARD_SIDE[CARDS[G.side].k];
   G.over = false; G.selSq = -1; G.moves = []; G.selCard = 0;
-  G.last = [-1,-1]; G.busy = false; G.mustDiscard = false;
+  G.last = [-1,-1]; G.busy = false; G.mustDiscard = false; G.turns = 0;
 
   buildBoard();
   checkStuck();
   show('scr-game');
   render();
   maybeAi();
+}
+
+function diffName(d){ return d===1?'쉬움':(d===3?'어려움':'보통'); }
+function modeLabel(m, d){
+  m = (m==null) ? G.mode : m;
+  d = (d==null) ? G.diff : d;
+  if(m==='online') return '온라인 대결';
+  if(m==='two')    return '둘이서';
+  return '컴퓨터 · ' + diffName(d);
+}
+
+/* 기록·배지 저장. 저장 라이브러리가 없어도 게임은 그대로 진행된다. */
+function recordGame(iWon, winColor){
+  if(!window.JG) return null;
+  try{
+    var meC = (G.mode==='online') ? G.myColor : (G.mode==='ai' ? BLUE : winColor);
+    var alive = 0;
+    for(var i=0;i<25;i++){ if(G.b[i]!==0 && owner(G.b[i])===meC) alive++; }
+    var score = iWon ? alive : 0;          // 이겼을 때 남은 내 말 수가 점수
+    var lab = modeLabel();
+    var res = JG.submit('onitama', { score:score, mode:lab, unit:'개' });
+    var wins = iWon ? JG.stat('onitama','wins',1) : JG.stat('onitama','wins');
+    var got = JG.awardAll({
+      'oni-win':    iWon && G.mode==='ai',
+      'oni-hard':   iWon && G.mode==='ai' && G.diff===3,
+      'oni-master': wins >= 5
+    });
+    return { res:res, score:score, badges:got, alive:alive, iWon:iWon, label:lab, wins:wins };
+  }catch(e){ return null; }
 }
 
 function endGame(w){
@@ -731,6 +901,9 @@ function endGame(w){
   if(G.mode==='ai') iWon = (winColor===BLUE);
   else if(G.mode==='online') iWon = (winColor===G.myColor);
   else iWon = true;
+
+  var info = recordGame(iWon, winColor);
+  renderBest();
 
   if(G.mode==='online' && window.Versus && Versus.active()){
     Versus.setScore(iWon?1:0);
@@ -745,12 +918,37 @@ function endGame(w){
   $('ovDesc').innerHTML = (reason==='stone')
     ? '🗿 <b>돌의 길</b> — 사부를 잡았습니다.'
     : '🌊 <b>물의 길</b> — 사부가 상대 사원에 도착했습니다.';
+
+  if(info && window.JG){
+    JG.resultBox('jgRes', {
+      gameId:'onitama', score:info.score, res:info.res, unit:'개', badges:info.badges,
+      extra:[['상대', info.label],
+             ['결과', (G.mode==='two') ? (G.names[winColor] + ' 승') : (info.iWon?'승리 🎉':'패배')],
+             ['둔 수', G.turns + '수'],
+             ['남은 말', info.alive + '개']]
+    });
+  } else {
+    $('jgRes').innerHTML = '';
+  }
   show('scr-over');
 }
 
 /* ══════════════════════════════════════════════
    온라인
    ══════════════════════════════════════════════ */
+/* 온라인 로비의 이름 칸을 내 프로필 이름으로 채워준다 */
+function seedVersusName(){
+  if(!window.JG) return;
+  try{
+    var fill = function(){
+      var i = document.getElementById('vsName');
+      if(i && !i.value) i.value = JG.player().name.slice(0,8);
+    };
+    fill();
+    setTimeout(fill, 40);
+  }catch(e){}
+}
+
 function openOnline(){
   Versus.open({
     game:'onitama',
@@ -771,12 +969,41 @@ function openOnline(){
     onLeave:function(){ G.over = true; G.mode='ai'; show('scr-home'); },
     onCancel:function(){ show('scr-home'); }
   });
+  seedVersusName();
 }
 
 /* ══════════════════════════════════════════════
    시작 화면 배선
    ══════════════════════════════════════════════ */
 var mode = 'ai', diff = 2;
+
+/* ── 프로필 · 기록 ── */
+var nameTouched = false;
+function renderBest(){
+  var box = $('bestBox');
+  if(!box) return;
+  if(!window.JG){ box.innerHTML = ''; return; }
+  try{
+    var lab = modeLabel(mode, diff);
+    var b = JG.best('onitama', lab);
+    var html = (b != null)
+      ? '🏅 <b>' + lab + '</b> 최고 기록 — 이겼을 때 남은 말 ' + b + '개'
+      : '아직 <b>' + lab + '</b> 기록이 없어요. 첫 판에 도전!';
+    html += '<br>🥷 누적 ' + (JG.stat('onitama','wins')||0) + '승 · 총 ' + (JG.plays('onitama')||0) + '판';
+    box.innerHTML = html;
+  }catch(e){ box.innerHTML = ''; }
+}
+function syncMyName(){
+  if(!window.JG || nameTouched) return;
+  try{ $('n1').value = JG.player().name.slice(0,8); }catch(e){}
+}
+if(window.JG){
+  JG.mountChip('jgChip');
+  JG.on('change', function(){ syncMyName(); renderBest(); });
+  $('n1').addEventListener('input', function(){ nameTouched = true; });
+  syncMyName();
+}
+renderBest();
 
 $('modeOpts').addEventListener('click', function(e){
   var b = e.target.closest('.opt'); if(!b) return;
@@ -788,6 +1015,7 @@ $('modeOpts').addEventListener('click', function(e){
   $('n2wrap').style.display = (mode==='two') ? '' : 'none';
   $('btnStart').textContent = (mode==='online') ? '🌐 방 만들기 / 들어가기' : '게임 시작!';
   $('btnStart').classList.toggle('vsbtn', mode==='online');
+  renderBest();
 });
 
 $('diffOpts').addEventListener('click', function(e){
@@ -795,6 +1023,7 @@ $('diffOpts').addEventListener('click', function(e){
   [].forEach.call(this.children, function(x){ x.classList.remove('sel'); });
   b.classList.add('sel');
   diff = +b.dataset.diff;
+  renderBest();
 });
 
 $('btnStart').addEventListener('click', function(){
@@ -810,10 +1039,10 @@ $('btnRules').addEventListener('click', function(){ show('scr-rules'); });
 $('btnRulesBack').addEventListener('click', function(){ show('scr-home'); });
 $('btnQuit').addEventListener('click', function(){
   if(G.mode==='online' && window.Versus && Versus.active()){ Versus.leave(); }
-  G.over = true; show('scr-home');
+  G.over = true; renderBest(); show('scr-home');
 });
 $('btnAgain').addEventListener('click', function(){ startGame(); });
-$('btnHome').addEventListener('click', function(){ show('scr-home'); });
+$('btnHome').addEventListener('click', function(){ renderBest(); show('scr-home'); });
 
 /* 규칙 화면 예시 카드 */
 (function(){
@@ -830,6 +1059,7 @@ $('btnHome').addEventListener('click', function(){ show('scr-home'); });
 /* 테스트용 훅 */
 window.__oni = {G:G, CARDS:CARDS, genMoves:genMoves, winner:winner, dest:dest,
                 applyMove:applyMove, startGame:startGame, pickAiMove:pickAiMove,
+                endGame:endGame, fitLayout:fitLayout, modeLabel:modeLabel,
                 setMode:function(m,d){ G.mode=m; G.diff=d||2; }};
 })();
 </script>

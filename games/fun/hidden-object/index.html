@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>숨은그림찾기 — 혼자서도, 둘이서도!</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -22,11 +22,21 @@
       radial-gradient(circle at 78% 88%, #eafaf0 0 24%, transparent 24.5%),
       linear-gradient(160deg,#fff6ec,#fdf0ff 55%,#eef8ff);
     color:var(--ink); overflow:hidden; user-select:none;
+    word-break:keep-all;
   }
   button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
 
   /* ---------- 공통 화면 ---------- */
-  .screen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;padding:18px;overflow:auto}
+  .screen{
+    position:fixed;inset:0;height:var(--jg-vh,100%);
+    display:none;flex-direction:column;align-items:center;
+    /* 내용이 화면보다 길어지면 가운데 정렬 때문에 위쪽이 잘려 스크롤로도 못 보는 문제가 있어
+       'safe'를 붙여 넘칠 때는 위에서부터 쌓이게 한다 */
+    justify-content:center;justify-content:safe center;
+    padding:calc(14px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right))
+            calc(14px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
+    overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
+  }
   .screen.on{display:flex;animation:fadeIn .35s ease}
   @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 
@@ -58,24 +68,30 @@
   .seg button.sel{background:var(--ink);color:#fff;transform:translateY(-2px);box-shadow:0 4px 0 rgba(74,66,88,.2)}
 
   /* ---------- 게임 화면 ---------- */
-  #game{padding:0;justify-content:flex-start}
-  .topbar{width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px 6px;flex-wrap:wrap}
-  .pill{background:#fff;border-radius:999px;padding:7px 14px;font-weight:800;font-size:14px;box-shadow:0 3px 0 rgba(74,66,88,.1);display:flex;align-items:center;gap:6px;white-space:nowrap}
-  .pill.time{min-width:92px;justify-content:center}
+  #game{
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    justify-content:flex-start;overflow:hidden;
+  }
+  .topbar{width:100%;display:flex;align-items:center;gap:7px;padding:8px 12px 4px;flex-wrap:wrap;flex:0 0 auto}
+  .pill{background:#fff;border-radius:999px;padding:6px 11px;font-weight:800;font-size:13px;box-shadow:0 3px 0 rgba(74,66,88,.1);display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .pill.time{min-width:64px;justify-content:center}
   .pill.time.warn{background:#ffe3e8;color:#e0446a;animation:pulse .6s infinite}
   @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
-  .ghost-btn{background:#fff;border-radius:999px;padding:7px 13px;font-weight:800;font-size:13.5px;box-shadow:0 3px 0 rgba(74,66,88,.1)}
+  .ghost-btn{background:#fff;border-radius:999px;padding:6px 11px;font-weight:800;font-size:12.5px;box-shadow:0 3px 0 rgba(74,66,88,.1);white-space:nowrap}
   .spacer{flex:1}
 
-  .scorebar{display:flex;gap:8px;width:100%;padding:0 14px}
+  .scorebar{display:flex;gap:8px;width:100%;padding:0 12px;flex:0 0 auto}
   .pscore{flex:1;border-radius:16px;padding:8px 12px;color:#fff;font-weight:900;display:flex;justify-content:space-between;align-items:center;transition:.2s;opacity:.55}
   .pscore.p1{background:var(--p1)} .pscore.p2{background:var(--p2)}
   .pscore.act{opacity:1;transform:translateY(-2px);box-shadow:0 5px 0 rgba(74,66,88,.18)}
   .pscore small{font-weight:700;font-size:12px;opacity:.9;display:block}
   .pscore .n{font-size:22px}
 
-  /* 찾을 것들 */
-  #targets{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:8px 14px 4px;width:100%}
+  /* 찾을 것들 — 그림판을 밀어내지 않도록 높이를 제한한다 */
+  #targets{
+    display:flex;gap:7px;justify-content:center;flex-wrap:wrap;padding:6px 12px 2px;width:100%;
+    flex:0 0 auto;max-height:26vh;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
+  }
   .chip{background:#fff;border-radius:18px;padding:5px 11px 5px 5px;display:flex;align-items:center;gap:5px;box-shadow:0 3px 0 rgba(74,66,88,.1);font-weight:800;font-size:13px;transition:.25s}
   .chip svg{width:34px;height:34px;display:block}
   .chip.done{opacity:.4;text-decoration:line-through}
@@ -84,9 +100,9 @@
   .chip.hint{animation:chipHint .5s ease 3}
   @keyframes chipHint{0%,100%{transform:none}50%{transform:scale(1.12) rotate(-3deg)}}
 
-  /* 무대 */
-  #stageWrap{flex:1;width:100%;padding:6px 12px 12px;display:flex;min-height:0}
-  #stage{width:100%;border-radius:24px;box-shadow:var(--shadow);background:#fff;display:block;touch-action:manipulation}
+  /* 무대 — 남는 공간을 전부 차지하되 절대 밖으로 넘치지 않는다 */
+  #stageWrap{flex:1 1 auto;width:100%;padding:6px 12px 10px;display:flex;min-height:0;min-width:0}
+  #stage{flex:1 1 auto;width:100%;height:100%;min-width:0;min-height:0;border-radius:24px;box-shadow:var(--shadow);background:#fff;display:block;touch-action:manipulation}
   #stage.shake{animation:shake .4s}
   @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-9px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(4px)}}
   .obj{cursor:pointer;transition:filter .15s}
@@ -94,7 +110,7 @@
   .locked .obj{cursor:default}
 
   /* 버저 */
-  #buzzers{display:flex;gap:10px;width:100%;padding:0 14px 12px}
+  #buzzers{display:flex;gap:10px;width:100%;padding:0 12px 10px;flex:0 0 auto}
   .buzz{flex:1;border-radius:20px;padding:13px;color:#fff;font-weight:900;font-size:16px;box-shadow:0 6px 0 rgba(74,66,88,.2);transition:.12s;text-align:center;line-height:1.3}
   .buzz small{display:block;font-size:11.5px;font-weight:700;opacity:.9}
   .buzz.p1{background:var(--p1)} .buzz.p2{background:var(--p2)}
@@ -128,14 +144,67 @@
   .howto b{color:var(--ink)}
   .kbd{display:inline-block;background:#fff;border-radius:7px;padding:1px 7px;font-weight:900;box-shadow:0 2px 0 rgba(74,66,88,.18);color:var(--ink)}
 
+  /* 시작 화면 프로필 · 최고기록 */
+  .jg-top{width:min(560px,100%);display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  .jg-top #jgChip{flex:0 1 auto;min-width:0}
+  .best-line{flex:1 1 auto;min-width:0;text-align:right;font-size:12.5px;font-weight:800;color:var(--ink-l);line-height:1.4}
+  #jgRes{margin-bottom:14px}
+
   @media(max-width:520px){
-    .modes{grid-template-columns:1fr}
+    .modes{grid-template-columns:1fr;gap:10px;margin:12px 0 4px}
+    .mode{padding:14px 12px;border-radius:20px}
+    .mode .ic svg{width:48px;height:48px}
+    .mode b{font-size:18px}
     .chip{font-size:12px;padding:4px 9px 4px 4px}
     .chip svg{width:28px;height:28px}
     .card{padding:16px;border-radius:22px}
+    .seg button{padding:9px 12px;font-size:13px}
+    .statgrid{gap:8px}
+    .stat b{font-size:22px}
+  }
+  @media(max-width:360px){
+    .topbar{gap:5px;padding:6px 8px 3px}
+    .pill{font-size:12px;padding:5px 9px}
+    .pill.time{min-width:56px}
+    .ghost-btn{font-size:11.5px;padding:5px 9px}
+    #targets{gap:5px;padding:5px 8px 2px}
+    .chip{font-size:11px;padding:3px 7px 3px 3px}
+    .chip svg{width:24px;height:24px}
+    #stageWrap{padding:5px 8px 8px}
+    #buzzers{padding:0 8px 8px}
+    .howto{font-size:12px;padding:11px 13px}
   }
   @media(max-height:640px){ .logo p{display:none} }
-  a.hub-link{display:block;text-align:center;margin:18px auto 2px;padding:6px;color:#8a94a6;font-size:13px;text-decoration:none;font-family:inherit;}
+  /* 가로모드 — 위아래가 짧을 때는 UI를 최대한 눌러서 그림판을 살린다 */
+  @media(max-height:440px){
+    .screen{justify-content:flex-start}
+    .logo h1{font-size:28px}
+    .logo p{display:none}
+    .card{padding:12px;border-radius:18px}
+    .modes{grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 2px}
+    .mode{padding:9px 8px}
+    .mode .ic{display:none}
+    .mode b{font-size:15px}
+    .mode small{font-size:11px}
+    .row-label{margin:8px 0 5px;font-size:12.5px}
+    .howto{display:none}
+    .topbar{padding:4px 10px 2px;gap:5px}
+    .pill,.ghost-btn{font-size:11.5px;padding:4px 9px}
+    #targets{max-height:30vh;padding:4px 10px 2px;gap:5px}
+    .chip{font-size:11px;padding:3px 7px 3px 3px}
+    .chip svg{width:22px;height:22px}
+    #stageWrap{padding:4px 10px 6px}
+    #stage{border-radius:16px}
+    #buzzers{padding:0 10px 6px}
+    .buzz{padding:8px;font-size:14px}
+    .buzz small{display:none}
+    .statgrid{grid-template-columns:repeat(4,1fr);margin-bottom:10px}
+    .stat{padding:8px}
+    .stat b{font-size:19px}
+    .result h2{font-size:24px}
+    .btn{padding:11px;font-size:15px}
+  }
+  a.hub-link{display:block;text-align:center;margin:14px auto 2px;padding:6px;color:#8a94a6;font-size:13px;text-decoration:none;font-family:inherit;}
   a.hub-link:hover{text-decoration:underline;}
 </style>
 </head>
@@ -143,6 +212,10 @@
 
 <!-- ══════════ 시작 화면 ══════════ -->
 <div class="screen on" id="menu">
+  <div class="jg-top">
+    <div id="jgChip"></div>
+    <div class="best-line" id="bestLine"></div>
+  </div>
   <div class="logo">
     <h1><span>숨</span><span>은</span><span>그</span><span>림</span><span>찾</span><span>기</span></h1>
     <p>귀여운 친구들 속에서 목표를 찾아라!</p>
@@ -216,6 +289,7 @@
     <h2 id="rTitle">잘했어요!</h2>
     <div class="sub" id="rSub"></div>
     <div class="statgrid" id="rStats"></div>
+    <div id="jgRes"></div>
     <div class="btns">
       <button class="btn pri" onclick="replay()">한 판 더!</button>
       <button class="btn sec" onclick="show('menu')">메뉴로</button>
@@ -226,6 +300,7 @@
 <div id="toast"></div>
 <div id="banner"><b id="bannerText"></b></div>
 
+<script src="../../../common/profile.js"></script>
 <script src="../../../common/versus.js"></script>
 <script>
 /* 아이템 일러스트 라이브러리 (0~100 좌표계) */
@@ -552,6 +627,8 @@ const S = {
   time: 0, timer: null, timerOn: true, hints: 1, hintsUsed: 0,
   active: null, buzzT: null, buzzLeft: 0, lock: [false, false],
   playing: false, totalFound: 0, wrongs: 0, startedAt: 0, sound: true,
+  /* 배지 판정용 카운터: 클리어한 라운드 수 · 가장 빨리 클리어한 시간 · 헛클릭 수(wrongs) */
+  roundsCleared: 0, bestRoundSecs: Infinity, roundStart: 0,
   W: 1200, H: 760
 };
 
@@ -616,12 +693,16 @@ document.querySelectorAll('#timerSeg button').forEach(b => b.onclick = () => {
 function buildScene() {
   const cfg = DIFF[S.diff];
   const stage = $('stage');
-  const wrap = $('stageWrap').getBoundingClientRect();
+  /* 그림판이 화면 밖으로 잘리지 않게, 실제로 보이는 상자 크기를 그대로 재서 비율을 맞춘다.
+     (viewBox 비율 = 보이는 상자 비율 → 여백 없이 딱 들어맞고, 클릭 좌표는 getScreenCTM이 알아서 보정) */
+  stage.style.height = '100%';
+  let box = stage.getBoundingClientRect();
+  if (box.width < 60 || box.height < 60) box = $('stageWrap').getBoundingClientRect();
   const W = 1200;
   /* 온라인 대결에서는 화면 크기가 달라도 똑같은 그림이 나오도록 높이를 고정한다 */
   const H = (S.mode === 'online')
     ? 760
-    : Math.max(520, Math.min(1500, Math.round(1200 * (wrap.height - 24) / Math.max(240, wrap.width - 24))));
+    : Math.max(420, Math.min(2000, Math.round(1200 * Math.max(120, box.height) / Math.max(200, box.width))));
   S.W = W; S.H = H;
   stage.setAttribute('viewBox', `0 0 ${W} ${H}`);
   stage.setAttribute('preserveAspectRatio', 'xMidYMid meet');
@@ -730,6 +811,7 @@ function renderChips() {
 function startGame(mode) {
   S.mode = mode; S.round = 0; S.score = 0; S.p = [0, 0];
   S.totalFound = 0; S.wrongs = 0; S.hintsUsed = 0; S.startedAt = Date.now();
+  S.roundsCleared = 0; S.bestRoundSecs = Infinity; S.roundStart = Date.now();
   $('scorebar').style.display = mode === 'vs' ? 'flex' : 'none';
   $('buzzers').style.display = mode === 'vs' ? 'flex' : 'none';
   $('hintBtn').style.display = mode === 'vs' ? 'none' : 'block';
@@ -744,6 +826,7 @@ function nextRound() {
   if (S.round > S.rounds) return finish();
   S.playing = true;
   S.hints = 1;
+  S.roundStart = Date.now();
   S.active = null; S.lock = [false, false];
   clearBuzz(); updateBuzzUI();
   $('roundPill').textContent = `라운드 ${S.round}/${S.rounds}`;
@@ -987,6 +1070,11 @@ function endRound(cleared) {
   S.playing = false;
   clearInterval(S.timer); clearBuzz();
 
+  if (cleared) {
+    S.roundsCleared++;
+    S.bestRoundSecs = Math.min(S.bestRoundSecs, Math.round((Date.now() - S.roundStart) / 1000));
+  }
+
   if (S.mode !== 'vs') {
     if (cleared) {
       const bonus = S.timerOn ? S.time * 5 : 0;
@@ -1032,9 +1120,76 @@ function finish() {
       <div class="stat"><b>${S.totalFound}</b><small>찾은 그림</small></div>
       <div class="stat"><b>${secs}초</b><small>플레이 시간</small></div>`;
   }
+  recordGame(secs);
   sWin();
   show('result');
   confetti();
+}
+
+/* ══════════════ 기록 · 배지 (JG) ══════════════ */
+/* 기록은 '점수'로 통일한다. 제한시간을 끄면 클리어 시간이, 켜면 시간 보너스가 점수에
+   반영되므로 한 게임에 한 가지 잣대만 쓰는 게 안전하다. (mode 문자열로 갈래를 나눔) */
+function modeLabel() {
+  if (S.mode === 'online') return '온라인 대결';
+  if (S.mode === 'vs') return '둘이서 대결';
+  return DIFF[S.diff].label + ' · ' + S.rounds + '판 · ' + (S.timerOn ? '제한시간' : '천천히');
+}
+
+function renderBest() {
+  const box = $('bestLine');
+  if (!box || !window.JG) return;
+  try {
+    const all = JG.allBest('hidden-object');
+    const keys = Object.keys(all).filter(k => k !== '온라인 대결' && k !== '둘이서 대결');
+    if (!keys.length) { box.textContent = '아직 기록이 없어요 — 한 판 해볼까요?'; return; }
+    let bk = keys[0];
+    keys.forEach(k => { if (all[k] > all[bk]) bk = k; });
+    box.textContent = '🏆 최고 ' + all[bk] + '점 (' + bk + ')';
+  } catch (e) { box.textContent = ''; }
+}
+
+function recordGame(secs) {
+  const resBox = $('jgRes');
+  if (resBox) resBox.innerHTML = '';
+  if (!window.JG) return;
+  /* 둘이서 대결(한 화면 2인)은 개인 기록이 아니라서 저장하지 않는다 */
+  if (S.mode === 'vs') return;
+  try {
+    const mode = modeLabel();
+    const res = JG.submit('hidden-object', { score: S.score, mode: mode, unit: '점' });
+    const allCleared = S.roundsCleared >= S.rounds;
+    const badges = JG.awardAll({
+      'ho-clear': allCleared,
+      'ho-fast': S.roundsCleared > 0 && S.bestRoundSecs <= 30,
+      'ho-nomiss': allCleared && S.wrongs === 0
+    });
+    JG.resultBox('jgRes', {
+      gameId: 'hidden-object', score: S.score, res: res, unit: '점', badges: badges,
+      extra: [
+        ['모드', mode],
+        ['찾은 그림', S.totalFound + '개'],
+        ['헛클릭', S.wrongs + '번'],
+        ['클리어한 라운드', S.roundsCleared + '/' + S.rounds],
+        ['걸린 시간', secs + '초']
+      ]
+    });
+    renderBest();
+  } catch (e) { }
+}
+
+/* 온라인 대결 닉네임 기본값을 현재 플레이어 이름으로 채운다 */
+function seedVersusName() {
+  if (!window.JG) return;
+  let nm = '';
+  try { nm = (JG.player().name || '').trim().slice(0, 8); } catch (e) { }
+  if (!nm) return;
+  let saved = '';
+  try { saved = localStorage.getItem('vsName') || ''; } catch (e) { }
+  if (!saved) { try { localStorage.setItem('vsName', nm); } catch (e) { } }
+  setTimeout(() => {
+    const i = document.getElementById('vsName');
+    if (i && !i.value.trim()) i.value = nm;
+  }, 0);
 }
 
 function replay() {
@@ -1049,6 +1204,7 @@ function quitGame() {
 
 /* ══════════════ 온라인 대결 ══════════════ */
 function openVersus() {
+  seedVersusName();
   Versus.open({
     game: 'hidden-object',
     /* 방장의 설정(난이도·라운드·제한시간)을 참가자에게도 그대로 적용한다 */
@@ -1105,6 +1261,14 @@ st.textContent = `
 document.head.appendChild(st);
 
 menuIcons();
+
+if (window.JG) {
+  try {
+    JG.mountChip('jgChip');
+    JG.on('change', renderBest);
+    renderBest();
+  } catch (e) { }
+}
 
 </script>
 </body>

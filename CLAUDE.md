@@ -18,6 +18,14 @@
    - 브랜치 기본값 변경·삭제·이름 변경처럼 깃허브 웹에서만 되는 작업은 **구글 크롬**으로 `github.com/oxomaz/jerry-games`에 들어가 처리한다.
    - 푸시 후에는 `https://oxomaz.github.io/jerry-games/` 와 새 게임 주소가 실제로 열리는지 확인한다. (Pages: `main` 브랜치 / root)
 7-1. **여러 게임이 함께 쓰는 코드는 루트 `common/` 폴더에 둔다.** 지금은 온라인 대결 라이브러리 `common/versus.js`와 그것이 쓰는 `common/peerjs.min.js`가 들어 있다. 게임에서는 `<script src="../../../common/versus.js"></script>`로 불러온다. PeerJS는 CDN이 막힌 환경에서도 되도록 저장소에 함께 넣어두고, 없으면 unpkg CDN으로 자동 대체된다.
+7-2. **새 게임은 반드시 `common/profile.js`(플레이어 · 기록 · 배지)를 붙인다.** `<script src="../../../common/profile.js"></script>` 로 불러오고, 전역 `JG` 를 쓴다.
+   - 시작 화면에 `<div id="jgChip"></div>` + `JG.mountChip('jgChip')` — 현재 플레이어 칩(누르면 전환·추가).
+   - 판이 끝나면 `JG.submit('<게임id>', {score, mode, unit, lowerIsBetter})`. `mode` 는 난이도·주제 같은 설정을 **사람이 읽을 수 있는 문자열**로 (모드별로 최고 기록이 따로 쌓인다). 온라인 대결 판은 `mode:"온라인 대결"` 로 분리한다.
+   - 결과 화면에 `<div id="jgRes"></div>` + `JG.resultBox('jgRes', {gameId, score, res, unit, badges, extra})`.
+   - 배지는 `common/profile.js` 의 `BADGES` 카탈로그에 게임별 3~5개를 먼저 정의하고, 게임에서 `JG.awardAll({...})` 로 준다. 루트 `index.html` 의 `GAMES` 배열 `id` 와 `profile.js` 의 `GAMES` 키는 **같아야 한다.**
+   - 게임이 자체 `localStorage` 최고기록을 따로 두지 않는다. 진행상황 저장(점프맵 같은)은 예외로 유지하되, 기록·배지는 JG 로 일원화한다.
+   - 학습용 게임은 `JG.shuffleBag()` / `JG.recentFilter()` 로 **같은 문제가 짧은 간격으로 반복되지 않게** 출제한다.
+7-3. **모바일에서 화면이 잘리지 않게 만든다.** viewport meta 는 `width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover`. CSS 에서 `100vh` 대신 `var(--jg-vh, 100vh)` 를 쓴다(`profile.js` 가 visualViewport 기준 실제 높이를 채워준다). 노치·홈바는 `env(safe-area-inset-*)` 로 피한다. **가로 320px 에서 가로 스크롤 0**, 세로 640px·가로 740×360 에서 보드/캔버스/조작 버튼이 스크롤 없이 다 보여야 하며, 좌표 계산이 있는 게임은 스케일 변경 후 실제 클릭이 맞는지 반드시 테스트한다.
 8. 한국어 게임명/설명을 기본으로 하되, 폴더/파일 경로는 영문으로 유지한다.
 9. **난이도가 있는 게임은 실제로 클리어 가능한지 검증한다.** 자동 생성 레벨을 쓰는 경우, 물리/규칙을 그대로 시뮬레이션해 모든 단계가 통과 가능한지 확인한 뒤 커밋한다.
 

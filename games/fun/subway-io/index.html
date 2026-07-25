@@ -203,12 +203,33 @@ const LINES = [
 
 const GRADES = [
   {id:'normal', name:'일반열차',    desc:'모든 역에 서는 기본 전동차'},
-  {id:'express',name:'급행열차',    desc:'사선 띠를 두른 급행 도색'},
-  {id:'ltd',    name:'특급열차',    desc:'두 줄 라인이 들어간 특급'},
-  {id:'itx',    name:'ITX-새마을',  desc:'큰 창과 붉은 벨트라인'},
+  {id:'express',name:'급행열차',    desc:'노선색 띠 아래 빨간 급행 줄'},
+  {id:'ltd',    name:'특급열차',    desc:'금색 줄을 하나 더 두른 특급'},
+  {id:'itx',    name:'ITX-새마을',  desc:'창이 큰 붉은 띠 객차'},
   {id:'ktx',    name:'KTX',        desc:'유선형 앞머리의 고속열차'},
   {id:'mugung', name:'무궁화호',    desc:'작은 창과 크림색 띠'},
-  {id:'gtxT',   name:'광역급행',    desc:'각진 전면부의 광역급행'}
+  {id:'gtxT',   name:'광역급행',    desc:'각진 쐐기형 전면부'}
+];
+
+/* 역 이름 (한글 · 영문) — 역명판에 쓴다 */
+const STATION_NAMES = [
+  ['강남','Gangnam'],['홍대입구','Hongdae Univ.'],['잠실','Jamsil'],['신도림','Sindorim'],
+  ['사당','Sadang'],['건대입구','Konkuk Univ.'],['서울역','Seoul Station'],['왕십리','Wangsimni'],
+  ['노원','Nowon'],['성수','Seongsu'],['수원','Suwon'],['부평','Bupyeong'],
+  ['합정','Hapjeong'],['종로3가','Jongno 3-ga'],['고속터미널','Express Bus Term.'],['명동','Myeongdong'],
+  ['신촌','Sinchon'],['양재','Yangjae'],['동대문','Dongdaemun'],['천호','Cheonho'],
+  ['구로','Guro'],['시청','City Hall'],['충무로','Chungmuro'],['청량리','Cheongnyangni'],
+  ['인천','Incheon'],['안양','Anyang'],['미아','Mia'],['대림','Daerim'],
+  ['까치산','Kkachisan'],['상봉','Sangbong']
+];
+
+/* 미니맵용 노선도 — 실제 노선도처럼 가로·세로·45° 로만 꺾인다 */
+const MINI_ROUTES = [
+  {c:'#0052A4', p:[[-0.86,-0.20],[-0.30,-0.20],[0.10,0.20],[0.80,0.20]]},
+  {c:'#00A84D', p:[[-0.40,-0.72],[0.30,-0.72],[0.68,-0.34],[0.68,0.30],[0.26,0.72],[-0.40,0.72],[-0.74,0.38],[-0.74,-0.38],[-0.40,-0.72]]},
+  {c:'#EF7C1C', p:[[-0.70,0.62],[-0.10,0.02],[-0.10,-0.56],[0.24,-0.90]]},
+  {c:'#00A5DE', p:[[0.62,-0.78],[0.20,-0.36],[0.20,0.22],[-0.24,0.66],[-0.24,0.90]]},
+  {c:'#996CAC', p:[[-0.90,0.14],[-0.34,0.14],[0.06,0.54],[0.62,0.54]]}
 ];
 
 const BOT_NAMES = ['강남','홍대입구','잠실','신도림','사당','건대입구','서울역','왕십리','노원','성수',
@@ -250,16 +271,30 @@ const Store = (()=>{ let mem={};
   return {get,set};
 })();
 
-/* ---------- 등급별 도색 ---------- */
+/* ---------- 등급별 도색 ----------
+   실제 전동차처럼 "은색(스테인리스) 차체 + 노선색 띠"가 기본이다.
+   등급은 띠 아래 추가되는 줄 색과 앞머리 모양, 창 크기로 구분한다. */
 function gradeStyle(id, color){
+  const base = {
+    id:id, line:color, key:id+'_'+color,
+    roof:'#d7dfea',            // 지붕 쪽(밝은 은색)
+    body:'#bcc7d4',            // 옆면 은색
+    side:'#8b97a7',            // 아래쪽 그늘
+    win:'#101a2c',             // 창유리
+    glass:'#24354f',           // 유리 반사
+    belt:color, belt2:null,    // 노선색 띠 / 등급 추가 줄
+    led:'#ffb43a', tag:'',     // 행선지 표시기 색 / 등급 표시
+    nose:'flat',
+    winW:0.135, winA:0.26, winB:0.56
+  };
   switch(id){
-    case 'express': return {body:color, roof:mix(color,'#ffffff',.42), belt:'#ffffff', beltA:.85, win:'#0e1626', winH:.42, hatch:true};
-    case 'ltd':     return {body:mix(color,'#101820',.12), roof:mix(color,'#ffffff',.34), belt:'#ffe27a', beltA:.9, win:'#0b1220', winH:.40, twin:true};
-    case 'itx':     return {body:mix(color,'#ffffff',.24), roof:'#f2f5fa', belt:'#e8362a', beltA:.95, win:'#111a2b', winH:.52};
-    case 'ktx':     return {body:mix(color,'#dfe6ef',.45), roof:'#f5f8fc', belt:color, beltA:1, win:'#101827', winH:.38, nose:'round'};
-    case 'mugung':  return {body:mix(color,'#20242c',.32), roof:mix(color,'#f6efd8',.30), belt:'#f6efd8', beltA:.9, win:'#0d131f', winH:.36, small:true};
-    case 'gtxT':    return {body:mix(color,'#182033',.18), roof:'#e9eefb', belt:'#9fe6ff', beltA:.9, win:'#0a1120', winH:.46, nose:'wedge'};
-    default:        return {body:color, roof:mix(color,'#ffffff',.38), belt:'#ffffff', beltA:.6, win:'#0e1626', winH:.44};
+    case 'express': return Object.assign(base,{belt2:'#e8362a', tag:'급행', led:'#ff8a3a'});
+    case 'ltd':     return Object.assign(base,{belt2:'#ffd24a', tag:'특급', led:'#ffe27a'});
+    case 'itx':     return Object.assign(base,{belt2:'#e8362a', tag:'ITX', roof:'#eef2f8', body:'#dde4ee', side:'#a9b4c4', winW:0.185, winA:0.24, winB:0.58});
+    case 'ktx':     return Object.assign(base,{nose:'round', tag:'KTX', roof:'#f2f6fb', body:'#dbe3ee', side:'#a3aebd', winW:0.16, winA:0.28, winB:0.54, led:'#9fe6ff'});
+    case 'mugung':  return Object.assign(base,{belt2:'#f6efd8', tag:'무궁화', roof:'#c9c6ba', body:'#a9a89e', side:'#7d7d76', winW:0.095, winA:0.28, winB:0.54});
+    case 'gtxT':    return Object.assign(base,{nose:'wedge', belt2:'#9fe6ff', tag:'광역급행', roof:'#e6ecf7', body:'#c6d0e0', side:'#8f9bad', led:'#9fe6ff'});
+    default:        return base;
   }
 }
 
@@ -338,6 +373,7 @@ const mini=document.getElementById('mini'), mctx=mini.getContext('2d');
 let cssW=0, cssH=0, dpr=1;
 let trains=[], food=[], stations=[], player=null;
 let cam={x:0,y:0}, zoom=1, running=false, lastT=0, frame=0;
+let viewL=0, viewR=0, viewT=0, viewB=0;   // 화면에 보이는 범위 (화면 밖은 안 그린다)
 let pick={line:null, grade:null};
 let deadInfo=null;
 
@@ -397,42 +433,51 @@ function vsTick(ts){
                 ang:+player.ang.toFixed(2), name:player.name });
 }
 
-/* 상대 열차 그리기 — 반투명 "유령" 열차 + 이름표 */
+/* 상대 열차 그리기 — 반투명 "유령" 전동차 + 이름표
+   (그리는 방식은 내 열차와 똑같고, 반투명 + 푸른 유리 도색만 다르다) */
+const ghostStyles=new Map();
+function ghostStyle(col){
+  let s=ghostStyles.get(col);
+  if(!s){
+    s=gradeStyle('normal',col);
+    s.key='ghost_'+col; s.roof='#eaf1ff'; s.body='#cfdcf4'; s.side='#a7b8d6';
+    s.win='#1b2b46'; s.led='#cfe0ff';
+    ghostStyles.set(col,s);
+  }
+  return s;
+}
 function drawGhost(g){
   const gh=VS.ghost;
   if(!gh || !gh.pts || gh.pts.length<2) return;
   const n=gh.pts.length>>1;
   const sc=1+Math.min(.45,(gh.len-BASE_CARS)*.011);
-  const len=CAR_L*sc, wid=CAR_W*sc;
+  const len=VIS_L*sc, wid=VIS_W*sc, carPx=len*zoom;
+  const st=ghostStyle(gh.col), mgn=len*0.9+wid;
   g.save();
-  g.globalAlpha=.40;
-  for(let i=n-1;i>=0;i--){
-    const x=gh.pts[i*2], y=gh.pts[i*2+1];
-    let a;
-    if(i===0) a = n>1 ? Math.atan2(y-gh.pts[3], x-gh.pts[2]) : gh.ang;
-    else      a = Math.atan2(gh.pts[(i-1)*2+1]-y, gh.pts[(i-1)*2]-x);
-    g.save(); g.translate(x,y); g.rotate(a);
-    g.fillStyle=gh.col;
-    rr(g,-len/2,-wid/2,len,wid,i===0?wid*0.5:3.4); g.fill();
-    g.strokeStyle='rgba(255,255,255,.75)'; g.lineWidth=1.2; g.stroke();
-    g.fillStyle='rgba(10,16,28,.85)';
-    rr(g,-len*0.34,-wid*0.20,len*0.68,wid*0.40,1.6); g.fill();
-    g.restore();
+  g.globalAlpha=.44;
+  if(carPx<7.5){
+    g.lineCap='round'; g.lineJoin='round';
+    g.beginPath(); g.moveTo(gh.pts[0],gh.pts[1]);
+    for(let i=1;i<n;i++) g.lineTo(gh.pts[i*2],gh.pts[i*2+1]);
+    g.strokeStyle=gh.col; g.lineWidth=wid*0.86; g.stroke();
+    g.strokeStyle='#eaf1ff'; g.lineWidth=wid*0.30; g.stroke();
+  }else{
+    const lod=carPx>=17?2:1;
+    for(let i=n-1;i>=0;i--){
+      const x=gh.pts[i*2], y=gh.pts[i*2+1];
+      if(x<viewL-mgn||x>viewR+mgn||y<viewT-mgn||y>viewB+mgn) continue;
+      let a;
+      if(i===0) a = n>1 ? Math.atan2(y-gh.pts[3], x-gh.pts[2]) : gh.ang;
+      else      a = Math.atan2(gh.pts[(i-1)*2+1]-y, gh.pts[(i-1)*2]-x);
+      const type = i===0 ? 'head' : (i===n-1 ? 'tail' : 'mid');
+      const spr=carSprite(st,type,1,lod,gh.name);
+      g.save(); g.translate(x,y); g.rotate(a); g.scale(sc,sc);
+      g.drawImage(spr, SPR_OX, SPR_OY, SPR_DW, SPR_DH);
+      g.restore();
+    }
   }
   g.restore();
-  // 이름표
-  const hx=gh.pts[0], hy=gh.pts[1];
-  const fs=12/zoom, pad=5/zoom, bh=15/zoom, off=wid*0.6+8/zoom;
-  g.save();
-  g.font='700 '+fs.toFixed(1)+'px "Malgun Gothic",sans-serif';
-  g.textAlign='center'; g.textBaseline='bottom';
-  const label='👻 '+gh.name;
-  const w=g.measureText(label).width;
-  g.fillStyle='rgba(8,12,22,.55)';
-  rr(g,hx-w/2-pad, hy-off-bh, w+pad*2, bh, bh/2); g.fill();
-  g.fillStyle='#c9dcff';
-  g.fillText(label, hx, hy-off-bh*0.22);
-  g.restore();
+  drawNameTag(g,{x:gh.pts[0],y:gh.pts[1]},'👻 '+gh.name,'#c9dcff',wid);
 }
 /* ══════════════ 온라인 대결 끝 ══════════════ */
 
@@ -592,105 +637,343 @@ function eat(){
   }
 }
 
-/* ---------- 그리기 ---------- */
-function drawCar(g,p,len,wid,st,isHead,isTail){
-  g.save(); g.translate(p.x,p.y); g.rotate(p.a);
-  const hl=len/2, hw=wid/2;
-  // 차체
-  const grd=g.createLinearGradient(0,-hw,0,hw);
-  grd.addColorStop(0, st.roof);
-  grd.addColorStop(.30, st.body);
-  grd.addColorStop(1, mix(st.body,'#000000',.34));
-  g.fillStyle=grd;
-  if(isHead && st.nose==='round'){
+/* ---------- 그리기 ----------
+   실제 서울 전동차처럼: 네모난 차량이 주름막(연결통로)으로 이어지고,
+   옆면에는 줄지어 난 창문 + 칸마다 4개씩 있는 출입문 + 노선색 띠가 지나간다.
+   맨 앞·맨 뒤 칸은 운전실이 있는 선두차(앞유리·전조등·행선지 LED)다.
+
+   ▶ 성능: 차량 한 칸을 오프스크린 캔버스에 한 번만 그려두고(스프라이트)
+     매 프레임에는 drawImage 한 번씩만 한다. 화면 밖 칸은 아예 건너뛴다. */
+
+const VIS_L = 25.5;        // 눈에 보이는 차량 길이 (충돌용 CAR_L 과 별개, 칸 사이 주름막 자리)
+const VIS_W = CAR_W;       // 차량 폭
+const SPR_K = 2.8;         // 스프라이트 해상도 (월드 1칸당 픽셀)
+const SPR_PX = 9.5, SPR_PY = 2.6;   // 스프라이트 여백 (앞머리가 튀어나오는 만큼)
+
+/* 차체 외곽선 — 네모난 전동차. type: 'head' | 'mid' | 'tail' */
+function carPath(g, st, type){
+  const hl=VIS_L/2, hw=VIS_W/2;
+  const u = (type==='tail') ? -1 : 1;     // 운전실이 바라보는 쪽
+  const cab = (type!=='mid');
+  const nose = cab ? st.nose : 'flat';
+  if(cab && nose==='round'){              // KTX — 유선형
+    const e=hw*0.9;
     g.beginPath();
-    g.moveTo(hl+hw*0.95,0);
-    g.quadraticCurveTo(hl+hw*0.5,-hw, hl-hw*0.35,-hw);
-    g.lineTo(-hl+3,-hw); g.quadraticCurveTo(-hl,-hw,-hl,-hw+3);
-    g.lineTo(-hl,hw-3); g.quadraticCurveTo(-hl,hw,-hl+3,hw);
-    g.lineTo(hl-hw*0.35,hw);
-    g.quadraticCurveTo(hl+hw*0.5,hw, hl+hw*0.95,0);
-    g.closePath(); g.fill();
-  }else if(isHead && st.nose==='wedge'){
+    g.moveTo(u*(hl+e),0);
+    g.quadraticCurveTo(u*(hl+e*0.62),-hw, u*(hl-hw*0.30),-hw);
+    g.lineTo(u*(-hl+2),-hw); g.quadraticCurveTo(-u*hl,-hw,-u*hl,-hw+2);
+    g.lineTo(-u*hl,hw-2);    g.quadraticCurveTo(-u*hl,hw,u*(-hl+2),hw);
+    g.lineTo(u*(hl-hw*0.30),hw);
+    g.quadraticCurveTo(u*(hl+e*0.62),hw, u*(hl+e),0);
+    g.closePath();
+  }else if(cab && nose==='wedge'){        // 광역급행 — 각진 쐐기형
+    const e=hw*0.55;
     g.beginPath();
-    g.moveTo(hl+hw*0.6,0); g.lineTo(hl-1,-hw); g.lineTo(-hl+3,-hw);
-    g.quadraticCurveTo(-hl,-hw,-hl,-hw+3); g.lineTo(-hl,hw-3);
-    g.quadraticCurveTo(-hl,hw,-hl+3,hw); g.lineTo(hl-1,hw);
-    g.closePath(); g.fill();
-  }else{
-    rr(g,-hl,-hw,len,wid,isHead?hw*0.62:3.4); g.fill();
+    g.moveTo(u*(hl+e),0);
+    g.lineTo(u*hl,-hw*0.86); g.lineTo(u*(hl-1),-hw);
+    g.lineTo(u*(-hl+2),-hw); g.quadraticCurveTo(-u*hl,-hw,-u*hl,-hw+2);
+    g.lineTo(-u*hl,hw-2);    g.quadraticCurveTo(-u*hl,hw,u*(-hl+2),hw);
+    g.lineTo(u*(hl-1),hw); g.lineTo(u*hl,hw*0.86);
+    g.closePath();
+  }else{                                  // 보통 전동차 — 각진 네모
+    rr(g,-hl,-hw,VIS_L,VIS_W, cab?2.8:1.4);
   }
-  // 창문 밴드
-  const wh=wid*st.winH, wl=len*(st.small?0.68:0.78);
-  g.fillStyle=st.win; g.globalAlpha=.92;
-  rr(g,-wl/2,-wh/2,wl,wh,1.8); g.fill(); g.globalAlpha=1;
-  // 창 분할
-  if(len>11){
-    const nWin=st.small?4:3;
-    g.strokeStyle='rgba(255,255,255,.30)'; g.lineWidth=Math.max(.7,len*0.05);
-    g.beginPath();
-    for(let i=1;i<nWin;i++){ const x=-wl/2+wl*i/nWin; g.moveTo(x,-wh/2); g.lineTo(x,wh/2); }
-    g.stroke();
-  }
-  // 벨트라인
-  g.fillStyle=st.belt; g.globalAlpha=st.beltA;
-  if(st.twin){
-    g.fillRect(-hl+1, hw*0.30, len-2, Math.max(.9,wid*0.075));
-    g.fillRect(-hl+1, hw*0.58, len-2, Math.max(.9,wid*0.075));
-  }else{
-    g.fillRect(-hl+1, hw*0.40, len-2, Math.max(1.1,wid*0.13));
-  }
-  g.globalAlpha=1;
-  // 급행 사선
-  if(st.hatch){
-    g.save(); g.beginPath(); rr(g,-hl,-hw,len,wid,3); g.clip();
-    g.strokeStyle='rgba(255,255,255,.55)'; g.lineWidth=Math.max(1,wid*0.11);
-    for(let x=-hl;x<hl+wid;x+=wid*0.55){ g.beginPath(); g.moveTo(x,hw); g.lineTo(x+wid*0.6,-hw); g.stroke(); }
-    g.restore();
-  }
-  // 전조등
-  if(isHead){
-    const nx=(st.nose==='round')?hl+hw*0.55:(st.nose==='wedge'?hl+hw*0.2:hl-1.5);
-    g.fillStyle='#fff8d8';
-    g.beginPath(); g.arc(nx,-hw*0.48,Math.max(1,wid*0.10),0,6.3); g.fill();
-    g.beginPath(); g.arc(nx, hw*0.48,Math.max(1,wid*0.10),0,6.3); g.fill();
-  }
-  // 연결기
-  if(!isTail){ g.fillStyle='rgba(20,26,38,.75)'; g.fillRect(-hl-2.4,-wid*0.10,2.6,wid*0.20); }
-  g.restore();
 }
 
-function drawTrain(g,t,alphaName){
-  const sc=t.scale, len=CAR_L*sc, wid=CAR_W*sc;
-  const cp=t.carsPos;
+/* 차량 한 칸 그리기 (원점 중심, +x 가 앞쪽 / 월드 단위)
+   fill: 0~4 승객이 얼마나 찼는지 (창문에 승객이 비친다)
+   lod : 2 = 창문·출입문까지 / 1 = 띠와 창 밴드만 */
+function paintCar(g, st, type, fill, lod, name){
+  const hl=VIS_L/2, hw=VIS_W/2;
+  const u = (type==='tail') ? -1 : 1;
+  const cab = (type!=='mid');
+
+  // 차체 (가운데 지붕이 밝고 양옆 아래로 갈수록 어두운 스테인리스 느낌)
+  carPath(g,st,type);
+  const grd=g.createLinearGradient(0,-hw,0,hw);
+  grd.addColorStop(0,   st.side);
+  grd.addColorStop(0.16,st.body);
+  grd.addColorStop(0.44,st.roof);
+  grd.addColorStop(0.56,st.roof);
+  grd.addColorStop(0.84,st.body);
+  grd.addColorStop(1,   st.side);
+  g.fillStyle=grd; g.fill();
+
+  g.save(); carPath(g,st,type); g.clip();     // 안쪽 무늬는 차체 밖으로 안 나가게
+  const X0=-hl-8, XW=VIS_L+16;
+  const band=(a,b,col)=>{ g.fillStyle=col; g.fillRect(X0,hw*a,XW,hw*(b-a)); g.fillRect(X0,-hw*b,XW,hw*(b-a)); };
+
+  band(-0.11,0.11,'rgba(92,102,116,.9)');      // 지붕 마루
+  if(lod>=2){                                  // 지붕 위 냉방장치
+    g.fillStyle='rgba(154,165,180,.8)'; g.beginPath();
+    for(let i=0;i<4;i++){ const x=-hl+VIS_L*(0.17+i*0.22); g.rect(x-1.7,-hw*0.085,3.4,hw*0.17); }
+    g.fill();
+  }
+
+  // 옆면 창문 · 출입문 (실제 전동차는 칸마다 출입문 4개)
+  const inset = VIS_L*0.30;                    // 운전실이 차지하는 길이
+  const x0 = (u===1) ? -hl+1.4 : -hl+inset;
+  const x1 = (u===1) ? hl-(cab?inset:1.4) : hl-1.4;
+  const L  = x1-x0;
+  if(L>4){
+    const A=st.winA, B=st.winB;
+    const dw=L*0.108, doors=[0.135,0.375,0.625,0.865].map(f=>x0+L*f);
+    if(lod>=2){
+      // 창문 유리
+      const segs=[]; let prev=x0;
+      for(const d of doors){ segs.push([prev,d-dw/2]); prev=d+dw/2; }
+      segs.push([prev,x1]);
+      const gap=L*0.014;
+      g.fillStyle=st.win; g.beginPath();
+      const wins=[];
+      for(const [a,b] of segs){
+        const w=b-a; if(w<L*0.03) continue;
+        const n=Math.max(1,Math.round(w/(L*st.winW)));
+        const ww=(w-gap*(n+1))/n; if(ww<=0.15) continue;
+        for(let i=0;i<n;i++){
+          const x=a+gap+(ww+gap)*i;
+          g.rect(x, hw*A, ww, hw*(B-A)); g.rect(x,-hw*B, ww, hw*(B-A));
+          wins.push(x+ww/2, ww);
+        }
+      }
+      g.fill();
+      // 창 안에 비치는 승객 (많이 태울수록 창이 차오른다)
+      if(fill>0){
+        const th=fill/2;
+        g.fillStyle='rgba(255,208,150,.68)'; g.beginPath();
+        for(let k=0;k<wins.length;k+=2){
+          const r=Math.min(wins[k+1]*0.16, hw*(B-A)*0.26);
+          for(const o of [-0.24,0.24]){
+            const h=((((k+(o<0?7:19))*2654435761)>>>8)%1000)/1000;
+            if(h>=th) continue;
+            const cxp=wins[k]+wins[k+1]*o, cy=hw*(A+B)/2;
+            g.moveTo(cxp+r, cy); g.arc(cxp, cy, r, 0, 6.283);
+            g.moveTo(cxp+r,-cy); g.arc(cxp,-cy, r, 0, 6.283);
+          }
+        }
+        g.fill();
+      }
+      // 출입문 4개 (스크린도어와 맞물리는 자리)
+      const dA=Math.min(A,0.20), dB=Math.max(B,0.62);
+      g.fillStyle='rgba(233,240,249,.9)'; g.beginPath();
+      for(const d of doors){ g.rect(d-dw/2, hw*dA, dw, hw*(dB-dA)); g.rect(d-dw/2,-hw*dB, dw, hw*(dB-dA)); }
+      g.fill();
+      g.fillStyle=st.win; g.beginPath();     // 문에 난 작은 유리
+      for(const d of doors){ g.rect(d-dw*0.33, hw*A, dw*0.66, hw*(B-A)); g.rect(d-dw*0.33,-hw*B, dw*0.66, hw*(B-A)); }
+      g.fill();
+      g.strokeStyle='rgba(64,78,98,.65)'; g.lineWidth=0.20; g.beginPath();   // 여닫이 이음선
+      for(const d of doors){ g.moveTo(d,hw*dA); g.lineTo(d,hw*dB); g.moveTo(d,-hw*dA); g.lineTo(d,-hw*dB); }
+      g.stroke();
+    }else{
+      // 멀리 있을 땐 창을 한 줄 띠로 (그리는 양을 줄인다)
+      g.fillStyle=st.win;
+      g.fillRect(x0, hw*st.winA, L, hw*(st.winB-st.winA));
+      g.fillRect(x0,-hw*st.winB, L, hw*(st.winB-st.winA));
+    }
+  }
+
+  // 노선색 띠 (실제 전동차의 차체 옆면 띠)
+  band(0.61,0.63,'rgba(60,72,90,.45)');
+  band(0.63,0.84, st.belt);
+  if(st.belt2) band(0.85,0.92, st.belt2);      // 등급 표시 줄 (급행=빨강 등)
+  band(st.belt2?0.92:0.85, 1.03,'rgba(48,56,70,.85)');  // 하부 기기·대차
+
+  // 운전실 — 앞유리 · 전조등 · 행선지 LED
+  if(cab){
+    const fx=u*(hl-VIS_L*0.03), bx=u*(hl-VIS_L*0.26);
+    g.fillStyle='rgba(150,162,178,.55)';
+    g.beginPath(); g.moveTo(bx,-hw); g.lineTo(u*(hl+hw),-hw); g.lineTo(u*(hl+hw),hw); g.lineTo(bx,hw); g.closePath(); g.fill();
+    g.fillStyle=st.win;                        // 앞유리
+    g.beginPath(); g.moveTo(bx,-hw*0.66); g.lineTo(fx,-hw*0.46); g.lineTo(fx,hw*0.46); g.lineTo(bx,hw*0.66); g.closePath(); g.fill();
+    g.fillStyle='rgba(120,160,210,.35)';       // 유리 반사
+    g.beginPath(); g.moveTo(bx,-hw*0.66); g.lineTo(fx,-hw*0.46); g.lineTo(fx,-hw*0.10); g.lineTo(bx,-hw*0.24); g.closePath(); g.fill();
+    // 전조등(앞) / 후미등(뒤)
+    const lx=u*(hl-VIS_L*0.015), lr=hw*0.13;
+    g.fillStyle = (type==='head') ? 'rgba(255,248,214,.95)' : 'rgba(255,90,74,.95)';
+    g.beginPath(); g.arc(lx,-hw*0.80,lr,0,6.283); g.moveTo(lx+lr,hw*0.80); g.arc(lx,hw*0.80,lr,0,6.283); g.fill();
+  }
+  g.restore();
+
+  // 행선지 표시기 (LED) — 선두차 지붕 앞쪽
+  if(cab && lod>=2 && name){
+    const pw=VIS_L*0.38, ph=hw*0.44, px=u*(hl-VIS_L*0.42);
+    g.save();
+    g.fillStyle='#0a0d13'; rr(g,px-pw/2,-ph/2,pw,ph,0.7); g.fill();
+    g.strokeStyle='rgba(255,255,255,.18)'; g.lineWidth=0.18; g.stroke();
+    const label=(st.tag?st.tag+' ':'')+name;
+    g.font='700 '+(ph*0.78).toFixed(2)+'px "Malgun Gothic","Apple SD Gothic Neo",sans-serif';
+    g.textAlign='center'; g.textBaseline='middle';
+    const tw=g.measureText(label).width||0.01;
+    const s=Math.min(1,(pw-0.7)/tw);
+    g.translate(px,0); if(u<0) g.rotate(Math.PI);
+    g.scale(s,1);
+    g.fillStyle=st.led; g.fillText(label,0,0);
+    g.restore();
+  }
+}
+
+/* 차량 스프라이트 캐시 — 같은 모양은 한 번만 그린다 */
+const sprCache=new Map();
+const SPR_W=Math.ceil((VIS_L+SPR_PX*2)*SPR_K), SPR_H=Math.ceil((VIS_W+SPR_PY*2)*SPR_K);
+const SPR_OX=-(VIS_L/2+SPR_PX), SPR_OY=-(VIS_W/2+SPR_PY);
+const SPR_DW=SPR_W/SPR_K, SPR_DH=SPR_H/SPR_K;
+function carSprite(st,type,fill,lod,name){
+  const key=st.key+'|'+type+'|'+fill+'|'+lod+'|'+(type==='mid'?'':name);
+  let c=sprCache.get(key);
+  if(c) return c;
+  if(sprCache.size>200) sprCache.clear();      // 메모리가 너무 늘지 않게
+  c=document.createElement('canvas'); c.width=SPR_W; c.height=SPR_H;
+  const g=c.getContext('2d');
+  g.setTransform(SPR_K,0,0,SPR_K,-SPR_OX*SPR_K,-SPR_OY*SPR_K);
+  paintCar(g,st,type,fill,lod,name);
+  sprCache.set(key,c);
+  return c;
+}
+
+/* 차량 사이 연결 통로(주름막) 스프라이트 */
+let gwSpr=null;
+function gangwaySprite(){
+  if(gwSpr) return gwSpr;
+  const K=4, W=Math.round(12*K), H=Math.round(VIS_W*0.62*K);
+  const c=document.createElement('canvas'); c.width=W; c.height=H;
+  const g=c.getContext('2d');
+  g.fillStyle='#2b3342'; g.fillRect(0,0,W,H);
+  g.strokeStyle='rgba(150,162,180,.45)'; g.lineWidth=1.4;
+  g.beginPath();
+  for(let i=1;i<6;i++){ const x=W*i/6; g.moveTo(x,1); g.lineTo(x,H-1); }
+  g.stroke();
+  g.fillStyle='rgba(255,255,255,.10)'; g.fillRect(0,0,W,H*0.22);
+  gwSpr=c; return c;
+}
+
+/* 열차 한 대 그리기 */
+function drawTrain(g,t){
+  const cp=t.carsPos, n=cp.length;
+  if(!n) return;
+  const sc=t.scale, wid=VIS_W*sc, len=VIS_L*sc;
+  const carPx=len*zoom;
+
   // 부스터 잔광
   if(t.boosting){
     g.save(); g.globalAlpha=.30; g.strokeStyle=mix(t.line.color,'#ffffff',.55);
     g.lineWidth=wid*1.35; g.lineCap='round'; g.lineJoin='round';
     g.beginPath(); g.moveTo(cp[0].x,cp[0].y);
-    for(let i=1;i<Math.min(cp.length,8);i++) g.lineTo(cp[i].x,cp[i].y);
+    for(let i=1;i<Math.min(n,8);i++) g.lineTo(cp[i].x,cp[i].y);
     g.stroke(); g.restore();
   }
-  // 그림자
-  g.save(); g.globalAlpha=.28; g.fillStyle='#000';
-  for(let i=cp.length-1;i>=0;i--){ g.save(); g.translate(cp[i].x+2,cp[i].y+3.5); g.rotate(cp[i].a); rr(g,-len/2,-wid/2,len,wid,3.5); g.fill(); g.restore(); }
-  g.restore();
-  // 차량(꼬리→머리)
-  for(let i=cp.length-1;i>=0;i--) drawCar(g,cp[i],len,wid,t.st,i===0,i===cp.length-1);
-  // 행선 라벨 (화면 기준 크기 유지)
-  {
-    const fs=12/zoom, pad=5/zoom, bh=15/zoom, off=wid*0.6+8/zoom;
-    g.save();
-    g.font='700 '+fs.toFixed(1)+'px "Malgun Gothic",sans-serif';
-    g.textAlign='center'; g.textBaseline='bottom';
-    const label=t.name;
-    const w=g.measureText(label).width;
-    g.fillStyle='rgba(8,12,22,.62)';
-    rr(g,cp[0].x-w/2-pad, cp[0].y-off-bh, w+pad*2, bh, bh/2); g.fill();
-    g.fillStyle=t.isPlayer?'#ffd76a':'#dbe6f7';
-    g.fillText(label, cp[0].x, cp[0].y-off-bh*0.22);
+
+  if(carPx<7.5){
+    // 아주 줌아웃된 상태 — 노선색 막대 하나로 (성능)
+    g.save(); g.lineCap='round'; g.lineJoin='round';
+    g.beginPath(); g.moveTo(cp[0].x,cp[0].y);
+    for(let i=1;i<n;i++) g.lineTo(cp[i].x,cp[i].y);
+    g.strokeStyle='rgba(0,0,0,.32)'; g.lineWidth=wid; g.stroke();
+    g.strokeStyle=t.st.belt;         g.lineWidth=wid*0.86; g.stroke();
+    g.strokeStyle=t.st.roof;         g.lineWidth=wid*0.30; g.stroke();
+    g.restore();
+    drawNameTag(g,cp[0],t.name,t.isPlayer?'#ffd76a':'#dbe6f7',wid);
+    return;
+  }
+
+  const lod = carPx>=17 ? 2 : 1;
+  const fill = Math.round(clamp(t.pax/(t.pax+20),0,1)*2);   // 0~2 단계로만 나눠 스프라이트 수를 줄인다
+  const mgn = len*0.9+wid;
+
+  // 그림자 — 폴리라인 한 번으로 (칸마다 그리면 느리다)
+  g.save(); g.globalAlpha=.26; g.strokeStyle='#000';
+  g.lineCap='round'; g.lineJoin='round'; g.lineWidth=wid*0.98;
+  g.beginPath(); g.moveTo(cp[0].x+2,cp[0].y+3.2);
+  for(let i=1;i<n;i++) g.lineTo(cp[i].x+2,cp[i].y+3.2);
+  g.stroke(); g.restore();
+
+  // 연결 통로(주름막) — 칸과 칸 사이
+  const gw=gangwaySprite(), gwH=wid*0.62;
+  for(let i=n-1;i>0;i--){
+    const a=cp[i], b=cp[i-1];
+    const mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
+    if(mx<viewL-mgn||mx>viewR+mgn||my<viewT-mgn||my>viewB+mgn) continue;
+    const d=Math.hypot(b.x-a.x,b.y-a.y), gl=d-len+1.6*sc;
+    if(gl<=0.4) continue;
+    g.save(); g.translate(mx,my); g.rotate(Math.atan2(b.y-a.y,b.x-a.x));
+    g.drawImage(gw,-gl/2,-gwH/2,gl,gwH);
     g.restore();
   }
+
+  // 차량 (꼬리 → 머리 순서로 겹쳐 그린다)
+  for(let i=n-1;i>=0;i--){
+    const p=cp[i];
+    if(p.x<viewL-mgn||p.x>viewR+mgn||p.y<viewT-mgn||p.y>viewB+mgn) continue;
+    const type = i===0 ? 'head' : (i===n-1 ? 'tail' : 'mid');
+    const spr=carSprite(t.st,type,fill,lod,t.name);
+    g.save(); g.translate(p.x,p.y); g.rotate(p.a); g.scale(sc,sc);
+    g.drawImage(spr, SPR_OX, SPR_OY, SPR_DW, SPR_DH);
+    g.restore();
+  }
+
+  drawNameTag(g,cp[0],t.name,t.isPlayer?'#ffd76a':'#dbe6f7',wid);
+}
+
+/* 머리 위 행선지 이름표 (화면 기준 크기 유지 — 줌과 상관없이 읽힌다) */
+function drawNameTag(g,p,label,col,wid){
+  const fs=12/zoom, pad=5/zoom, bh=15/zoom, off=wid*0.6+8/zoom;
+  g.save();
+  g.font='700 '+fs.toFixed(1)+'px "Malgun Gothic",sans-serif';
+  g.textAlign='center'; g.textBaseline='bottom';
+  const w=g.measureText(label).width;
+  g.fillStyle='rgba(8,12,22,.62)';
+  rr(g,p.x-w/2-pad, p.y-off-bh, w+pad*2, bh, bh/2); g.fill();
+  g.fillStyle=col;
+  g.fillText(label, p.x, p.y-off-bh*0.22);
+  g.restore();
+}
+
+/* 역 — 승강장 바닥 + 노란 안전선 + 스크린도어 + 서울 지하철식 역명판 */
+function drawStation(g,s){
+  const r=s.r, w=r*3.1, h=r*1.4;
+  g.save(); g.translate(s.x,s.y);
+  // 승강장 바닥 (콘크리트)
+  g.fillStyle='rgba(206,222,246,.17)'; rr(g,-w/2,-h/2,w,h,2.5); g.fill();
+  g.strokeStyle='rgba(180,212,255,.30)'; g.lineWidth=1; g.stroke();
+  // 노란 점자블록(안전선)
+  g.fillStyle='rgba(255,203,58,.55)';
+  g.fillRect(-w/2+2.5,-h/2+2.4,w-5,1.7); g.fillRect(-w/2+2.5,h/2-4.1,w-5,1.7);
+  // 스크린도어 — 열차 출입문과 맞물리는 유리문
+  const nd=Math.max(3,Math.round(w/11)), cw=(w-6)/nd;
+  g.fillStyle='rgba(200,232,255,.50)'; g.beginPath();
+  for(let i=0;i<nd;i++){
+    const x=-w/2+3+cw*i+cw*0.18;
+    g.rect(x,-h/2-1.6,cw*0.64,3.2); g.rect(x,h/2-1.6,cw*0.64,3.2);
+  }
+  g.fill();
+  g.strokeStyle='rgba(120,170,225,.55)'; g.lineWidth=0.8;
+  g.beginPath();
+  g.moveTo(-w/2,-h/2); g.lineTo(w/2,-h/2); g.moveTo(-w/2,h/2); g.lineTo(w/2,h/2);
+  g.stroke();
+  // 역명판 (흰 바탕 · 굵은 한글 · 작은 영문 · 노선색 원 안에 역번호)
+  if(s.name && r*zoom>9){
+    const nh=r*0.66, pad=nh*0.34;
+    g.font='700 '+(nh*0.50).toFixed(2)+'px "Malgun Gothic","Apple SD Gothic Neo",sans-serif';
+    const tw=g.measureText(s.name).width;
+    const nw=nh*1.05+pad+tw+pad;
+    const nx=-nw/2, ny=-h/2-nh-3;
+    g.fillStyle='rgba(255,255,255,.93)'; rr(g,nx,ny,nw,nh,nh*0.16); g.fill();
+    g.strokeStyle='rgba(40,55,80,.35)'; g.lineWidth=0.6; g.stroke();
+    // 노선색 원 + 역번호
+    const cr=nh*0.34, ccx=nx+nh*0.52, ccy=ny+nh/2;
+    g.fillStyle=s.col; g.beginPath(); g.arc(ccx,ccy,cr,0,6.283); g.fill();
+    g.fillStyle='#fff'; g.textAlign='center'; g.textBaseline='middle';
+    g.font='800 '+(cr*0.92).toFixed(2)+'px "Malgun Gothic",sans-serif';
+    g.fillText(s.no,ccx,ccy+cr*0.04);
+    // 한글 · 영문
+    g.textAlign='left';
+    g.fillStyle='#141a24';
+    g.font='700 '+(nh*0.50).toFixed(2)+'px "Malgun Gothic","Apple SD Gothic Neo",sans-serif';
+    g.fillText(s.name, nx+nh*1.05+pad, ny+nh*0.40);
+    g.fillStyle='#5d6a7d';
+    g.font='500 '+(nh*0.26).toFixed(2)+'px "Malgun Gothic",sans-serif';
+    g.fillText(s.en, nx+nh*1.05+pad, ny+nh*0.76);
+  }
+  g.restore();
 }
 
 function drawWorld(){
@@ -703,6 +986,7 @@ function drawWorld(){
 
   const vw=cssW/zoom, vh=cssH/zoom;
   const L=cam.x-vw/2, R=cam.x+vw/2, T=cam.y-vh/2, B=cam.y+vh/2;
+  viewL=L; viewR=R; viewT=T; viewB=B;
 
   // 격자
   g.strokeStyle='rgba(120,160,220,.055)'; g.lineWidth=1/zoom;
@@ -712,12 +996,10 @@ function drawWorld(){
   for(let y=Math.floor(T/gs)*gs;y<B;y+=gs){ g.moveTo(L,y); g.lineTo(R,y); }
   g.stroke();
 
-  // 역 표식
+  // 역 — 승강장 + 스크린도어 + 역명판
   for(const s of stations){
-    if(s.x<L-60||s.x>R+60||s.y<T-60||s.y>B+60) continue;
-    g.strokeStyle='rgba(150,190,255,.16)'; g.lineWidth=2.4;
-    g.beginPath(); g.arc(s.x,s.y,s.r,0,6.3); g.stroke();
-    g.fillStyle='rgba(150,190,255,.06)'; g.fill();
+    if(s.x<L-140||s.x>R+140||s.y<T-140||s.y>B+140) continue;
+    drawStation(g,s);
   }
 
   // 경계(선로 끝)
@@ -741,10 +1023,10 @@ function drawWorld(){
   }
 
   // 열차 (화면 밖 컬링)
-  const viewR=Math.hypot(vw,vh)/2+60;
+  const cullR=Math.hypot(vw,vh)/2+60;
   for(const t of trains){
     if(!t.alive||t.isPlayer) continue;
-    if(Math.hypot(t.x-cam.x,t.y-cam.y) > viewR+t.bodyLen) continue;
+    if(Math.hypot(t.x-cam.x,t.y-cam.y) > cullR+t.bodyLen) continue;
     drawTrain(g,t);
   }
   if(VS.on) drawGhost(g);
@@ -753,16 +1035,45 @@ function drawWorld(){
   g.restore();
 }
 
+/* 미니맵 바탕 — 진짜 지하철 노선도처럼 (굵은 직선 · 45° 꺾임 · 흰 동그라미 역)
+   매 프레임 다시 그리면 아까우니 한 번 그려서 캐시해 둔다 */
+let miniBg=null;
+function miniBackground(){
+  if(miniBg) return miniBg;
+  const W=mini.width, H=mini.height, cx=W/2, cy=H/2, R=W/2-8;
+  const c=document.createElement('canvas'); c.width=W; c.height=H;
+  const g=c.getContext('2d');
+  const k=R*0.94;
+  g.lineCap='round'; g.lineJoin='round';
+  for(const rt of MINI_ROUTES){                    // 노선 (굵은 직선)
+    g.strokeStyle=rt.c; g.lineWidth=R*0.075; g.globalAlpha=.85;
+    g.beginPath();
+    rt.p.forEach((p,i)=>{ const x=cx+p[0]*k, y=cy+p[1]*k; i?g.lineTo(x,y):g.moveTo(x,y); });
+    g.stroke();
+  }
+  g.globalAlpha=1;
+  for(const rt of MINI_ROUTES){                    // 역 (흰 동그라미)
+    for(const p of rt.p){
+      const x=cx+p[0]*k, y=cy+p[1]*k;
+      g.fillStyle='#f2f6fc'; g.strokeStyle='rgba(20,30,50,.55)'; g.lineWidth=R*0.018;
+      g.beginPath(); g.arc(x,y,R*0.030,0,6.283); g.fill(); g.stroke();
+    }
+  }
+  g.strokeStyle='rgba(255,120,120,.5)'; g.lineWidth=2;   // 선로 끝
+  g.beginPath(); g.arc(cx,cy,R,0,6.283); g.stroke();
+  miniBg=c; return c;
+}
+
 function drawMini(){
   const g=mctx, W=mini.width, H=mini.height, cx=W/2, cy=H/2, R=W/2-8;
   g.clearRect(0,0,W,H);
-  g.strokeStyle='rgba(255,120,120,.5)'; g.lineWidth=2;
-  g.beginPath(); g.arc(cx,cy,R,0,6.3); g.stroke();
+  g.drawImage(miniBackground(),0,0);
   const k=R/WORLD_R;
-  for(const t of trains){
+  for(const t of trains){                       // 달리는 열차 = 작은 네모 차량
     if(!t.alive||t.isPlayer) continue;
-    g.fillStyle=t.line.color;
-    g.beginPath(); g.arc(cx+t.x*k, cy+t.y*k, 2.6, 0,6.3); g.fill();
+    const x=cx+t.x*k, y=cy+t.y*k;
+    g.fillStyle='rgba(8,12,22,.55)'; rr(g,x-4,y-3,8,6,1.5); g.fill();
+    g.fillStyle=t.line.color; rr(g,x-3,y-2,6,4,1); g.fill();
   }
   if(VS.on && VS.ghost && VS.ghost.pts.length>=2){   // 상대 위치도 미니맵에 표시
     g.strokeStyle='#c9dcff'; g.lineWidth=2;
@@ -881,12 +1192,24 @@ function renderGrades(){
 function previewTrain(c, line, grade){
   const g=c.getContext('2d'); const st=gradeStyle(grade.id, line.color);
   g.clearRect(0,0,c.width,c.height);
-  const len=52, wid=40, gap=8;
-  let x=c.width-34;
-  for(let i=0;i<4;i++){
-    drawCar(g,{x:x,y:c.height/2,a:0},len,wid,st,i===0,i===3);
-    x-=len+gap;
+  const N=4, gap=6.5;
+  const total=N*VIS_L+(N-1)*gap;
+  const s=Math.min((c.width-14)/total, (c.height-8)/VIS_W);
+  g.save();
+  g.translate(c.width/2, c.height/2); g.scale(s,s);
+  // 연결 통로 먼저
+  const gw=gangwaySprite();
+  for(let i=0;i<N-1;i++){
+    const x=total/2-VIS_L/2-(VIS_L+gap)*i-(VIS_L+gap)/2;
+    g.drawImage(gw,x-gap/2-0.8,-VIS_W*0.31,gap+1.6,VIS_W*0.62);
   }
+  for(let i=N-1;i>=0;i--){
+    const x=total/2-VIS_L/2-(VIS_L+gap)*i;
+    g.save(); g.translate(x,0);
+    paintCar(g, st, i===0?'head':(i===N-1?'tail':'mid'), 2, 2, '서울행');
+    g.restore();
+  }
+  g.restore();
 }
 
 document.getElementById('toStep2').onclick=()=>{ renderGrades(); show(s2); };
@@ -907,7 +1230,14 @@ function startGame(online){
   // 세상 만들기 — 온라인이면 시드 난수로 감싸서 양쪽이 똑같은 맵을 갖게 한다
   const build=()=>{
     trains=[]; food=[]; stations=[]; frame=0;
-    for(let i=0;i<60;i++){ const p=randPos(120); stations.push({x:p.x,y:p.y,r:rnd(14,34)}); }
+    /* 역 배치. 이름·번호·노선색은 난수를 쓰지 않고 순번으로만 정한다
+       (온라인 대결에서 양쪽 난수 순서가 어긋나면 안 되기 때문) */
+    for(let i=0;i<60;i++){
+      const p=randPos(120), r=rnd(14,34);
+      const nm=STATION_NAMES[i%STATION_NAMES.length];
+      stations.push({x:p.x, y:p.y, r:r, name:nm[0], en:nm[1],
+        no:String((i%9+1)*100 + (i%28+1)), col:LINES[i%9].color});
+    }
     for(let i=0;i<14;i++) refillFood();
     const myName = VS.on ? (Versus.myName||'나') : '나';
     const makeMe=(p)=>{
@@ -978,7 +1308,7 @@ window.SUBWAY={Train,LINES,GRADES,gradeStyle,startGame,
   get running(){return running;}, get stations(){return stations;}, get frame(){return frame;}, VS, endGame,
   stop(){ running=false; },
   resume(){ if(running) return; running=true; lastT=performance.now(); requestAnimationFrame(loop); },
-  spawnOrb, killTrain, botThink, spawnBot,
+  spawnOrb, killTrain, botThink, spawnBot, paintCar, drawStation, VIS_L, VIS_W,
   setPick(l,g){ pick.line=l; pick.grade=g; },
   render(){ drawWorld(); drawMini(); drawHud(); },
   headless(n, autoPlayer){

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>점프맵 100 · Parkour Jump Map</title>
+<title>점프맵 200 · Parkour Jump Map</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden;background:#080c18;font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",system-ui,-apple-system,sans-serif;color:#e8eefc;user-select:none}
@@ -78,6 +78,16 @@ kbd{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border
 .ch:hover{background:rgba(255,255,255,.14)}
 .ch.sel{border-color:#7dd3fc;background:rgba(125,211,252,.16)}
 .ch span{font-size:.82em;font-weight:700;opacity:.85}
+/* 첫 화면 닉네임 고르기 */
+.nlist{display:flex;flex-wrap:wrap;gap:.55em;justify-content:center}
+.nchip{position:relative;display:flex;align-items:center;gap:.6em;background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.14);border-radius:.9em;padding:.5em .8em .5em .6em;cursor:pointer;font-family:inherit;color:inherit;transition:.13s;text-align:left}
+.nchip:hover{background:rgba(255,255,255,.16);transform:translateY(-2px)}
+.nchip.cur{border-color:#7dd3fc;background:rgba(125,211,252,.16)}
+.nchip .nm{font-weight:800;font-size:1.02em;line-height:1.2}
+.nchip .mt{opacity:.6;font-size:.78em;margin-top:.15em;white-space:nowrap}
+.nchip .nx{margin-left:.3em;opacity:.4;font-size:.85em;padding:.25em .45em;border-radius:.5em;line-height:1}
+.nchip .nx:hover{opacity:1;background:rgba(248,113,113,.32)}
+.warn{margin-top:1em;color:#fca5a5;font-size:.85em;opacity:.9;text-align:center}
 input[type=text]{width:100%;max-width:20em;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.18);border-radius:.7em;padding:.7em 1em;color:#e8eefc;font-family:inherit;font-size:1.15em;font-weight:700;text-align:center;outline:none}
 input[type=text]:focus{border-color:#7dd3fc}
 
@@ -132,7 +142,7 @@ body.vs-playing #hud .hbar{padding-top:3.1em}
   <div id="hud">
     <div class="hbar">
       <div class="chip" id="cWho"><canvas id="hAva" width="26" height="30"></canvas><b id="hName">-</b></div>
-      <div class="chip"><span class="lb">LV</span><b id="hLv">1</b><span style="opacity:.4">/100</span></div>
+      <div class="chip"><span class="lb">LV</span><b id="hLv">1</b><span style="opacity:.4">/200</span></div>
       <div class="chip"><span class="lb">TIME</span><b id="hTime">0.00</b></div>
       <div class="chip"><span class="lb">BEST</span><b id="hBest">-</b></div>
       <div class="chip"><b id="hStar">☆☆☆</b></div>
@@ -155,8 +165,17 @@ body.vs-playing #hud .hbar{padding-top:3.1em}
 
   <!-- 타이틀 -->
   <div class="screen on" id="scTitle"><div class="sc-body" style="justify-content:safe center">
-    <h1>점프맵 100</h1>
-    <div class="sub">발판을 밟고 장애물을 피해 도착 지점까지!<br>레벨 1부터 100까지, 갈수록 점점 더 어려워집니다.</div>
+    <h1>점프맵 200</h1>
+    <div class="sub">발판을 밟고 장애물을 피해 도착 지점까지!<br>레벨 1부터 200까지, 갈수록 점점 더 어려워집니다.</div>
+
+    <!-- 닉네임 고르기 / 만들기 -->
+    <div id="tProf" style="width:100%;max-width:44em;margin-top:1.5em"></div>
+    <div class="row" style="margin-top:.9em;gap:.5em">
+      <input type="text" id="tNew" maxlength="10" placeholder="새 닉네임 만들기" autocomplete="off" style="max-width:11em;font-size:1em;padding:.6em .8em">
+      <button class="btn sm" id="tMake">+ 만들기</button>
+    </div>
+    <div class="warn" id="tWarn" style="display:none">이 브라우저는 저장이 막혀 있어요. 기록은 이번 판에서만 유지돼요.</div>
+
     <div class="row">
       <button class="btn" id="bGo">시작하기</button>
       <button class="btn ghost" id="bVs">🌐 친구랑 온라인 대결</button>
@@ -202,7 +221,8 @@ body.vs-playing #hud .hbar{padding-top:3.1em}
     <div class="legend">
       <span><i style="background:#4ade80"></i>1-20 쉬움</span><span><i style="background:#facc15"></i>21-40 보통</span>
       <span><i style="background:#fb923c"></i>41-60 어려움</span><span><i style="background:#f87171"></i>61-80 매우 어려움</span>
-      <span><i style="background:#c084fc"></i>81-100 극악</span>
+      <span><i style="background:#c084fc"></i>81-100 극악</span><span><i style="background:#22d3ee"></i>101-140 신세계</span>
+      <span><i style="background:#f472b6"></i>141-200 전설</span>
     </div>
   </div></div>
 
@@ -252,7 +272,11 @@ function $(id){ return document.getElementById(id); }
 var VW=960, VH=540;
 var GRAV=0.78, JUMP_V=14.6, MAX_VX=4.7, VY_CAP=16;
 var PW=24, PH=30;
-function reachDx(dy){ var disc=JUMP_V*JUMP_V-2*GRAV*dy; if(disc<=0) return 0; return MAX_VX*((JUMP_V+Math.sqrt(disc))/GRAV); }
+function reachDxV(dy,v0){ var disc=v0*v0-2*GRAV*dy; if(disc<=0) return 0; return MAX_VX*((v0+Math.sqrt(disc))/GRAV); }
+function reachDx(dy){ return reachDxV(dy,JUMP_V); }
+/* 101레벨~ 새 장치 상수 */
+var BIGV=1.85;      /* 슈퍼 점프대 반동 배율 (일반 점프대는 1.52) */
+var STICKY=0.55;    /* 끈적 발판 위에서의 최고 속도 배율 */
 
 /* ══════════ 캐릭터 12종 ══════════ */
 var CHARS=[
@@ -433,7 +457,12 @@ function loadSave(){
   }catch(e){}
   if(!save.profiles) save.profiles=[];
 }
-function writeSave(){ try{ localStorage.setItem(SKEY,JSON.stringify(save)); }catch(e){} }
+var memOnly=false;   /* localStorage 가 막히면 이번 판만 메모리에 저장한다 */
+function writeSave(){
+  try{ localStorage.setItem(SKEY,JSON.stringify(save)); memOnly=false; }
+  catch(e){ memOnly=true; }
+  var w=$('tWarn'); if(w) w.style.display=memOnly?'':'none';
+}
 function prof(){ for(var i=0;i<save.profiles.length;i++) if(save.profiles[i].id===save.cur) return save.profiles[i]; return null; }
 loadSave();
 
@@ -486,24 +515,44 @@ var THEMES=[
  {n:'동굴',  sky:['#3b2f5c','#6b5a94'], h1:'#4a3c71', h2:'#342a55', pl:'#4a3f6b', tp:'#8b7ec8', ac:'#facc15', root:196},
  {n:'용암',  sky:['#5a1f22','#b33a2c'], h1:'#6e2926', h2:'#4a1c1c', pl:'#5c2b22', tp:'#f97316', ac:'#fde047', root:262},
  {n:'밤하늘',sky:['#101a3d','#33407a'], h1:'#1e2a55', h2:'#141c3c', pl:'#2b3566', tp:'#6d7fd6', ac:'#fef08a', root:233},
- {n:'우주',  sky:['#08040f','#241246'], h1:'#1a0f38', h2:'#0d0722', pl:'#3a1f6b', tp:'#c084fc', ac:'#22d3ee', root:311}
+ {n:'우주',  sky:['#08040f','#241246'], h1:'#1a0f38', h2:'#0d0722', pl:'#3a1f6b', tp:'#c084fc', ac:'#22d3ee', root:311},
+ /* ── 101레벨부터의 새 테마 (1~100 테마는 그대로) ── */
+ {n:'정글',    sky:['#3f8f6b','#bdf0cf'], h1:'#3e8f63', h2:'#28653f', pl:'#215c39', tp:'#6ee7a0', ac:'#fde047', root:247},
+ {n:'얼음동굴',sky:['#2b4a70','#9fd4f2'], h1:'#365f88', h2:'#24425f', pl:'#2b5a7c', tp:'#bae6fd', ac:'#f0abfc', root:262},
+ {n:'화산재',  sky:['#3a2a28','#8a5a4a'], h1:'#4a332e', h2:'#31221f', pl:'#4d3730', tp:'#fbbf24', ac:'#f87171', root:220},
+ {n:'구름나라',sky:['#a5c8f7','#fdf2ff'], h1:'#c9d9f7', h2:'#a7bce6', pl:'#6a7fb5', tp:'#f5f3ff', ac:'#38bdf8', root:294},
+ {n:'폐허',    sky:['#5b6274','#c3cbd8'], h1:'#6b7385', h2:'#4b5262', pl:'#4a5162', tp:'#cbd5e1', ac:'#fbbf24', root:233},
+ {n:'네온도시',sky:['#160b2e','#4b1d6b'], h1:'#2a1350', h2:'#180a33', pl:'#3d1f70', tp:'#f0abfc', ac:'#22d3ee', root:311},
+ {n:'심해',    sky:['#04263f','#0b6e8f'], h1:'#0a4560', h2:'#052c40', pl:'#0d5570', tp:'#5eead4', ac:'#fde047', root:196},
+ {n:'수정동굴',sky:['#2b1a4d','#7a5ec0'], h1:'#3a2568', h2:'#251545', pl:'#4b2f86', tp:'#c4b5fd', ac:'#67e8f9', root:349},
+ {n:'모래폭풍',sky:['#8a6a35','#e8cf9a'], h1:'#8f7340', h2:'#6b552c', pl:'#7a5c2c', tp:'#f5d78e', ac:'#38bdf8', root:262},
+ {n:'블랙홀',  sky:['#050208','#2a0a3d'], h1:'#12062a', h2:'#080316', pl:'#2c0f52', tp:'#f472b6', ac:'#a3e635', root:233}
 ];
-function theme(){ return THEMES[Math.min(9,Math.floor((G.level-1)/10))]; }
+function theme(){ return THEMES[Math.min(19,Math.floor((G.level-1)/10))]; }
 
 /* ══════════ 레벨 생성 ══════════ */
-function takeoffX(p){ return p.x + p.w - ((p.mv&&p.mv.axis==='h')? p.mv.amp*2 : 0); }
-function takeoffY(p){ return p.y + ((p.mv&&p.mv.axis==='v')? p.mv.amp*2 : 0); }
+function takeoffX(p){ return p.x + p.w - ((p.mv&&(p.mv.axis==='h'||p.mv.axis==='d'))? p.mv.amp*2 : 0); }
+function takeoffY(p){ return p.y + ((p.mv&&p.mv.axis==='v')? p.mv.amp*2 : 0)
+                             + ((p.mv&&p.mv.axis==='d')? p.mv.amy*2 : 0); }
 
 function genLevel(L){
   var R=mulberry32(((L*2654435761)>>>0)^0x9E3779B9);
   var rr=function(a,b){ return a+R()*(b-a); };
-  var d=(L-1)/99;
+  var d=clamp((L-1)/99,0,1);
+  var e=L>100 ? (L-100)/100 : 0;          /* 101~200 구간의 진행도 (0~1) */
 
   var count   = Math.round(8 + 14*d);
   var wBase   = 165 - 116*d;
   var gapF    = 0.30 + 0.50*d;
   var riseMax = 30 + 62*d;
   var dropMax = 70 + 95*d;
+  if(L>100){                               /* 1~100 밸런스는 건드리지 않고 그 위로만 확장 */
+    count   = Math.round(22 + 10*e);
+    wBase   = 49 - 12*e;
+    gapF    = 0.80 + 0.05*e;
+    riseMax = 92 + 12*e;
+    dropMax = 165 + 30*e;
+  }
 
   /* 발판 종류 확률 (합 ≤ 0.82) */
   var pMove = L>=7  ? clamp((L-6)/165,0,0.24):0;
@@ -519,6 +568,19 @@ function genLevel(L){
   var pRotor= L>=34 ? clamp((L-33)/300,0,0.20):0;
   var pBeam = L>=30 ? clamp((L-29)/350,0,0.17):0;
   var pCan  = L>=48 ? clamp((L-47)/290,0,0.17):0;
+  /* ── 101레벨~ 새 발판/장애물 확률 (100 이하에서는 전부 0) ── */
+  var pStick=0,pBig=0,pDiag=0,pRock=0,pPend=0,pWind=0,pUp=0;
+  if(L>100){
+    var fq=1-0.42*clamp((L-100)/70,0,1);   /* 기존 특수 발판 비중을 조금 줄여 새 장치 자리를 만든다 */
+    pMove*=fq; pConv*=fq; pCrumb*=fq; pBnc*=fq; pPhase*=fq; pIce*=fq;
+    pStick= L>=103 ? clamp((L-102)/320,0,0.13):0;   /* 끈적 발판 */
+    pBig  = L>=112 ? clamp((L-111)/420,0,0.09):0;   /* 슈퍼 점프대 */
+    pDiag = L>=122 ? clamp((L-121)/360,0,0.13):0;   /* 대각선 발판 */
+    pRock = L>=132 ? clamp((L-131)/300,0,0.22):0;   /* 낙석 */
+    pPend = L>=152 ? clamp((L-151)/280,0,0.20):0;   /* 가시추 */
+    pWind = L>=142 ? clamp((L-141)/300,0,0.26):0;   /* 바람 구간 */
+    pUp   = L>=162 ? clamp((L-161)/260,0,0.24):0;   /* 상승 기류 */
+  }
 
   var plats=[], haz=[];
   plats.push({x:70,y:430,w:185,h:18,type:'start'});
@@ -528,7 +590,15 @@ function genLevel(L){
     var sy=takeoffY(prev);
     var ny=prev.y - rr(-dropMax, riseMax);
     ny=clamp(ny, Math.max(140, sy-100), 465);
-    var rise=sy-ny, maxD=reachDx(rise);
+    var rise=sy-ny, maxD=reachDx(rise), capMul=1;
+    if(L>100){
+      if(prev.type==='big'){                  /* 슈퍼 점프대 다음은 훨씬 높은 곳에 둔다 */
+        ny=clamp(prev.y-rr(150,290),90,465);
+        rise=sy-ny; maxD=reachDxV(rise,JUMP_V*BIGV); capMul=0.50;
+      }
+      else if(prev.type==='stick') capMul=0.46;   /* 끈적 발판에서는 느리게 출발한다 */
+      else if(prev.type==='diag')  capMul=0.62;
+    }
 
     var type='norm';
     if(isLast) type='goal';
@@ -540,6 +610,9 @@ function genLevel(L){
       else if(r<(acc+=pBnc)) type='bnc';
       else if(r<(acc+=pPhase)) type='phase';
       else if(r<(acc+=pIce)) type='ice';
+      else if(r<(acc+=pStick)) type='stick';
+      else if(r<(acc+=pBig))   type='big';
+      else if(r<(acc+=pDiag))  type='diag';
     }
 
     var w = isLast?175 : clamp(wBase*rr(0.72,1.32),36,235);
@@ -547,9 +620,18 @@ function genLevel(L){
     if(type==='move') w=clamp(w,60,124);
     if(type==='conv') w=clamp(w,74,180);
     if(type==='phase')w=clamp(w,54,150);
+    if(type==='stick')w=clamp(w,70,170);
+    if(type==='big')  w=clamp(w,52,80);
+    if(type==='diag') w=clamp(w,66,120);
 
     var mv=null, gap, extra={};
-    if(type==='move'){
+    if(type==='diag'){                        /* 대각선으로 왕복하는 발판 */
+      var dax=clamp(rr(28,30+34*e), 16, Math.max(16,(maxD*capMul*0.8-52)/2));
+      var day=clamp(rr(16,18+22*e), 10, 46);
+      mv={axis:'d',amp:dax,amy:day,spd:rr(0.012,0.015+0.008*e),ph:R()*6.283,t:0};
+      gap=clamp(2*dax+rr(26,44), 36, maxD*capMul*0.86);
+    }
+    else if(type==='move'){
       var wantH = R()<0.52 && maxD>112;
       if(wantH){
         var amp=clamp(rr(36,44+52*d), 16, (maxD*0.85-56)/2); amp=Math.max(16,amp);
@@ -564,10 +646,18 @@ function genLevel(L){
       gap=clamp(maxD*gapF*rr(0.85,1.12), 34, maxD*0.90);
       if(prev.type==='move') gap=Math.min(gap, maxD*0.74);
     }
+    if(L>100 && capMul<1){                    /* 느리게 출발하는 발판 뒤에는 틈을 좁힌다 */
+      gap=Math.min(gap, maxD*capMul*0.9);
+      if(mv && (mv.axis==='h'||mv.axis==='d')){
+        var lim=(gap-24)/2;
+        if(mv.amp>lim) mv.amp=Math.max(12,lim);
+      }
+    }
     if(type==='conv'){ extra.cdir = R()<0.45?-1:1; extra.cspd = rr(0.9,1.1+0.8*d); }
     if(type==='phase'){ extra.grp = i%2; }
 
     var pl={x:takeoffX(prev)+gap, y:ny, w:w, h:18, type:type, mv:mv};
+    if(L>100) pl.gr=maxD>0? gap/maxD : 1;     /* 틈이 얼마나 빡빡한지 (바람 배치에 사용) */
     for(var kk in extra) pl[kk]=extra[kk];
     plats.push(pl);
   }
@@ -597,12 +687,28 @@ function genLevel(L){
     var A=plats[b], B=plats[b+1];
     var ax=takeoffX(A), g=B.x-ax, mid=ax+g*0.5;
     var topY=Math.min(A.y,B.y), rv2=R(), acc2=0;
+    /* 101레벨~ : 오래 서서 기다릴 수 없는 발판(사라짐·점멸·점프대)에서 출발하는 틈에는
+       타이밍 장애물을 두지 않는다 → 반드시 건널 수 있는 순간이 존재하도록 */
+    if(L>100 && (A.type==='crumb'||A.type==='phase'||A.type==='bnc'||A.type==='big')) continue;
     if(g>=95 && rv2<(acc2+=pSaw)){
       haz.push({kind:'saw',x:mid,y:(A.y+B.y)/2-34,amp:rr(46,50+38*d),ax:0,ay:1,r:14,
                 spd:rr(0.020,0.025+0.013*d),t:R()*6.283,cx:mid,cy:0});
     } else if(g>=100 && rv2<(acc2+=pRotor)){
       /* 팔 길이는 틈 안에 완전히 들어가게 제한 → 발판 위에 선 플레이어는 절대 못 침 */
       var RR=clamp(rr(38,46+40*d), 32, g/2-8);
+      /* 높이차가 큰 틈에서는 팔이 길면 위로 넘어갈 수가 없다 → 팔 길이를 줄인다 (클리어 가능성 보장) */
+      var dhR=Math.abs(A.y-B.y);
+      if(dhR>12) RR=Math.min(RR, Math.max(15,(70-dhR)/1.35));
+      if(L>100){
+        /* 최대 점프로 "위로 넘어갈 수 있는" 팔 길이를 계산해서 그 이하로 제한한다.
+           (점프 최고높이 136.6px · 최고속도 4.7px/f 기준) */
+        var Rlim=15;
+        for(var rt=16;rt<=90;rt++){
+          var mg=113.6-dhR-1.35*rt-Math.pow(0.1329*rt+2.258,2);
+          if(mg>=8) Rlim=rt; else break;
+        }
+        RR=Math.min(RR,Rlim);
+      }
       haz.push({kind:'rotor',x:mid,y:topY-30-RR*0.35,R:RR,arms:(R()<0.35?3:2),
                 spd:(R()<0.5?1:-1)*rr(0.016,0.020+0.012*d),ph:R()*6.283,t:0});
     } else if(g>=82 && rv2<(acc2+=pBeam)){
@@ -615,12 +721,41 @@ function genLevel(L){
       haz.push({kind:'cannon',dir:dir,x:(dir<0? B.x+16 : ax-16),y:by,
                 period:Math.round(112-32*d),t:Math.floor(R()*100),range:g+190,bl:[]});
     }
+    /* ── 101레벨~ : 낙석 · 흔들리는 가시추 ── */
+    else if(g>=90 && rv2<(acc2+=pRock)){
+      haz.push({kind:'rock',x:mid,base:topY-330,period:Math.round(104-22*e),
+                t:Math.floor(R()*90),rk:[]});
+    }
+    else if(g>=118 && rv2<(acc2+=pPend)){
+      var plen=clamp(rr(60,62+44*e),46,124);
+      var pamp=Math.min(1.0,(g/2-30)/plen);
+      if(pamp>0.34)
+        haz.push({kind:'pend',x:mid,y:topY-26-plen,len:plen,amp:pamp,
+                  spd:rr(0.030,0.031+0.017*e),ph:R()*6.283,t:0,bx:mid,by:topY-26});
+    }
   }
   /* ── 넓은 발판 위 좌우 톱날 ── */
   for(var c=1;c<plats.length-1;c++){
     var q=plats[c];
     if(q.type==='norm' && !q.hz && !q.mv && q.w>=158 && R()<pSaw*0.55)
       haz.push({kind:'saw',x:q.x+q.w/2,y:q.y-17,amp:(q.w-44)/2,ax:1,ay:0,r:13,spd:rr(0.022,0.031),t:R()*6.283,cx:0,cy:q.y-17});
+  }
+
+  /* ── 101레벨~ : 바람 구간 · 상승 기류 ── */
+  var zones=[];
+  if(L>100){
+    for(var z1=1;z1<plats.length-1;z1++){
+      var ZA=plats[z1], ZB=plats[z1+1];
+      var zax=takeoffX(ZA), zg=ZB.x-zax, ztop=Math.min(ZA.y,ZB.y);
+      if(zg<74) continue;
+      if(R()<pWind){
+        /* 맞바람은 여유 있는 틈에만 (빡빡한 틈에는 뒷바람만) */
+        var wd=(ZB.gr!=null && ZB.gr>0.62) ? 1 : (R()<0.5?-1:1);
+        zones.push({kind:'wind',x:zax+6,y:ztop-250,w:zg-12,h:320,dir:wd,f:0.06+0.05*e});
+      } else if(R()<pUp){
+        zones.push({kind:'up',x:zax+12,y:ztop-270,w:Math.max(30,zg-34),h:340,f:0.32+0.14*e});
+      }
+    }
   }
 
   /* ── 체크포인트 ── */
@@ -654,7 +789,8 @@ function genLevel(L){
   }
 
   /* ── 추격 가시벽 (90레벨~) ── */
-  var wallSpd = L>=90 ? (0.72+0.30*(L-90)/10) : 0;
+  var wallSpd = L>=90 ? (L<=100 ? (0.72+0.30*(L-90)/10)
+                                : (L>=150 ? (0.72+0.42*(L-150)/50) : 0)) : 0;
 
   var last=plats[count-1];
   var goal={x:last.x+last.w/2-27, y:last.y-70, w:54, h:70};
@@ -662,7 +798,7 @@ function genLevel(L){
   plats.forEach(function(p){ p.cx=p.x; p.cy=p.y; p.px=p.x; p.py=p.y;
     maxX=Math.max(maxX,p.x+p.w); maxY=Math.max(maxY,p.y); minY=Math.min(minY,p.y); });
 
-  return {level:L,plats:plats,haz:haz,cps:cps,stars:stars,goal:goal,count:count,
+  return {level:L,plats:plats,haz:haz,zones:zones,cps:cps,stars:stars,goal:goal,count:count,
           phOn:phOn,phPer:phPer,wallSpd:wallSpd,
           spawn:{x:plats[0].x+46,y:plats[0].y-PH},
           worldW:maxX+280, deathY:maxY+300, minY:minY, maxY:maxY};
@@ -678,7 +814,7 @@ var VS={on:false,levels:[],idx:0,cleared:0,stars:0,leftMs:0,limitMs:0,bonus:0,li
         ghost:null,oppChar:'box',done:false,sent:-1,tick:0};
 
 function startLevel(L){
-  G.level=clamp(L,1,100);
+  G.level=clamp(L,1,200);
   /* 온라인 대결에서는 시드 난수 안에서 만들어 양쪽 맵을 100% 똑같이 맞춘다 */
   if(VS.on){ Versus.reseed(G.level); G.lvl=Versus.seeded(function(){ return genLevel(G.level); }); }
   else G.lvl=genLevel(G.level);
@@ -695,7 +831,7 @@ function resetPlayer(){
   P.x=G.spawn.x; P.y=G.spawn.y; P.vx=0; P.vy=0; P.grounded=false; P.ride=null;
   P.coyote=6; P.jbuf=0; P.sq=1;
   G.lvl.plats.forEach(function(p){ p.gone=false; p.ct=undefined; });
-  G.lvl.haz.forEach(function(h){ if(h.kind==='cannon') h.bl=[]; });
+  G.lvl.haz.forEach(function(h){ if(h.kind==='cannon') h.bl=[]; else if(h.kind==='rock') h.rk=[]; });
   G.wallX=G.spawn.x-340;
 }
 
@@ -706,6 +842,8 @@ function updatePlats(){
     var p=ps[i]; p.px=p.cx; p.py=p.cy;
     if(p.mv){ p.mv.t+=p.mv.spd;
       if(p.mv.axis==='h'){ p.cx=p.x-p.mv.amp*(1-Math.cos(p.mv.t+p.mv.ph)); p.cy=p.y; }
+      else if(p.mv.axis==='d'){ var kd=1-Math.cos(p.mv.t+p.mv.ph);   /* 대각선 왕복 */
+        p.cx=p.x-p.mv.amp*kd; p.cy=p.y+p.mv.amy*kd; }
       else { p.cx=p.x; p.cy=p.y+p.mv.amp*(1-Math.cos(p.mv.t+p.mv.ph)); }
     }
     if(p.type==='crumb'){
@@ -734,6 +872,17 @@ function updatePlats(){
       h.ext=h.on? Math.min(1,(pm)/6) : Math.max(0,1-(pm-h.onDur)/6);
       if(h.on&&!was) SFX.pop(); }
     else if(h.kind==='rotor'){ h.t+=h.spd; }
+    else if(h.kind==='rock'){                 /* 위에서 주기적으로 떨어지는 돌 */
+      h.t++;
+      if(h.t%h.period===0) h.rk.push({y:h.base,v:1.2});
+      for(var rq=h.rk.length-1;rq>=0;rq--){ var rk=h.rk[rq];
+        rk.v=Math.min(rk.v+0.55,15); rk.y+=rk.v;
+        if(rk.y>h.base+780) h.rk.splice(rq,1); }
+    }
+    else if(h.kind==='pend'){                 /* 흔들리는 가시추 */
+      h.t+=h.spd; var pa=h.amp*Math.sin(h.t+h.ph);
+      h.bx=h.x+Math.sin(pa)*h.len; h.by=h.y+Math.cos(pa)*h.len;
+    }
     else if(h.kind==='cannon'){
       h.t++;
       if(h.t%h.period===0){ h.bl.push({x:h.x,y:h.y,d:0}); SFX.shoot(); }
@@ -752,10 +901,22 @@ function tryLand(oldBottom){
   }
   if(!best) return;
   P.y=best.cy-PH; P.vy=0;
-  if(best.type==='bnc'){ P.vy=-JUMP_V*1.52; P.grounded=false; P.ride=null; P.coyote=0; P.sq=1.4; SFX.bounce(); best.bt=10; }
+  if(best.type==='big'){ P.vy=-JUMP_V*BIGV; P.grounded=false; P.ride=null; P.coyote=0; P.sq=1.6; SFX.bounce(); best.bt=14; }
+  else if(best.type==='bnc'){ P.vy=-JUMP_V*1.52; P.grounded=false; P.ride=null; P.coyote=0; P.sq=1.4; SFX.bounce(); best.bt=10; }
   else{ P.grounded=true; P.ride=best; P.coyote=0; P.sq=0.72; SFX.land();
         if(best.type==='crumb'&&best.ct===undefined) best.ct=0;
         burst(P.x+PW/2,P.y+PH,'#ffffff',4,1.4); }
+}
+/* 바람 구간 · 상승 기류 (101레벨~). 공중에 있을 때만 영향을 준다 */
+function applyZones(){
+  var zs=G.lvl.zones; if(!zs||!zs.length||P.grounded) return;
+  var cx=P.x+PW/2, cy=P.y+PH/2;
+  for(var i=0;i<zs.length;i++){
+    var z=zs[i];
+    if(cx<z.x||cx>z.x+z.w||cy<z.y||cy>z.y+z.h) continue;
+    if(z.kind==='wind') P.vx=clamp(P.vx+z.dir*z.f,-MAX_VX*1.7,MAX_VX*1.7);
+    else if(z.kind==='up') P.vy=Math.max(P.vy-z.f,-9);
+  }
 }
 function rectHit(a,b){ return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y; }
 function circHit(cx,cy,r,b){ var nx=clamp(cx,b.x,b.x+b.w), ny=clamp(cy,b.y,b.y+b.h);
@@ -788,9 +949,11 @@ function step(){
   } else if(P.coyote>0) P.coyote--;
 
   var ice = P.grounded && P.ride && P.ride.type==='ice';
-  var acc = P.grounded ? (ice?0.085:0.52) : 0.30;
-  if(dir) P.vx += (dir*MAX_VX - P.vx)*acc;
-  else    P.vx *= P.grounded ? (ice?0.988:0.74) : 0.958;
+  var stk = P.grounded && P.ride && P.ride.type==='stick';   /* 끈적 발판: 느리게 걷는다 */
+  var acc = P.grounded ? (ice?0.085:(stk?0.30:0.52)) : 0.30;
+  var top = stk ? MAX_VX*STICKY : MAX_VX;
+  if(dir) P.vx += (dir*top - P.vx)*acc;
+  else    P.vx *= P.grounded ? (ice?0.988:(stk?0.55:0.74)) : 0.958;
   if(Math.abs(P.vx)<0.02) P.vx=0;
 
   if(P.jbuf>0) P.jbuf--;
@@ -798,6 +961,7 @@ function step(){
     P.vy=-JUMP_V; P.grounded=false; P.ride=null; P.coyote=0; P.jbuf=0; P.sq=1.34; SFX.jump(); }
   if(IN.jumpRel){ IN.jumpRel=false; if(P.vy<-4.5) P.vy*=0.52; }
   if(!P.grounded) P.vy=Math.min(P.vy+GRAV, VY_CAP);
+  applyZones();
 
   var dist=Math.max(Math.abs(P.vx),Math.abs(P.vy)), n=Math.max(1,Math.ceil(dist/5));
   for(var s=0;s<n;s++){
@@ -829,6 +993,10 @@ function step(){
     else if(h.kind==='cannon'){
       for(var bi=0;bi<h.bl.length;bi++) if(circHit(h.bl[bi].x,h.bl[bi].y,7,box)){die();return;}
     }
+    else if(h.kind==='rock'){
+      for(var ri=0;ri<h.rk.length;ri++) if(circHit(h.x,h.rk[ri].y,10,box)){die();return;}
+    }
+    else if(h.kind==='pend'){ if(circHit(h.bx,h.by,11,box)){die();return;} }
   }
 
   /* 별 */
@@ -878,7 +1046,7 @@ function clearLevel(){
   if(isNew) pr.best[G.level]=Math.round(G.timeMs);
   pr.stars[G.level]=Math.max(pr.stars[G.level]||0, G.gotStars);
   pr.deaths=(pr.deaths||0)+G.deaths;
-  if(pr.unlocked<G.level+1) pr.unlocked=Math.min(100,G.level+1);
+  if(pr.unlocked<G.level+1) pr.unlocked=Math.min(200,G.level+1);
   writeSave(); SFX.clear();
   for(var i=0;i<70;i++) burst(G.lvl.goal.x+27,G.lvl.goal.y+30,['#fde047','#7dd3fc','#a78bfa','#34d399','#fb7185'][i%5],1,7);
   $('clLv').textContent='레벨 '+G.level+' · '+theme().n;
@@ -887,7 +1055,7 @@ function clearLevel(){
   $('clBest').textContent=fmt(pr.best[G.level]);
   $('clDie').textContent=G.deaths;
   $('clNew').style.visibility=isNew?'visible':'hidden';
-  $('bNext').style.display=G.level>=100?'none':'';
+  $('bNext').style.display=G.level>=200?'none':'';
   /* 이 레벨 순위 */
   var lst=save.profiles.filter(function(p){return p.best[G.level]!=null;})
             .sort(function(a,b2){return a.best[G.level]-b2.best[G.level];}).slice(0,3);
@@ -932,6 +1100,7 @@ function draw(){
   ctx.save(); ctx.translate(-camx,-camy);
   var L=G.lvl;
   drawGoal(L.goal,T);
+  if(L.zones) L.zones.forEach(function(z){ drawZone(z); });
   L.cps.forEach(function(c){ drawFlag(c); });
   L.haz.forEach(function(h){ if(h.kind==='beam') drawBeam(h); });
   L.plats.forEach(function(p){ drawPlat(p,T); });
@@ -940,6 +1109,8 @@ function draw(){
   L.haz.forEach(function(h){
     if(h.kind==='saw') drawSaw(h);
     else if(h.kind==='rotor') drawRotor(h);
+    else if(h.kind==='rock') drawRock(h);
+    else if(h.kind==='pend') drawPend(h);
     else if(h.kind==='cannon') drawCannon(h); });
   if(L.wallSpd>0) drawWall(camy);
   G.parts.forEach(function(p){ ctx.globalAlpha=Math.max(0,p.l); ctx.fillStyle=p.c;
@@ -1017,6 +1188,7 @@ function drawPlat(p,T){
     ctx.save(); ctx.globalAlpha=0.2; ctx.strokeStyle='#fff'; ctx.setLineDash([6,7]); ctx.lineWidth=2;
     ctx.beginPath();
     if(p.mv.axis==='h'){ ctx.moveTo(p.x-p.mv.amp*2+w/2,p.y+h/2); ctx.lineTo(p.x+w/2,p.y+h/2); }
+    else if(p.mv.axis==='d'){ ctx.moveTo(p.x+w/2,p.y+h/2); ctx.lineTo(p.x-p.mv.amp*2+w/2,p.y+p.mv.amy*2+h/2); }
     else { ctx.moveTo(p.x+w/2,p.y+h/2); ctx.lineTo(p.x+w/2,p.y+p.mv.amp*2+h/2); }
     ctx.stroke(); ctx.setLineDash([]); ctx.restore();
   }
@@ -1027,6 +1199,9 @@ function drawPlat(p,T){
   else if(p.type==='move'){fill='#5a4a86';top='#a78bfa';}
   else if(p.type==='conv'){fill='#7c4a1e';top='#f59e0b';}
   else if(p.type==='phase'){fill='#4c3f7a';top='#c4b5fd';}
+  else if(p.type==='stick'){fill='#4a3b16';top='#a3a02c';}
+  else if(p.type==='big'){fill='#0f5f7a';top='#22d3ee';}
+  else if(p.type==='diag'){fill='#7a2f56';top='#f472b6';}
   else if(p.type==='start'){fill='#2f6b4f';top='#6ee7b7';}
   else if(p.type==='goal'){fill='#7a5a1f';top='#fbbf24';}
 
@@ -1056,13 +1231,29 @@ function drawPlat(p,T){
     ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=2.5;
     ctx.beginPath(); ctx.moveTo(x+3,y+h-2.5); ctx.lineTo(x+3+(w-6)*clamp(p.rem==null?1:p.rem,0,1),y+h-2.5); ctx.stroke();
   }
+  if(p.type==='stick'){                 /* 끈적끈적 방울무늬 */
+    ctx.fillStyle='rgba(214,211,61,.75)';
+    for(var sd=6;sd<w-6;sd+=13){
+      ctx.beginPath(); ctx.arc(x+sd,y+9+Math.sin(sd*0.7)*2,2.6,0,6.3); ctx.fill(); }
+    ctx.fillStyle='rgba(163,160,44,.9)';
+    for(var sd2=9;sd2<w-9;sd2+=18){
+      ctx.beginPath(); ctx.moveTo(x+sd2,y+6); ctx.quadraticCurveTo(x+sd2+3,y+13,x+sd2+6,y+6); ctx.fill(); }
+  }
+  if(p.type==='big'){                   /* 슈퍼 점프대: 큰 용수철 */
+    var bq=p.bt>0?(p.bt--,6):0;
+    ctx.strokeStyle='#a5f3fc'; ctx.lineWidth=4; ctx.beginPath();
+    for(var kb=0;kb<=w;kb+=5) ctx.lineTo(x+kb,y-9+bq+Math.sin(kb*0.75)*4.4);
+    ctx.stroke();
+    ctx.fillStyle='#67e8f9'; ctx.font='bold 11px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('▲▲',x+w/2,y-14+bq);
+  }
   if(p.type==='bnc'){ var sq=p.bt>0?(p.bt--,4):0;
     ctx.strokeStyle='#a7f3d0'; ctx.lineWidth=3; ctx.beginPath();
     for(var k2=0;k2<=w;k2+=6) ctx.lineTo(x+k2,y-4+sq+Math.sin(k2*0.6)*2.6); ctx.stroke(); }
   if(p.type==='start'){ ctx.fillStyle='rgba(255,255,255,.75)'; ctx.font='bold 13px sans-serif'; ctx.textAlign='center';
     ctx.fillText('START',x+w/2,y+h+16); }
   if(p.mv){ ctx.fillStyle='rgba(255,255,255,.85)'; ctx.font='bold 12px sans-serif'; ctx.textAlign='center';
-    ctx.fillText(p.mv.axis==='h'?'⇄':'⇅',x+w/2,y+h-4); }
+    ctx.fillText(p.mv.axis==='h'?'⇄':(p.mv.axis==='d'?'⤢':'⇅'),x+w/2,y+h-4); }
   ctx.restore();
 }
 function spikeShape(x,y,w,h){
@@ -1129,6 +1320,72 @@ function drawCannon(h){
     ctx.fillStyle='rgba(248,113,113,.35)'; ctx.beginPath(); ctx.arc(b.x-h.dir*7,b.y,8,0,6.3); ctx.fill();
     ctx.fillStyle='#f87171'; ctx.beginPath(); ctx.arc(b.x,b.y,6.5,0,6.3); ctx.fill();
     ctx.fillStyle='#fee2e2'; ctx.beginPath(); ctx.arc(b.x-h.dir*1.5,b.y-1.5,2.4,0,6.3); ctx.fill(); }
+}
+/* 낙석 */
+function drawRock(h){
+  for(var i=0;i<h.rk.length;i++){
+    var r=h.rk[i];
+    ctx.save(); ctx.translate(h.x,r.y); ctx.rotate(r.y*0.03);
+    ctx.fillStyle='#6b7280'; ctx.strokeStyle='#374151'; ctx.lineWidth=2;
+    ctx.beginPath();
+    for(var k=0;k<7;k++){ var a=k/7*6.283, rad=(k%2?8:11);
+      ctx.lineTo(Math.cos(a)*rad,Math.sin(a)*rad); }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,.35)';
+    ctx.beginPath(); ctx.arc(-3,-3,2.6,0,6.3); ctx.fill();
+    ctx.restore();
+  }
+  /* 낙석이 떨어지는 자리 표시 */
+  ctx.save(); ctx.globalAlpha=0.25; ctx.strokeStyle='#f87171'; ctx.lineWidth=2;
+  ctx.setLineDash([4,8]); ctx.beginPath();
+  ctx.moveTo(h.x,h.base); ctx.lineTo(h.x,h.base+560); ctx.stroke();
+  ctx.setLineDash([]); ctx.restore();
+}
+/* 흔들리는 가시추 */
+function drawPend(h){
+  ctx.save();
+  ctx.strokeStyle='rgba(148,163,184,.9)'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(h.x,h.y); ctx.lineTo(h.bx,h.by); ctx.stroke();
+  ctx.fillStyle='#475569'; ctx.beginPath(); ctx.arc(h.x,h.y,6,0,6.3); ctx.fill();
+  ctx.translate(h.bx,h.by); ctx.rotate(h.t*0.6);
+  ctx.fillStyle='#94a3b8'; ctx.strokeStyle='#334155'; ctx.lineWidth=1.6;
+  ctx.beginPath();
+  for(var k=0;k<14;k++){ var a=k/14*6.283, rad=(k%2?11:6.5);
+    ctx.lineTo(Math.cos(a)*rad,Math.sin(a)*rad); }
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#e2e8f0'; ctx.beginPath(); ctx.arc(0,0,4,0,6.3); ctx.fill();
+  ctx.restore();
+}
+/* 바람 구간 · 상승 기류 */
+function drawZone(z){
+  ctx.save();
+  if(z.kind==='wind'){
+    ctx.globalAlpha=0.1; ctx.fillStyle='#bae6fd'; ctx.fillRect(z.x,z.y,z.w,z.h);
+    ctx.globalAlpha=0.55; ctx.strokeStyle='#e0f2fe'; ctx.lineWidth=2;
+    for(var i=0;i<7;i++){
+      var wy=z.y+30+i*(z.h-50)/7;
+      var off=((G.t*(2.2+i*0.3)*z.dir)%(z.w+60)+(z.w+60))%(z.w+60)-30;
+      var sx=z.x+off, ln=26;
+      ctx.beginPath(); ctx.moveTo(sx,wy); ctx.lineTo(sx+ln*z.dir,wy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(sx+ln*z.dir,wy);
+      ctx.lineTo(sx+(ln-8)*z.dir,wy-4); ctx.moveTo(sx+ln*z.dir,wy);
+      ctx.lineTo(sx+(ln-8)*z.dir,wy+4); ctx.stroke();
+    }
+    ctx.globalAlpha=0.9; ctx.fillStyle='#e0f2fe'; ctx.font='bold 13px sans-serif'; ctx.textAlign='center';
+    ctx.fillText(z.dir>0?'바람 →':'← 바람',z.x+z.w/2,z.y+18);
+  } else {
+    ctx.globalAlpha=0.12; ctx.fillStyle='#a7f3d0'; ctx.fillRect(z.x,z.y,z.w,z.h);
+    ctx.globalAlpha=0.6; ctx.strokeStyle='#6ee7b7'; ctx.lineWidth=2;
+    for(var j=0;j<5;j++){
+      var ux=z.x+8+j*(z.w-16)/5;
+      var uy=z.y+z.h-((G.t*3+j*70)%(z.h));
+      ctx.beginPath(); ctx.moveTo(ux,uy+20); ctx.lineTo(ux,uy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(ux,uy); ctx.lineTo(ux-5,uy+7); ctx.moveTo(ux,uy); ctx.lineTo(ux+5,uy+7); ctx.stroke();
+    }
+    ctx.globalAlpha=0.9; ctx.fillStyle='#a7f3d0'; ctx.font='bold 13px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('↑ 상승 기류',z.x+z.w/2,z.y+18);
+  }
+  ctx.restore();
 }
 function drawWall(camy){
   var x=G.wallX, top=camy-200, bot=camy+VH+200;
@@ -1200,6 +1457,7 @@ requestAnimationFrame(frame);
 var TOUCH=('ontouchstart' in window)||navigator.maxTouchPoints>0;
 function show(id){
   ['scTitle','scProfile','scNew','scSelect','scRank','scClear'].forEach(function(s){ $(s).classList.toggle('on',s===id); });
+  if(id==='scTitle' && typeof buildTitle==='function') buildTitle();
   $('hud').style.display = id?'none':'';
   $('touch').classList.toggle('on', !id && TOUCH);
 }
@@ -1215,7 +1473,8 @@ function hudLevel(){
     var a2=$('hAva'), g2=a2.getContext('2d'); g2.clearRect(0,0,26,30); drawChar(g2,vsMyChar(),5,10,16,20,1,0);
     $('hProg').textContent=(VS.idx+1)+'/'+VS.levels.length; }
 }
-function diffColor(L){ return L<=20?'#4ade80':L<=40?'#facc15':L<=60?'#fb923c':L<=80?'#f87171':'#c084fc'; }
+function diffColor(L){ return L<=20?'#4ade80':L<=40?'#facc15':L<=60?'#fb923c':L<=80?'#f87171':
+  L<=100?'#c084fc':L<=140?'#22d3ee':'#f472b6'; }
 
 /* 레벨 그리드 */
 function buildGrid(){
@@ -1226,7 +1485,7 @@ function buildGrid(){
   var sw=document.createElement('span'); sw.textContent='바꾸기'; sw.style.cssText='opacity:.55;font-size:.82em;margin-left:.5em';
   wh.appendChild(sw);
   wh.onclick=function(){ SFX.click(); buildProfiles(); show('scProfile'); };
-  for(var i=1;i<=100;i++){
+  for(var i=1;i<=200;i++){
     (function(L){
       var b=document.createElement('button');
       var locked=L>pr.unlocked, done=pr.best[L]!=null, st=pr.stars[L]||0;
@@ -1239,6 +1498,59 @@ function buildGrid(){
     })(i);
   }
 }
+/* 프로필 유틸 */
+function bestLevel(p){ var m=0; for(var k in p.best){ var n=+k; if(n>m) m=n; } return m; }
+function starSum(p){ var t=0; for(var k in p.stars) t+=p.stars[k]; return t; }
+function delProfile(id){
+  save.profiles=save.profiles.filter(function(q){ return q.id!==id; });
+  if(save.cur===id) save.cur=save.profiles.length?save.profiles[0].id:null;
+  writeSave(); buildTitle(); buildProfiles();
+}
+function pickProfile(id){
+  SFX.click(); ac(); save.cur=id; writeSave();
+  var el=$('vsName'); if(el){ var pp=prof(); if(pp) el.value=pp.name.slice(0,8); }
+  buildTitle(); buildGrid(); show('scSelect');
+}
+
+/* 첫 화면 — 닉네임 고르기 / 만들기 */
+function buildTitle(){
+  var box=$('tProf'); box.innerHTML='';
+  var pr=prof();
+  $('bGo').textContent = pr ? (pr.name+' (으)로 시작') : (save.profiles.length?'닉네임 고르기':'바로 시작하기');
+  if(!save.profiles.length){
+    box.innerHTML='<div class="sub" style="margin:0">아직 닉네임이 없어요. 아래에 이름을 적고 <b>+ 만들기</b>를 눌러 주세요!</div>';
+    return;
+  }
+  var t=document.createElement('div');
+  t.className='sub'; t.style.margin='0 0 .7em';
+  t.textContent='닉네임을 눌러서 골라요 (✕ 를 누르면 지워요)';
+  box.appendChild(t);
+  var wrap=document.createElement('div'); wrap.className='nlist';
+  save.profiles.forEach(function(p){
+    var b=document.createElement('button'); b.className='nchip'+(p.id===save.cur?' cur':'');
+    b.appendChild(charThumb(p.ch,34));
+    var d=document.createElement('div');
+    d.innerHTML='<div class="nm">'+esc(p.name)+'</div>'+
+                '<div class="mt">최고 '+bestLevel(p)+'단계 · ⭐'+starSum(p)+'</div>';
+    b.appendChild(d);
+    var x=document.createElement('span'); x.className='nx'; x.textContent='✕'; x.title='지우기';
+    x.onclick=function(ev){ ev.stopPropagation();
+      if(confirm('"'+p.name+'" 닉네임과 기록을 모두 지울까요?')){ SFX.pop(); delProfile(p.id); } };
+    b.appendChild(x);
+    b.onclick=function(){ pickProfile(p.id); };
+    wrap.appendChild(b);
+  });
+  box.appendChild(wrap);
+}
+function newFromTitle(){
+  var nm=$('tNew').value.trim().slice(0,10);
+  if(!nm){ $('tNew').focus(); return; }
+  if(save.profiles.some(function(p){return p.name===nm;})){ alert('같은 닉네임이 이미 있어요.'); return; }
+  SFX.click(); ac();
+  pickChar='box'; $('inName').value=nm; $('bCreate').disabled=false;
+  buildChars(); show('scNew');
+}
+
 /* 프로필 목록 */
 function buildProfiles(){
   var lst=$('plist'); lst.innerHTML='';
@@ -1250,17 +1562,14 @@ function buildProfiles(){
     var b=document.createElement('button'); b.className='pcard'+(p.id===save.cur?' cur':'');
     b.appendChild(charThumb(p.ch,42));
     var box=document.createElement('div');
-    var cl=Object.keys(p.best).length, st=0; for(var k in p.stars) st+=p.stars[k];
-    box.innerHTML='<div class="nm">'+esc(p.name)+'</div><div class="mt">'+cl+'개 클리어 · ⭐'+st+' · 최고 '+(p.unlocked)+'레벨</div>';
+    var cl=Object.keys(p.best).length, st=starSum(p);
+    box.innerHTML='<div class="nm">'+esc(p.name)+'</div><div class="mt">'+cl+'개 클리어 · ⭐'+st+' · 최고 '+bestLevel(p)+'단계</div>';
     b.appendChild(box);
     var del=document.createElement('span'); del.className='del'; del.textContent='🗑';
     del.onclick=function(ev){ ev.stopPropagation();
-      if(confirm('"'+p.name+'" 플레이어와 기록을 모두 지울까요?')){
-        save.profiles=save.profiles.filter(function(q){return q.id!==p.id;});
-        if(save.cur===p.id) save.cur=save.profiles.length?save.profiles[0].id:null;
-        writeSave(); buildProfiles(); } };
+      if(confirm('"'+p.name+'" 플레이어와 기록을 모두 지울까요?')) delProfile(p.id); };
     b.appendChild(del);
-    b.onclick=function(){ SFX.click(); save.cur=p.id; writeSave(); buildGrid(); show('scSelect'); };
+    b.onclick=function(){ pickProfile(p.id); };
     lst.appendChild(b);
   });
 }
@@ -1317,6 +1626,8 @@ function goPlay(){
   else { buildGrid(); show('scSelect'); }
 }
 $('bGo').onclick=function(){ SFX.click(); ac(); goPlay(); };
+$('tMake').onclick=newFromTitle;
+$('tNew').onkeydown=function(e){ if(e.key==='Enter') newFromTitle(); e.stopPropagation(); };
 $('bRankT').onclick=$('bRankP').onclick=$('bRankS').onclick=function(){ SFX.click(); buildRank(); show('scRank'); };
 $('bRBack').onclick=function(){ SFX.click(); if(prof()){buildGrid();show('scSelect');} else if(save.profiles.length){buildProfiles();show('scProfile');} else show('scTitle'); };
 $('bPBack').onclick=function(){ SFX.click(); show('scTitle'); };
@@ -1328,6 +1639,8 @@ $('bCreate').onclick=function(){
   var nm=$('inName').value.trim().slice(0,10); if(!nm) return;
   if(save.profiles.some(function(p){return p.name===nm;})){ alert('같은 닉네임이 이미 있어요.'); return; }
   var p=newProfile(nm,pickChar); save.profiles.push(p); save.cur=p.id; writeSave();
+  $('tNew').value=''; buildTitle();
+  var vn=$('vsName'); if(vn) vn.value=nm.slice(0,8);
   SFX.cp(); buildGrid(); show('scSelect');
 };
 $('bSBack').onclick=function(){ SFX.click();
@@ -1336,7 +1649,7 @@ $('bList').onclick=$('bList2').onclick=function(){ SFX.click();
   if(VS.on){ Versus.leave(); return; }            /* 온라인 중엔 대결에서 나가기 */
   G.mode='select'; buildGrid(); show('scSelect'); };
 $('bRe').onclick=$('bRetry').onclick=function(){ SFX.click(); startLevel(G.level); };
-$('bNext').onclick=function(){ SFX.click(); startLevel(Math.min(100,G.level+1)); };
+$('bNext').onclick=function(){ SFX.click(); startLevel(Math.min(200,G.level+1)); };
 function syncAudio(){ $('bSfx').classList.toggle('off',!save.sfx); $('bBgm').classList.toggle('off',!save.bgm); }
 $('bSfx').onclick=function(){ save.sfx=!save.sfx; writeSave(); syncAudio(); if(save.sfx)SFX.click(); };
 $('bBgm').onclick=function(){ save.bgm=!save.bgm; writeSave(); syncAudio(); if(save.bgm){ac();bgmStart();} };
@@ -1377,9 +1690,8 @@ if(TOUCH){ $('touch').classList.add('on'); $('tip').textContent='◀ ▶ 이동 
 document.addEventListener('touchmove',function(e){ if(e.target.closest&&e.target.closest('#touch')) e.preventDefault(); },{passive:false});
 window.addEventListener('pointerdown',function(){ ac(); },{once:true});
 
-/* 시작 문구 */
-(function(){ var pr=prof();
-  $('bGo').textContent = pr ? (pr.name+' 이어서 하기') : (save.profiles.length?'플레이어 고르기':'시작하기'); })();
+/* 첫 화면 초기화 */
+buildTitle();
 
 /* ══════════ 온라인 대결 ══════════ */
 /* 같은 맵 레이스: 방장이 고른 난이도로 양쪽이 똑같은 코스를 달린다.
@@ -1478,6 +1790,9 @@ function drawGhostHint(camx,camy){
 /* 로비 열기 */
 function openVersus(){
   SFX.click(); ac();
+  /* 골라둔 닉네임이 있으면 대결 로비 이름칸 기본값으로 채워준다 */
+  setTimeout(function(){ var el=$('vsName'), pp=prof();
+    if(el && pp && !el.value.trim()) el.value=pp.name.slice(0,8); },0);
   Versus.open({
     game:'jump-map',
     /* 방장이 고른 설정을 참가자에게도 그대로 적용 */
@@ -1497,6 +1812,8 @@ function openVersus(){
           '<option value="41">어려움 · 41레벨부터</option>' +
           '<option value="61">매우 어려움 · 61레벨부터</option>' +
           '<option value="81">극악 · 81레벨부터</option>' +
+          '<option value="121">신세계 · 121레벨부터</option>' +
+          '<option value="161">전설 · 161레벨부터</option>' +
         '</select>' +
         '<div style="margin:10px 0 4px">코스 수</div>' +
         '<select class="vs-sel" id="vsJmCnt"><option value="2">2개</option>' +
@@ -1514,7 +1831,7 @@ function openVersus(){
       VS.bonus=0; VS.live=0; VS.ghost=null; VS.oppChar='box'; VS.sent=-1; VS.tick=0;
       VS.limitMs=(s.limit||180)*1000; VS.leftMs=VS.limitMs;
       VS.levels=[];
-      for(var i=0;i<(s.count||3);i++) VS.levels.push(clamp((s.start||1)+i,1,100));
+      for(var i=0;i<(s.count||3);i++) VS.levels.push(clamp((s.start||1)+i,1,200));
       Versus.send({t:'chr',c:vsMyChar()});
       startLevel(VS.levels[0]);
       VS.sent=vsScore(); Versus.setScore(VS.sent);
@@ -1543,7 +1860,8 @@ function vsExit(){
 $('bVs').onclick=openVersus;
 
 /* 개발/테스트용 훅 */
-window.JM={start:startLevel,G:G,P:P,VS:VS,gen:genLevel,save:save,CHARS:CHARS,drawChar:drawChar,IN:IN};
+window.JM={start:startLevel,G:G,P:P,VS:VS,gen:genLevel,save:save,CHARS:CHARS,drawChar:drawChar,IN:IN,
+           step:step,reset:resetPlayer,show:show,buildTitle:buildTitle};
 })();
 </script>
 </body>

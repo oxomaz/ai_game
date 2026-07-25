@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>미니 게임 모음</title>
+<title>김재희의 게임천국</title>
 <style>
   :root{
     --blue:#4285F4; --red:#EA4335; --yellow:#FBBC05; --green:#34A853;
@@ -41,24 +41,23 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="logo"><span>미</span><span>니</span><span>게</span><span>임</span></div>
-  <p class="sub">여기서 바로 플레이할 수 있는 게임 모음이에요. <b>🌐</b> 표시가 있는 게임은 방 코드로 친구와 대결할 수 있어요!</p>
+  <div class="logo"><span>김</span><span>재</span><span>희</span>의 <span>게임</span><span>천국</span></div>
+  <p class="sub">재희가 만든 게임들이 모여 있어요. 여기서 바로 플레이할 수 있어요. <b>🌐</b> 표시가 있는 게임은 방 코드로 친구와 대결할 수 있어요!</p>
   <div id="sections"></div>
   <footer>새 게임은 <code>games/fun/</code> · <code>games/study/</code> 폴더에 계속 추가됩니다.</footer>
 </div>
 <script>
   // 새 게임을 추가하면 여기에 한 줄씩 등록하세요. (category: "fun" 재미용 / "study" 학습용)
   const GAMES = [
-    { path: "games/study/math-speed/",          emoji: "⚡", title: "연산 스피드 퀴즈", desc: "제한 시간 안에 사칙연산 문제 풀기. 난이도 3단계 · 연속 보너스 · 틀린 문제 다시 보기", category: "study" },
-    { path: "games/study/times-table-shooter/", emoji: "🚀", title: "구구단 슈팅",     desc: "내려오는 숫자 중 정답을 쏘는 액션 게임. 연습할 단 고르기 · 목숨 3개 · 오답 노트", category: "study" },
-    { path: "games/study/word-cards/",          emoji: "🔤", title: "영단어 카드 퀴즈", desc: "초등 3학년 영단어 120개. 카드 외우기 · 영→뜻 · 뜻→영 · 발음 듣기", category: "study" },
-    { path: "games/study/quiz-science/",        emoji: "🧠", title: "상식·과학 퀴즈",   desc: "과학·우주·동물·역사·한국·생활 6개 주제 43문제. 문제마다 해설이 나와요", category: "study" },
-    { path: "games/fun/kkeutmalitgi/",  emoji: "🔤", title: "끝말잇기",     desc: "컴퓨터와 3단계 난이도로 대결하거나, 최대 8명이 한 화면에서 돌아가며 단어 잇기", category: "fun", vs: true },
+    { path: "games/study/math-speed/",          emoji: "⚡", title: "연산 스피드 퀴즈", desc: "제한 시간 안에 사칙연산 문제 풀기. 6~7살부터 초6까지 4단계 · 틀린 문제 다시 보기", category: "study", vs: true },
+    { path: "games/study/times-table-shooter/", emoji: "🚀", title: "구구단 슈팅",     desc: "내려오는 숫자 중 정답을 쏘는 액션 게임. 6~7살부터 초6까지 4단계 · 오답 노트", category: "study", vs: true },
+    { path: "games/study/word-cards/",          emoji: "🔤", title: "영단어 카드 퀴즈", desc: "영단어 484개를 나이 4단계로. 카드 외우기 · 영→뜻 · 뜻→영 · 발음 듣기", category: "study", vs: true },
+    { path: "games/study/quiz-science/",        emoji: "🧠", title: "상식·과학 퀴즈",   desc: "과학·우주·동물·역사·한국·생활 190문제를 나이 4단계로. 문제마다 해설이 나와요", category: "study", vs: true },
+    { path: "games/fun/word-chain/",  emoji: "🔤", title: "끝말잇기",     desc: "낱말 31만 개를 인정하는 사전. 컴퓨터·여럿이서·온라인으로 단어 잇기", category: "fun", vs: true },
     { path: "games/fun/hidden-object/", emoji: "🔍", title: "숨은그림찾기", desc: "매판 새로 그려지는 그림판에서 목표 찾기. 혼자서도, 둘이서 버저 대결로도", category: "fun", vs: true },
     { path: "games/fun/set/",           emoji: "🃏", title: "SET 카드게임", desc: "네 속성이 모두 같거나 모두 다른 세 장 찾기. 규칙 설명과 연습 문제부터 시작", category: "fun", vs: true },
-    { path: "games/fun/jump-map/",      emoji: "🏃", title: "점프맵 100",   desc: "1~100단계 파쿠르 점프맵. 닉네임별 기록 · 캐릭터 12종 · 별 수집", category: "fun", vs: true },
-    { path: "games/fun/subway-io/",     emoji: "🚇", title: "지하철 슬리더", desc: "노선 18종·등급 7종 중 내 열차를 골라 승객을 태우고 편성을 늘리는 슬리더리오식 대전", category: "fun", vs: true },
-    { path: "games/fun/onitama/",       emoji: "🥷", title: "오니타마",     desc: "5×5 판의 미니 체스. 카드가 움직임을 정하고, 쓴 카드는 상대에게 넘어간다. 컴퓨터 3단계", category: "fun", vs: true }
+    { path: "games/fun/jump-map/",      emoji: "🏃", title: "점프맵 100",   desc: "1~100단계 파쿠르 점프맵. 닉네임 만들기 · 캐릭터 12종 · 101단계부터 새 장치", category: "fun", vs: true },
+    { path: "games/fun/subway-io/",     emoji: "🚇", title: "지하철 슬리더", desc: "노선 18종·등급 7종 중 내 열차를 골라 승객을 태우고 편성을 늘리는 슬리더리오식 대전", category: "fun", vs: true }
   ];
   const SECTIONS = [
     { key: "study", title: "📚 학습용 게임" },

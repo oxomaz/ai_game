@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>SET 카드게임</title>
 <style>
   :root{
@@ -22,7 +22,8 @@
   body{
     font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,-apple-system,sans-serif;
     background:var(--bg); color:var(--ink);
-    min-height:100vh; overflow-x:hidden;
+    min-height:var(--jg-vh,100vh); overflow-x:hidden;
+    padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right);
   }
   button{font-family:inherit; cursor:pointer; border:none; background:none; color:inherit;}
 
@@ -31,9 +32,14 @@
   .screen.on{display:block;}
   @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
-  .wrap{max-width:1120px; margin:0 auto; padding:16px;}
-  #scr-game .wrap{max-width:940px; padding:12px 14px 20px;}
+  .wrap{max-width:1120px; margin:0 auto; padding:16px;
+        padding-top:calc(12px + env(safe-area-inset-top));
+        padding-bottom:calc(16px + env(safe-area-inset-bottom));}
+  #scr-game .wrap{max-width:940px; padding:10px 10px 8px;
+                  padding-top:calc(8px + env(safe-area-inset-top));
+                  padding-bottom:calc(6px + env(safe-area-inset-bottom));}
   #scr-home .wrap{max-width:620px;}
+  #jgChip{display:flex; justify-content:center; margin-bottom:2px;}
 
   /* ---------- 시작 화면 ---------- */
   .hero{text-align:center; padding:28px 0 10px;}
@@ -89,12 +95,36 @@
   .pbtn:active{transform:scale(.98);}
   .timerbar{position:absolute; left:0; bottom:0; height:5px; width:100%; background:rgba(255,255,255,.65); transform-origin:left;}
 
-  .board{display:grid; grid-template-columns:repeat(var(--cols,4),1fr); gap:10px; margin:4px auto 14px;
-         max-width:var(--boardw,680px);}
-  .toolrow, .msg{max-width:var(--boardw,680px); margin-left:auto; margin-right:auto;}
+  .board{display:grid; grid-template-columns:repeat(var(--cols,4),1fr); gap:var(--cgap,10px); margin:4px auto 12px;
+         width:100%; max-width:var(--boardw,680px);}
+  /* 메시지·버튼 줄의 너비는 보드 크기와 무관하게 둔다
+     (보드 크기 계산이 메시지 높이에 다시 영향받지 않도록) */
+  .toolrow, .msg{max-width:min(100%,560px); margin-left:auto; margin-right:auto;}
   @media(max-width:640px){
-    .board{grid-template-columns:repeat(3,1fr); gap:7px; max-width:none;}
-    .players, .toolrow, .msg{max-width:none;}
+    .players{max-width:max(var(--boardw,680px),260px);}
+  }
+  /* 화면이 낮을 때(가로모드 등) 주변 UI를 줄여 카드 자리를 확보 */
+  @media(max-height:470px){
+    #scr-game .wrap{padding-top:6px;}
+    .topbar{margin-bottom:6px;}
+    .icon-btn{padding:5px 9px; font-size:12px;}
+    .players{margin-bottom:6px;}
+    .pbtn{padding:4px 8px;}
+    .pbtn .pname{font-size:12px;}
+    .pbtn .pscore{font-size:19px; line-height:1.1;}
+    .pbtn .phint{display:none;}
+    .board{margin:2px auto 8px;}
+    .toolrow{margin-bottom:0; align-content:center;}
+    .tool{padding:7px 12px; font-size:12.5px;}
+    .msg{min-height:0; padding:6px 10px; font-size:12.5px; line-height:1.4;}
+    /* 메시지와 버튼을 한 줄로 — 보드가 쓸 세로 공간을 넓힌다 */
+    #scr-game .wrap{display:grid; grid-template-columns:minmax(0,1fr) auto; align-content:start;
+                    grid-template-areas:"tb tb" "pl pl" "bd bd" "ms tl"; column-gap:8px;}
+    #scr-game .topbar{grid-area:tb;}
+    #scr-game .players{grid-area:pl;}
+    #scr-game .board{grid-area:bd;}
+    #scr-game .msg{grid-area:ms; margin:0;}
+    #scr-game .toolrow{grid-area:tl; margin:0; flex-wrap:nowrap; align-items:center;}
   }
 
   .card{position:relative; background:#fff; border-radius:13px; border:2px solid var(--line); aspect-ratio:5/7;
@@ -125,9 +155,11 @@
   .msg b{color:var(--ink);}
 
   /* ---------- 오버레이 ---------- */
-  .overlay{position:fixed; inset:0; background:rgba(47,42,38,.55); display:none; align-items:center; justify-content:center; padding:18px; z-index:60;}
+  .overlay{position:fixed; inset:0; background:rgba(47,42,38,.55); display:none; align-items:center; justify-content:center; z-index:60;
+           padding:14px; padding-top:max(14px,env(safe-area-inset-top)); padding-bottom:max(14px,env(safe-area-inset-bottom));}
   .overlay.on{display:flex;}
-  .sheet{background:var(--panel); border-radius:22px; padding:24px; max-width:520px; width:100%; max-height:86vh; overflow:auto;
+  .sheet{background:var(--panel); border-radius:22px; padding:20px; max-width:520px; width:100%;
+         max-height:calc(var(--jg-vh,100vh) - 28px); overflow:auto; -webkit-overflow-scrolling:touch;
          box-shadow:0 20px 50px rgba(0,0,0,.25); animation:rise .3s ease;}
   @keyframes rise{from{opacity:0; transform:translateY(24px)}to{opacity:1; transform:none}}
   .sheet h2{margin:0 0 12px; font-size:24px;}
@@ -156,6 +188,7 @@
 <!-- ============ 시작 화면 ============ -->
 <div class="screen on" id="scr-home">
   <div class="wrap">
+    <div id="jgChip"></div>
     <div class="hero">
       <h1>S<span>E</span>T</h1>
       <p>같은 것끼리, 아니면 전부 다르게! 세 장을 찾아보세요</p>
@@ -217,6 +250,7 @@
 <!-- ============ 오버레이 ============ -->
 <div class="overlay" id="ov"><div class="sheet" id="ovBody"></div></div>
 
+<script src="../../../common/profile.js"></script>
 <script src="../../../common/versus.js"></script>
 <script>
 /* =========================================================
@@ -316,7 +350,8 @@ function explainFail(a,b,c){
 }
 
 /* =========================================================
-   3. 기록 저장 (프로젝트 규칙에 따라 브라우저 저장소 미사용 — 메모리에만 보관)
+   3. 소리 설정 등 가벼운 값은 메모리에만 보관
+      (플레이어별 기록·배지는 common/profile.js 의 JG 가 맡는다)
    ========================================================= */
 let REC = {};
 function loadRec(){ return REC; }
@@ -393,6 +428,7 @@ const board$ = $('board'), msg$ = $('msg');
 function say(html, kind=''){
   msg$.className = 'msg' + (kind ? ' '+kind : '');
   msg$.innerHTML = html;
+  layoutBoard();          // 메시지가 길어져도 카드가 화면 밖으로 밀리지 않게
 }
 
 /* ---------- 화면 전환 ---------- */
@@ -400,6 +436,7 @@ function show(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
   $(id).classList.add('on');
   window.scrollTo(0,0);
+  if (id === 'scr-game'){ layoutBoard(); setTimeout(layoutBoard, 400); }   // 화면이 켜진 뒤에 크기를 잡는다
 }
 
 /* ---------- 옵션 버튼 ---------- */
@@ -420,25 +457,39 @@ bindOpts('optMode', v => {
   renderBest();
 });
 
-/* ---------- 기록 표시 ---------- */
+/* ---------- 기록 표시 (플레이어별 기록은 common/profile.js) ---------- */
+const DIFF_KO = () => G.easy ? '쉬움' : '정식';
+function recMode(mode = G.mode){
+  if (mode === 'online') return '온라인 대결';
+  if (mode === 'solo')   return '혼자 · ' + DIFF_KO();
+  return '2인 대전 · ' + DIFF_KO();
+}
 function renderBest(){
-  const r = loadRec();
-  const dk = G.easy ? 'easy' : 'full';
-  let html = '';
-  if (G.mode === 'solo'){
-    const t = r['solo_'+dk];
-    html = t ? `🏅 혼자 연습 최고 기록 (${G.easy?'쉬움':'정식'}): <b>${fmt(t)}</b>` : '아직 기록이 없어요. 첫 기록에 도전!';
-  } else {
-    const w = r.wins || {};
-    const keys = Object.keys(w);
-    html = keys.length ? '🏆 누적 승수 · ' + keys.map(k=>`${k} ${w[k]}승`).join(' / ') : '누적 승수는 게임이 끝나면 쌓여요.';
-  }
-  $('bestBox').innerHTML = html;
+  const box = $('bestBox');
+  if (!box) return;
+  if (!window.JG){ box.innerHTML = ''; return; }
+  try{
+    let html;
+    if (G.mode === 'solo'){
+      const t = JG.best('set', recMode('solo'));
+      html = (t != null)
+        ? `🏅 혼자 연습 최고 기록 (${DIFF_KO()}): <b>${fmtSec(t)}</b>`
+        : '아직 혼자 연습 기록이 없어요. 첫 기록에 도전!';
+    } else {
+      const b = JG.best('set', recMode('vs'));
+      html = (b != null)
+        ? `🏅 2인 대전 최고 (${DIFF_KO()}): 한 판에 <b>SET ${b}개</b>`
+        : '기록은 한 판을 끝까지 하면 쌓여요.';
+    }
+    html += `<br>🃏 지금까지 ${JG.plays('set')}판 플레이`;
+    box.innerHTML = html;
+  }catch(e){ box.innerHTML = ''; }
 }
 function fmt(ms){
   const s = Math.floor(ms/1000);
   return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
 }
+function fmtSec(sec){ return fmt(sec*1000); }
 
 /* =========================================================
    7. 게임 시작 / 보드 관리
@@ -541,18 +592,53 @@ function updateScores(){
   [0,1].forEach(i=>{ const e=$('s'+i); if(e) e.textContent = G.scores[i]; });
 }
 
-/* ---------- 보드 크기 계산 (화면 안에 3줄이 다 들어오도록) ---------- */
-function layoutBoard(){
-  const live = G.board.filter(Boolean).length || 12;
-  const cols = Math.max(3, Math.ceil(live/3));
-  const root = document.documentElement.style;
-  root.setProperty('--cols', cols);
-  // 세로로 3줄이 화면에 들어오는 카드 폭을 계산 (헤더·점수판·버튼 영역 ≈ 300px)
-  const byHeight = ((window.innerHeight - 300) / 3) * 5 / 7;
-  const per = Math.max(88, Math.min(172, byHeight));
-  root.setProperty('--boardw', Math.round(cols * per) + 'px');
+/* ---------- 보드 크기 계산 ----------
+   카드 전체가 스크롤 없이 한 화면에 들어오도록 열 수와 카드 크기를 같이 고른다.
+   (카드 클릭은 요소에 직접 걸려 있어 크기가 변해도 좌표가 어긋나지 않는다)      */
+function vpSize(){
+  const vv = window.visualViewport;
+  return { w: Math.round((vv && vv.width) || window.innerWidth),
+           h: Math.round((vv && vv.height) || window.innerHeight) };
 }
-window.addEventListener('resize', ()=>{ if ($('scr-game').classList.contains('on')) layoutBoard(); });
+function layoutBoard(){
+  if (!$('scr-game').classList.contains('on')) return;
+  const live = G.board.filter(Boolean).length || 12;
+  const root = document.documentElement.style;
+  const vp = vpSize();
+  const gap = vp.w < 420 ? 6 : 10;
+
+  // 보드 위쪽(헤더·점수판)과 아래쪽(버튼·메시지)이 차지하는 높이를 실제로 잰다
+  const wrapStyle = getComputedStyle(board$.parentElement);
+  const padBottom = (parseFloat(wrapStyle.paddingBottom) || 8) + 6;
+  const tool = document.querySelector('.toolrow');
+  const above = board$.offsetTop;                       // 문서 맨 위 ~ 보드 위
+  const boardEnd = board$.offsetTop + board$.offsetHeight;
+  const tail = Math.max(tool ? tool.offsetTop + tool.offsetHeight : 0,
+                        msg$.offsetTop + msg$.offsetHeight);
+  const below = Math.max(60, tail - boardEnd) + padBottom;   // 보드 아래 UI (배치와 무관하게 실측)
+  const H = Math.max(120, vp.h - above - below);
+  const availW = Math.min(vp.w - 20, 940);
+
+  let best = null;
+  for (let cols = 3; cols <= 9; cols++){
+    if (cols > live) break;
+    const rows = Math.ceil(live / cols);
+    const byW = (availW - gap * (cols - 1)) / cols;
+    const byH = ((H - gap * (rows - 1)) / rows) * 5 / 7;
+    const cw = Math.min(byW, byH, 168);
+    // 비슷하면 줄 수가 많은(=열이 적은) 배치를 그대로 둔다
+    if (!best || cw > best.cw + 3) best = { cols, cw, rows };
+  }
+  if (!best) best = { cols: 3, cw: 60, rows: Math.ceil(live/3) };
+  const cw = Math.max(38, best.cw);
+
+  root.setProperty('--cols', best.cols);
+  root.setProperty('--cgap', gap + 'px');
+  root.setProperty('--boardw', Math.round(best.cols * cw + gap * (best.cols - 1)) + 'px');
+}
+window.addEventListener('resize', layoutBoard);
+window.addEventListener('orientationchange', ()=>setTimeout(layoutBoard, 260));
+if (window.visualViewport) window.visualViewport.addEventListener('resize', layoutBoard);
 
 /* ---------- 보드 렌더 ---------- */
 function renderBoard(){
@@ -742,6 +828,22 @@ $('btnNoSet').onclick = ()=>{
 /* =========================================================
    11. 종료 처리
    ========================================================= */
+/* 한 판을 끝까지 마쳤을 때 기록과 배지를 저장한다.
+   저장 라이브러리가 없거나 막혀 있어도 게임은 그대로 진행된다. */
+function saveRecord({score, unit='개', lowerIsBetter=false}){
+  if (!window.JG) return null;
+  try{
+    const label = recMode();
+    const res = JG.submit('set', { score, mode:label, unit, lowerIsBetter });
+    const badges = JG.awardAll({
+      'set-clear':  true,
+      'set-12':     G.found >= 12,
+      'set-nohint': G.hintsUsed === 0
+    });
+    return { res, score, unit, badges, label };
+  }catch(e){ return null; }
+}
+
 function checkEnd(force=false){
   const live = G.board.filter(Boolean);
   const noMore = findAllSets(live).length === 0 && G.deck.length === 0;
@@ -750,29 +852,19 @@ function checkEnd(force=false){
   clearTimers();
   SFX.win(); confetti(90);
 
-  const rec = loadRec();
-  let body = '';
+  let body = '', info = null;
   if (G.mode === 'solo'){
     const el = Date.now() - G.startTime;
-    const dk = 'solo_' + (G.easy?'easy':'full');
-    const prev = rec[dk];
-    const best = !prev || el < prev;
-    if (best) { rec[dk] = el; saveRec(rec); }
+    info = saveRecord({ score: Math.max(1, Math.round(el/1000)), lowerIsBetter:true, unit:'초' });
     body = `<div class="winner">
       <div class="trophy">🎉</div><h2>더 이상 SET이 없어요!</h2>
       <div class="scoreline">⏱️ 걸린 시간 ${fmt(el)}</div>
-      <div class="scoreline">🔍 찾은 SET ${G.found}개 · 💡 힌트 ${G.hintsUsed}번</div>
-      <p style="color:var(--muted)">${best ? '🏅 새로운 최고 기록이에요!' : `이전 최고 기록: ${fmt(prev)}`}</p>`;
+      <div class="scoreline">🔍 찾은 SET ${G.found}개 · 💡 힌트 ${G.hintsUsed}번</div>`;
   } else {
     const [a,b] = G.scores;
     const tie = a===b;
     const winIdx = a>b ? 0 : 1;
-    if (!tie){
-      rec.wins = rec.wins || {};
-      const nm = G.names[winIdx];
-      rec.wins[nm] = (rec.wins[nm]||0)+1;
-      saveRec(rec);
-    }
+    info = saveRecord({ score: G.found, unit:'개' });
     body = `<div class="winner">
       <div class="trophy">${tie ? '🤝' : '🏆'}</div>
       <h2>${tie ? '무승부예요!' : escapeHtml(G.names[winIdx]) + ' 승리!'}</h2>
@@ -780,9 +872,17 @@ function checkEnd(force=false){
       <div class="scoreline" style="color:var(--p2)">${escapeHtml(G.names[1])} ${b}점</div>
       <p style="color:var(--muted)">힌트 ${G.hintsUsed}번 사용</p>`;
   }
-  body += `<button class="big-btn" style="margin-top:14px" id="ovAgain">한 판 더!</button>
+  body += `<div id="jgRes" style="margin:14px 0;text-align:left"></div>
+           <button class="big-btn" id="ovAgain">한 판 더!</button>
            <button class="link" style="margin-top:10px" id="ovHome">처음 화면으로</button></div>`;
   openOverlay(body);
+  if (info){
+    JG.resultBox('jgRes', {
+      gameId:'set', score:info.score, res:info.res, unit:info.unit, badges:info.badges,
+      extra:[['모드', info.label], ['찾은 SET', G.found + '개'], ['힌트', G.hintsUsed + '번']]
+    });
+  }
+  renderBest();
   $('ovAgain').onclick = ()=>{ closeOverlay(); startGame(); };
   $('ovHome').onclick = ()=>{ closeOverlay(); renderBest(); show('scr-home'); };
 }
@@ -903,6 +1003,27 @@ document.addEventListener('keydown', e=>{
   const demo = [{c:0,s:0,n:0,f:0},{c:1,s:1,n:1,f:1},{c:2,s:2,n:2,f:2}];
   $('demoRow').innerHTML = demo.map(c=>`<div class="card">${cardSVG(c)}</div>`).join('');
 })();
+
+/* ---------- 플레이어 프로필 ---------- */
+let nameTouched = false;
+function syncMyName(){
+  if (!window.JG || nameTouched) return;
+  try{ $('n1').value = JG.player().name.slice(0,6); }catch(e){}
+}
+if (window.JG){
+  JG.mountChip('jgChip');
+  JG.on('change', ()=>{ syncMyName(); renderBest(); });
+  $('n1').addEventListener('input', ()=>{ nameTouched = true; });
+  syncMyName();
+}
+/* 온라인 로비의 이름 칸을 내 프로필 이름으로 채워준다 */
+function seedVersusName(){
+  if (!window.JG) return;
+  try{
+    const fill = ()=>{ const i = document.getElementById('vsName'); if (i && !i.value) i.value = JG.player().name.slice(0,8); };
+    fill(); setTimeout(fill, 40);
+  }catch(e){}
+}
 renderBest();
 
 /* ══ 온라인 대결 ══ */
@@ -931,6 +1052,7 @@ function openVersus(){
     onLeave: () => { clearTimers(); renderBest(); show('scr-home'); },
     onCancel: () => show('scr-home')
   });
+  seedVersusName();
 }
 $('btnOnline').onclick = openVersus;
 
@@ -1066,9 +1188,14 @@ function checkEndOnline(){
     clearTimers();
     G.busy = true;
     say(`카드를 다 썼어요! 내가 찾은 SET <b>${G.found}개</b> 🎉`, 'good');
+    saveRecord({ score: G.found, unit:'개' });   // 온라인 대결 기록은 따로 쌓인다
+    renderBest();
     Versus.finish(G.found);
   }
 }
+
+/* ---------- 테스트용 훅 ---------- */
+window.__set = { G, isSet, findAllSets, renderBoard, layoutBoard, checkEnd, startGame, recMode };
 
 /* ---------- 자가 점검 (콘솔) ---------- */
 (function selfTest(){

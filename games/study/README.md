@@ -8,10 +8,10 @@
 
 | | 게임 | 과목 | 폴더 |
 |---|---|---|---|
-| ⚡ | [연산 스피드 퀴즈](math-speed/) | 수학 · 연산 | `math-speed/` |
-| 🚀 | [구구단 슈팅](times-table-shooter/) | 수학 · 구구단 | `times-table-shooter/` |
-| 🔤 | [영단어 카드 퀴즈](word-cards/) | 영어 | `word-cards/` |
-| 🧠 | [상식·과학 퀴즈](quiz-science/) | 상식 | `quiz-science/` |
+| ⚡ | [연산 스피드 퀴즈](math-speed/) | 수학 · 연산 / 🌐 온라인 | `math-speed/` |
+| 🚀 | [구구단 슈팅](times-table-shooter/) | 수학 · 구구단 / 🌐 온라인 | `times-table-shooter/` |
+| 🔤 | [영단어 카드 퀴즈](word-cards/) | 영어 / 🌐 온라인 | `word-cards/` |
+| 🧠 | [상식·과학 퀴즈](quiz-science/) | 상식 / 🌐 온라인 | `quiz-science/` |
 
 ## 학습용 게임에만 적용되는 규칙
 

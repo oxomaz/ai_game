@@ -28,12 +28,19 @@
     user-select:none; transition:.12s;
   }
   .opt.on{border-color:var(--blue); background:#e8f0fe; color:var(--blue);}
+  /* 나이 고르기 — 크고 알아보기 쉽게 */
+  .opts.age{gap:7px;}
+  .opts.age .opt{flex:1 1 0; min-width:0; padding:12px 2px; font-size:13px; line-height:1.35;}
+  .opts.age .opt .emo{display:block; font-size:26px; margin-bottom:3px;}
+  .hint{margin-top:9px; font-size:12.5px; font-weight:700; color:var(--sub); background:#f2f5fa;
+        border-radius:11px; padding:9px 11px; line-height:1.55;}
   .btn{
     display:block; width:100%; padding:15px; border:none; border-radius:13px; background:var(--blue);
     color:#fff; font-size:17px; font-weight:800; cursor:pointer; font-family:inherit;
   }
   .btn:active{transform:scale(.99);}
   .btn.ghost{background:#fff; color:var(--sub); border:2px solid var(--border);}
+  .btn.vs{background:linear-gradient(150deg,#7f8bff,#b58cff); margin-top:9px;}
   .hide{display:none !important;}
 
   /* play */
@@ -53,6 +60,8 @@
     padding:22px 14px; text-align:center; margin-bottom:12px;
   }
   .q{font-size:38px; font-weight:800; letter-spacing:1px;}
+  .q.sm{font-size:26px; letter-spacing:0;}
+  .q.xs{font-size:21px; letter-spacing:0;}
   .ans{
     margin-top:12px; font-size:32px; font-weight:800; color:var(--blue);
     min-height:44px; letter-spacing:2px;
@@ -62,6 +71,7 @@
   .qbox.no{border-color:var(--red); background:#fce8e6;}
   .combo{font-size:13px; font-weight:800; color:var(--yellow); height:18px;}
   .pad{display:grid; grid-template-columns:repeat(3,1fr); gap:9px;}
+  .pad.extra{grid-template-columns:repeat(2,1fr); margin-bottom:9px;}
   .key{
     padding:18px 0; border-radius:13px; border:2px solid var(--border); background:#fff;
     font-size:24px; font-weight:800; text-align:center; cursor:pointer; user-select:none;
@@ -70,6 +80,7 @@
   .key:active{background:#e8f0fe;}
   .key.fn{font-size:17px; color:var(--sub);}
   .key.go{background:var(--green); color:#fff; border-color:var(--green);}
+  .key.sp{padding:13px 0; font-size:19px; color:var(--blue); border-color:#cfe0ff; background:#f4f8ff;}
 
   /* result */
   .big{font-size:46px; font-weight:800; text-align:center; color:var(--blue); line-height:1.1;}
@@ -91,31 +102,19 @@
     <p class="tag">제한 시간 안에 최대한 많이 맞혀보세요!</p>
 
     <div class="panel">
-      <div class="label">연산 고르기 (여러 개 가능)</div>
-      <div class="opts" id="opsBox">
-        <div class="opt on" data-op="+">＋ 덧셈</div>
-        <div class="opt on" data-op="-">－ 뺄셈</div>
-        <div class="opt" data-op="*">× 곱셈</div>
-        <div class="opt" data-op="/">÷ 나눗셈</div>
-      </div>
+      <div class="label">몇 살이에요? (난이도)</div>
+      <div class="opts age" id="ageBox"></div>
+      <div class="hint" id="ageHint"></div>
     </div>
 
     <div class="panel">
-      <div class="label">난이도</div>
-      <div class="opts" id="lvBox">
-        <div class="opt on" data-lv="0">쉬움</div>
-        <div class="opt" data-lv="1">보통</div>
-        <div class="opt" data-lv="2">어려움</div>
-      </div>
+      <div class="label">연산 고르기 (여러 개 가능)</div>
+      <div class="opts" id="opsBox"></div>
     </div>
 
     <div class="panel">
       <div class="label">시간</div>
-      <div class="opts" id="tmBox">
-        <div class="opt" data-tm="30">30초</div>
-        <div class="opt on" data-tm="60">60초</div>
-        <div class="opt" data-tm="120">120초</div>
-      </div>
+      <div class="opts" id="tmBox"></div>
     </div>
 
     <div class="panel" id="bestPanel">
@@ -124,13 +123,14 @@
     </div>
 
     <button class="btn" id="startBtn">시작하기</button>
+    <button class="btn vs" id="vsBtn">🌐 친구랑 온라인 대결</button>
     <a class="back" href="../../../">← 게임 목록</a>
   </section>
 
   <!-- ===== 플레이 화면 ===== -->
   <section id="play" class="hide">
     <div class="hud">
-      <div><div class="k">남은 시간</div><div class="v" id="timeV">60</div></div>
+      <div><div class="k" id="timeK">남은 시간</div><div class="v" id="timeV">60</div></div>
       <div><div class="k">점수</div><div class="v" id="scoreV">0</div></div>
       <div><div class="k">맞힌 개수</div><div class="v" id="hitV">0</div></div>
     </div>
@@ -142,7 +142,11 @@
       <div class="combo" id="comboTxt"></div>
     </div>
 
-    <div class="pad">
+    <div class="pad extra hide" id="extraPad">
+      <button class="key sp" data-k=".">· 소수점</button>
+      <button class="key sp" data-k="/">／ 분수</button>
+    </div>
+    <div class="pad" id="mainPad">
       <button class="key" data-k="1">1</button>
       <button class="key" data-k="2">2</button>
       <button class="key" data-k="3">3</button>
@@ -182,7 +186,10 @@
 
 </div>
 
+<script src="../../../common/versus.js"></script>
 <script>
+var $ = function(id){ return document.getElementById(id); };
+
 /* ---------- 저장소 (없거나 막혀 있어도 게임이 멈추지 않게) ---------- */
 var memStore = {};
 function loadBest(){
@@ -197,87 +204,274 @@ function saveBest(obj){
   try{ localStorage.setItem("mathSpeedBest", JSON.stringify(obj)); }catch(e){}
 }
 
-/* ---------- 설정 ---------- */
-var LV_NAME = ["쉬움","보통","어려움"];
-var OP_SIGN = {"+":"+","-":"−","*":"×","/":"÷"};
-var cfg = { ops:["+","-"], lv:0, tm:60 };
+/* ---------- 나이 단계 (4단계: 6살 ~ 초6) ----------
+   ops   : 그 나이에 고를 수 있는 연산
+   times : 고를 수 있는 제한시간(어린 단계일수록 넉넉하게)
+   pen   : 틀렸을 때 깎이는 시간(초). 어린 단계는 안 깎는다.
+   maxLen: 답 입력 최대 글자 수                                   */
+var AGE = [
+  { emo:"🐣", nm:"6~7살", ops:["+","-"],                times:[60,90,120], defT:120, pen:0, maxLen:2,
+    hint:"10까지 더하기·빼기예요. 손가락으로 세어도 좋아요!" },
+  { emo:"🐤", nm:"초1~2", ops:["+","-"],                times:[60,90,120], defT:90,  pen:2, maxLen:3,
+    hint:"두 자리 수 덧셈·뺄셈 (받아올림·받아내림 포함)" },
+  { emo:"🐥", nm:"초3~4", ops:["+","-","*","/"],        times:[30,60,90],  defT:60,  pen:3, maxLen:4,
+    hint:"곱셈·나눗셈, 세 자리 덧셈·뺄셈, 나머지 있는 나눗셈" },
+  { emo:"🦅", nm:"초5~6", ops:["+","-","*","/","m"],    times:[30,60,90],  defT:60,  pen:3, maxLen:7,
+    hint:"분수·소수 사칙연산, 괄호가 있는 혼합계산까지!" }
+];
+var OP_LABEL = { "+":"＋ 덧셈", "-":"－ 뺄셈", "*":"× 곱셈", "/":"÷ 나눗셈", "m":"🧮 혼합·괄호" };
+var OP_SIGN  = { "+":"+", "-":"−", "*":"×", "/":"÷" };
 
-function bindOpts(boxId, onPick, multi){
-  var box = document.getElementById(boxId);
-  box.addEventListener("click", function(e){
-    var el = e.target.closest(".opt");
-    if(!el) return;
-    if(multi){
-      el.classList.toggle("on");
-      if(!box.querySelector(".opt.on")) el.classList.add("on"); // 최소 1개 유지
-    }else{
-      box.querySelectorAll(".opt").forEach(function(o){ o.classList.remove("on"); });
-      el.classList.add("on");
-    }
-    onPick();
-  });
+var cfg = { lv:0, ops:["+","-"], tm:120 };
+
+/* ---------- 시작 화면 UI ---------- */
+function renderAge(){
+  $("ageBox").innerHTML = AGE.map(function(a,i){
+    return '<div class="opt'+(i===cfg.lv?" on":"")+'" data-lv="'+i+'">'+
+           '<span class="emo">'+a.emo+'</span>'+a.nm+'</div>';
+  }).join("");
+  $("ageHint").textContent = AGE[cfg.lv].hint;
+}
+function renderOps(){
+  var A = AGE[cfg.lv];
+  $("opsBox").innerHTML = A.ops.map(function(o){
+    return '<div class="opt on" data-op="'+o+'">'+OP_LABEL[o]+'</div>';
+  }).join("");
+  cfg.ops = A.ops.slice();
+}
+function renderTimes(){
+  var A = AGE[cfg.lv];
+  $("tmBox").innerHTML = A.times.map(function(t){
+    return '<div class="opt'+(t===A.defT?" on":"")+'" data-tm="'+t+'">'+t+'초</div>';
+  }).join("");
+  cfg.tm = A.defT;
 }
 function readCfg(){
   cfg.ops = [].map.call(document.querySelectorAll("#opsBox .opt.on"), function(o){ return o.dataset.op; });
-  cfg.lv  = +document.querySelector("#lvBox .opt.on").dataset.lv;
-  cfg.tm  = +document.querySelector("#tmBox .opt.on").dataset.tm;
+  var t = document.querySelector("#tmBox .opt.on");
+  cfg.tm = t ? +t.dataset.tm : AGE[cfg.lv].defT;
   showBest();
 }
-function bestKey(){ return cfg.ops.slice().sort().join("") + "|" + cfg.lv + "|" + cfg.tm; }
+$("ageBox").addEventListener("click", function(e){
+  var el = e.target.closest(".opt"); if(!el) return;
+  cfg.lv = +el.dataset.lv;
+  renderAge(); renderOps(); renderTimes(); readCfg();
+});
+$("opsBox").addEventListener("click", function(e){
+  var el = e.target.closest(".opt"); if(!el) return;
+  el.classList.toggle("on");
+  if(!$("opsBox").querySelector(".opt.on")) el.classList.add("on");  // 최소 1개 유지
+  readCfg();
+});
+$("tmBox").addEventListener("click", function(e){
+  var el = e.target.closest(".opt"); if(!el) return;
+  $("tmBox").querySelectorAll(".opt").forEach(function(o){ o.classList.remove("on"); });
+  el.classList.add("on"); readCfg();
+});
+function bestKey(){ return cfg.lv + "|" + cfg.ops.slice().sort().join("") + "|" + cfg.tm; }
 function showBest(){
   var b = loadBest()[bestKey()];
-  document.getElementById("bestTxt").textContent =
-    b ? (b + "점  (" + LV_NAME[cfg.lv] + " · " + cfg.tm + "초)") : "아직 없어요";
+  $("bestTxt").textContent =
+    b ? (b + "점  (" + AGE[cfg.lv].emo + " " + AGE[cfg.lv].nm + " · " + cfg.tm + "초)") : "아직 없어요";
 }
-bindOpts("opsBox", readCfg, true);
-bindOpts("lvBox", readCfg, false);
-bindOpts("tmBox", readCfg, false);
 
 /* ---------- 문제 만들기 ---------- */
 function ri(a,b){ return a + Math.floor(Math.random()*(b-a+1)); }
+function gcd(a,b){ a=Math.abs(a); b=Math.abs(b); while(b){ var t=a%b; a=b; b=t; } return a||1; }
+
+/* 정수 답 두 항 문제 */
+function int2(a,op,b,ans){
+  return { txt: a+" "+OP_SIGN[op]+" "+b+" = ?", ans:ans, kind:"int", ansStr:String(ans) };
+}
+/* 10배 정수 → 소수 문자열 (0.2, 20.4 …) */
+function dstr(t){ return (t%10===0) ? String(t/10) : (Math.floor(t/10)+"."+(t%10)); }
+/* 소수 한 자리 난수 (일의 자리 lo~hi, 소수 첫째 자리 1~9) */
+function decT(lo,hi){ return ri(lo,hi)*10 + ri(1,9); }
+function decOut(txt, ansT){
+  return { txt: txt+" = ?", ans: ansT/10, kind:"dec", ansStr: dstr(ansT) };
+}
 
 function makeQ(){
   var op = cfg.ops[ri(0, cfg.ops.length-1)];
-  var a, b, ans;
+  if(cfg.lv === 0) return q0(op);
+  if(cfg.lv === 1) return q1(op);
+  if(cfg.lv === 2) return q2(op);
+  return q3(op);
+}
+
+/* 🐣 6~7살 — 10 이하, 받아올림·받아내림 없음 */
+function q0(op){
+  var a,b;
+  if(op === "+"){ a = ri(1,9); b = ri(1,10-a); return int2(a,"+",b,a+b); }
+  a = ri(2,10); b = ri(1,a-1); return int2(a,"-",b,a-b);
+}
+
+/* 🐤 초1~2 — 두 자리 덧셈·뺄셈 (받아올림·받아내림 포함) */
+function q1(op){
+  var a,b;
   if(op === "+"){
-    if(cfg.lv===0){ a=ri(1,10); b=ri(1,10); }
-    else if(cfg.lv===1){ a=ri(10,60); b=ri(10,40); }
-    else { a=ri(100,899); b=ri(100,899); }
-    ans = a+b;
-  }else if(op === "-"){
-    if(cfg.lv===0){ a=ri(2,18); b=ri(1,a); }
-    else if(cfg.lv===1){ a=ri(20,99); b=ri(1,a); }
-    else { a=ri(200,999); b=ri(10,a); }
-    ans = a-b;
-  }else if(op === "*"){
-    if(cfg.lv===0){ a=ri(2,5); b=ri(1,9); }
-    else if(cfg.lv===1){ a=ri(2,9); b=ri(2,9); }
-    else { a=ri(11,49); b=ri(3,9); }
-    ans = a*b;
-  }else{ // 나눗셈 — 항상 딱 나누어떨어지게 만든다
-    var q, d;
-    if(cfg.lv===0){ d=ri(2,5); q=ri(1,9); }
-    else if(cfg.lv===1){ d=ri(2,9); q=ri(2,9); }
-    else { d=ri(3,9); q=ri(11,29); }
-    a = d*q; b = d; ans = q;
+    if(Math.random() < 0.6){                       // 받아올림 있는 문제
+      var au = ri(4,9), bu = ri(10-au,9);
+      a = ri(1,8)*10 + au;  b = ri(1,8)*10 + bu;
+    }else{                                         // 받아올림 없는 문제
+      var au2 = ri(0,8), bu2 = ri(0,9-au2);
+      a = ri(1,8)*10 + au2; b = ri(1,8)*10 + bu2;
+    }
+    return int2(a,"+",b,a+b);
   }
-  return { a:a, b:b, op:op, ans:ans, txt: a + " " + OP_SIGN[op] + " " + b + " = ?" };
+  if(Math.random() < 0.6){                         // 받아내림 있는 문제
+    var at = ri(3,9), au3 = ri(0,8);
+    var bt = ri(1,at-1), bu3 = ri(au3+1,9);
+    a = at*10 + au3; b = bt*10 + bu3;
+  }else{                                           // 받아내림 없는 문제
+    var at2 = ri(2,9), au4 = ri(1,9);
+    var bt2 = ri(1,at2-1), bu4 = ri(0,au4);
+    a = at2*10 + au4; b = bt2*10 + bu4;
+  }
+  return int2(a,"-",b,a-b);
+}
+
+/* 🐥 초3~4 — 곱셈·나눗셈, 세 자리 덧뺄셈, 나머지 있는 나눗셈 */
+function q2(op){
+  var a,b;
+  if(op === "+"){ a = ri(100,899); b = ri(100,899); return int2(a,"+",b,a+b); }
+  if(op === "-"){ a = ri(200,999); b = ri(101,a-1); return int2(a,"-",b,a-b); }
+  if(op === "*"){
+    if(Math.random() < 0.5){ a = ri(2,9);  b = ri(2,9); }
+    else                   { a = ri(11,29); b = ri(2,9); }
+    return int2(a,"*",b,a*b);
+  }
+  var r = Math.random();
+  if(r < 0.4){ var d = ri(2,9), q = ri(2,12); return int2(d*q,"/",d,q); }  // 딱 떨어지는 나눗셈
+  var bb = ri(3,9), qq = ri(2,15), rr = ri(1,bb-1), aa = bb*qq + rr;
+  if(r < 0.7) return { txt: aa+" ÷ "+bb+" 의 몫은?",     ans:qq, kind:"int", ansStr:String(qq) };
+  return       { txt: aa+" ÷ "+bb+" 의 나머지는?", ans:rr, kind:"int", ansStr:String(rr) };
+}
+
+/* 🦅 초5~6 — 분수·소수 사칙연산, 큰 수, 괄호 혼합계산 */
+function q3(op){
+  if(op === "m") return qMix();
+  var r = ri(0,2);
+  if(op === "+"){
+    if(r === 0) return decQ("+");
+    if(r === 1) return fracQ("+");
+    var a1 = ri(1000,8999), b1 = ri(1000,8999); return int2(a1,"+",b1,a1+b1);
+  }
+  if(op === "-"){
+    if(r === 0) return decQ("-");
+    if(r === 1) return fracQ("-");
+    var a2 = ri(3000,9999), b2 = ri(1001,a2-1); return int2(a2,"-",b2,a2-b2);
+  }
+  if(op === "*"){
+    if(r === 0) return decQ("*");
+    if(r === 1) return fracQ("*");
+    var a3 = ri(11,39), b3 = ri(11,19); return int2(a3,"*",b3,a3*b3);
+  }
+  if(r === 0) return decQ("/");
+  if(r === 1) return fracQ("/");
+  var bb = ri(3,12), qq = ri(5,25), rr = ri(1,bb-1), aa = bb*qq + rr;
+  if(Math.random() < 0.5) return { txt: aa+" ÷ "+bb+" 의 몫은?",     ans:qq, kind:"int", ansStr:String(qq) };
+  return                         { txt: aa+" ÷ "+bb+" 의 나머지는?", ans:rr, kind:"int", ansStr:String(rr) };
+}
+
+/* 소수 사칙연산 (10배 정수로 계산해 오차가 안 생기게) */
+function decQ(op){
+  if(op === "*"){ var m = decT(1,9), k = ri(2,9); return decOut(dstr(m)+" × "+k, m*k); }
+  if(op === "/"){ var q = decT(1,9), d = ri(2,9); return decOut(dstr(q*d)+" ÷ "+d, q); }
+  if(op === "+"){ var x = decT(1,19), y = decT(1,19); return decOut(dstr(x)+" + "+dstr(y), x+y); }
+  var A = decT(5,29), B = decT(1,4);                 // A > B 가 항상 보장된다
+  return decOut(dstr(A)+" − "+dstr(B), A-B);
+}
+
+/* 분수 사칙연산 — 답은 항상 기약분수 */
+function fracQ(op){
+  var d1 = ri(2,9), n1 = ri(1,d1-1);
+  var d2 = ri(2,9), n2 = ri(1,d2-1);
+  if(op === "-"){
+    if(n1*d2 === n2*d1){                             // 값이 같으면 답이 0 이 되니 살짝 바꾼다
+      if(n2 > 1) n2 -= 1;
+      else d2 = (d2 + 1 <= 9) ? d2 + 1 : d2 - 1;
+    }
+    if(n1*d2 < n2*d1){                               // 큰 분수에서 작은 분수를 뺀다
+      var tn = n1; n1 = n2; n2 = tn;
+      var td = d1; d1 = d2; d2 = td;
+    }
+  }
+  var n, d;
+  if(op === "+")      { n = n1*d2 + n2*d1; d = d1*d2; }
+  else if(op === "-") { n = n1*d2 - n2*d1; d = d1*d2; }
+  else if(op === "*") { n = n1*n2;         d = d1*d2; }
+  else                { n = n1*d2;         d = d1*n2; }
+  var g = gcd(n,d); n /= g; d /= g;
+  return {
+    txt: n1+"/"+d1+" "+OP_SIGN[op]+" "+n2+"/"+d2+" = ?",
+    ans: n/d, kind:"frac", ansStr: (d === 1 ? String(n) : n+"/"+d), fn:n, fd:d
+  };
+}
+
+/* 괄호가 있는 혼합계산 — 답은 항상 1 이상의 정수 */
+function qMix(){
+  var t = ri(0,4), a, b, c, txt, ans;
+  if(t === 0){ a = ri(2,15); b = ri(2,15); c = ri(2,9); txt = "("+a+" + "+b+") × "+c; ans = (a+b)*c; }
+  else if(t === 1){ a = ri(2,30); b = ri(2,12); c = ri(2,9); txt = a+" + "+b+" × "+c; ans = a + b*c; }
+  else if(t === 2){
+    a = ri(3,15); b = ri(2,9); c = ri(1,20);
+    if(c >= a*b) c = ri(1, a*b - 1);
+    txt = a+" × "+b+" − "+c; ans = a*b - c;
+  }
+  else if(t === 3){ a = ri(10,40); b = ri(2,9); c = ri(2,9); txt = "("+a+" − "+b+") × "+c; ans = (a-b)*c; }
+  else{
+    c = ri(2,9); var k = ri(2,15), sum = c*k;
+    b = ri(1, sum-1); a = sum - b;
+    txt = "("+a+" + "+b+") ÷ "+c; ans = k;
+  }
+  return { txt: txt+" = ?", ans:ans, kind:"int", ansStr:String(ans) };
+}
+
+/* 입력한 답이 맞는지 확인 */
+function checkAns(q, s){
+  s = String(s).trim();
+  if(!s) return false;
+  if(q.kind === "frac"){
+    var m = s.match(/^(\d+)\/(\d+)$/);
+    if(m){
+      var n = +m[1], d = +m[2];
+      if(!d) return false;
+      var g = gcd(n,d);
+      return (n/g) === q.fn && (d/g) === q.fd;
+    }
+    if(/^\d+$/.test(s)) return q.fd === 1 && +s === q.fn;
+    return false;
+  }
+  if(q.kind === "dec"){
+    if(!/^\d+(\.\d+)?$/.test(s)) return false;
+    return Math.abs(parseFloat(s) - q.ans) < 1e-6;
+  }
+  if(!/^\d+$/.test(s)) return false;
+  return parseInt(s,10) === q.ans;
 }
 
 /* ---------- 게임 진행 ---------- */
 var S = null, timer = null;
-var $ = function(id){ return document.getElementById(id); };
 
 function start(){
   readCfg();
-  S = { left:cfg.tm, score:0, hit:0, miss:0, combo:0, best:0, input:"", q:null, wrongs:[], lock:false };
+  beginGame("single");
+}
+
+function beginGame(mode){
+  S = { mode:mode, left:cfg.tm, score:0, hit:0, miss:0, combo:0, best:0,
+        input:"", q:null, wrongs:[], lock:false, idx:0, total:0, over:false };
+  if(mode === "online"){ S.total = VS.count; S.left = 0; }
   $("home").classList.add("hide");
   $("over").classList.add("hide");
   $("play").classList.remove("hide");
+  $("extraPad").classList.toggle("hide", cfg.lv !== 3);
+  $("timeK").textContent = (mode === "online") ? "남은 문제" : "남은 시간";
+  clearInterval(timer);
   nextQ();
   paint();
-  clearInterval(timer);
-  timer = setInterval(tick, 1000);
+  if(mode === "single") timer = setInterval(tick, 1000);
 }
 
 function tick(){
@@ -287,20 +481,34 @@ function tick(){
 }
 
 function nextQ(){
-  S.q = makeQ();
+  if(S.mode === "online"){
+    if(S.idx >= VS.list.length){ finish(); return; }
+    S.q = VS.list[S.idx++];
+  }else{
+    S.q = makeQ();
+  }
   S.input = "";
-  $("qTxt").textContent = S.q.txt;
+  var t = $("qTxt");
+  t.textContent = S.q.txt;
+  t.className = "q" + (S.q.txt.length > 20 ? " xs" : (S.q.txt.length > 13 ? " sm" : ""));
 }
 
 function paint(){
-  $("timeV").textContent = S.left;
-  $("timeV").className = "v" + (S.left <= 10 ? " warn" : "");
+  if(S.mode === "online"){
+    var left = Math.max(0, S.total - S.idx + (S.q ? 1 : 0));
+    $("timeV").textContent = left;
+    $("timeV").className = "v";
+    $("barI").style.width = (S.total ? (left / S.total * 100) : 0) + "%";
+    $("barI").className = "";
+  }else{
+    $("timeV").textContent = S.left;
+    $("timeV").className = "v" + (S.left <= 10 ? " warn" : "");
+    var bi = $("barI");
+    bi.style.width = (cfg.tm ? (S.left / cfg.tm * 100) : 100) + "%";
+    bi.className = S.left <= 10 ? "warn" : "";
+  }
   $("scoreV").textContent = S.score;
   $("hitV").textContent = S.hit;
-  var pct = cfg.tm ? (S.left / cfg.tm * 100) : 100;
-  var bi = $("barI");
-  bi.style.width = pct + "%";
-  bi.className = S.left <= 10 ? "warn" : "";
   var at = $("ansTxt");
   at.textContent = S.input === "" ? "?" : S.input;
   at.className = "ans" + (S.input === "" ? " empty" : "");
@@ -319,49 +527,64 @@ function flash(cls, cb){
 }
 
 function submit(){
-  if(S.lock || S.input === "") return;
-  var v = parseInt(S.input, 10);
-  if(v === S.q.ans){
+  if(S.lock || S.input === "" || S.over) return;
+  var mine = S.input;
+  if(checkAns(S.q, mine)){
     S.hit++;
     S.combo++;
     if(S.combo > S.best) S.best = S.combo;
-    var bonus = Math.min(S.combo, 10) * 2;      // 연속 보너스 (최대 +20)
-    S.score += 10 + bonus + cfg.lv * 5;          // 난이도 보너스
+    var bonus = Math.min(S.combo, 10) * 2;       // 연속 보너스 (최대 +20)
+    S.score += 10 + bonus + cfg.lv * 5;          // 나이 단계 보너스
     flash("ok", function(){ nextQ(); paint(); });
   }else{
     S.miss++;
     S.combo = 0;
-    S.wrongs.push(S.q.a + " " + OP_SIGN[S.q.op] + " " + S.q.b + " = " + S.q.ans + "  (내 답 " + v + ")");
-    S.left = Math.max(1, S.left - 3);            // 오답 −3초
+    S.wrongs.push(S.q.txt.replace(" = ?","") + " → " + S.q.ansStr + "  (내 답 " + mine + ")");
+    if(S.mode === "single") S.left = Math.max(1, S.left - AGE[cfg.lv].pen);   // 오답 시간 감점
     flash("no", function(){ nextQ(); paint(); });
   }
   paint();
+  vsPush();
 }
 
 function key(k){
-  if(!S || S.lock) return;
+  if(!S || S.lock || S.over) return;
   if(k === "C"){ S.input = ""; paint(); return; }
   if(k === "E"){ submit(); return; }
-  if(S.input.length >= 4) return;
-  if(S.input === "0") S.input = "";
+  if(S.input.length >= AGE[cfg.lv].maxLen) return;
+  if(k === "."){
+    if(S.input === "" || S.input.indexOf(".") >= 0 || S.input.indexOf("/") >= 0) return;
+  }else if(k === "/"){
+    if(S.input === "" || S.input.indexOf("/") >= 0 || S.input.indexOf(".") >= 0) return;
+  }else{
+    if(S.input === "0") S.input = "";            // 앞자리 0 방지 (0.5 는 소수점 키로 이어짐)
+  }
   S.input += k;
   paint();
-  // 자릿수가 정답과 같아지면 자동 채점 — 아이가 확인 버튼을 안 눌러도 빠르게 진행
-  if(S.input.length >= String(S.q.ans).length) submit();
+  // 정수 답이고 자릿수가 같아지면 자동 채점 — 확인 버튼을 안 눌러도 빠르게 진행
+  if(S.q.kind === "int" && S.input.length >= S.q.ansStr.length) submit();
 }
 
-document.querySelector(".pad").addEventListener("click", function(e){
+$("mainPad").addEventListener("click", function(e){
+  var b = e.target.closest(".key");
+  if(b) key(b.dataset.k);
+});
+$("extraPad").addEventListener("click", function(e){
   var b = e.target.closest(".key");
   if(b) key(b.dataset.k);
 });
 document.addEventListener("keydown", function(e){
   if($("play").classList.contains("hide")) return;
   if(e.key >= "0" && e.key <= "9") key(e.key);
+  else if(e.key === "." && cfg.lv === 3) key(".");
+  else if(e.key === "/" && cfg.lv === 3) key("/");
   else if(e.key === "Enter") key("E");
   else if(e.key === "Backspace" || e.key === "Escape") key("C");
 });
 
 function finish(){
+  if(!S || S.over) return;
+  S.over = true;
   clearInterval(timer);
   var total = S.hit + S.miss;
   var acc = total ? Math.round(S.hit / total * 100) : 0;
@@ -380,14 +603,13 @@ function finish(){
     wl.innerHTML = "<div style='color:var(--green); font-weight:800;'>전부 다 맞혔어요! 대단해요 👏</div>";
   }
 
-  var all = loadBest();
-  var k = bestKey();
-  if(!all[k] || S.score > all[k]){
-    all[k] = S.score;
-    saveBest(all);
-    $("newBest").classList.remove("hide");
+  if(S.mode === "single"){
+    var all = loadBest(), k = bestKey();
+    if(!all[k] || S.score > all[k]){ all[k] = S.score; saveBest(all); $("newBest").classList.remove("hide"); }
+    else $("newBest").classList.add("hide");
   }else{
     $("newBest").classList.add("hide");
+    if(window.Versus && Versus.active()) Versus.finish(S.score);
   }
 
   $("play").classList.add("hide");
@@ -395,15 +617,112 @@ function finish(){
 }
 
 $("startBtn").onclick = start;
-$("againBtn").onclick = start;
+$("againBtn").onclick = function(){
+  if(S && S.mode === "online") return;            // 온라인은 대결 결과창의 "한 판 더!" 로
+  start();
+};
 $("homeBtn").onclick = function(){
+  if(S && S.mode === "online" && window.Versus && Versus.active()){ Versus.leave(); return; }
   $("over").classList.add("hide");
   $("home").classList.remove("hide");
   showBest();
 };
-$("quitBtn").onclick = function(e){ e.preventDefault(); finish(); };
+$("quitBtn").onclick = function(e){
+  e.preventDefault();
+  if(S && S.mode === "online" && window.Versus && Versus.active()){ Versus.leave(); return; }
+  finish();
+};
 
-showBest();
+/* ══════════════ 온라인 대결 ══════════════ */
+var VS = { count:10, list:null, sent:-1 };
+
+/* 점수가 바뀌면 상대에게 알린다 */
+function vsPush(){
+  if(!S || S.mode !== "online") return;
+  if(!window.Versus || !Versus.active()) return;
+  if(S.score === VS.sent) return;
+  VS.sent = S.score;
+  Versus.setScore(S.score);
+}
+
+/* 로비에서 방장이 문제 수를 고른다 (라이브러리가 그린 화면 안에서 동작) */
+function vsPickCount(n, el){
+  VS.count = n;
+  var box = el.parentNode;
+  [].forEach.call(box.children, function(c){ c.style.background = "#efeaf6"; c.style.color = "#4a4258"; });
+  el.style.background = "#7f8bff"; el.style.color = "#fff";
+}
+
+function openVersus(){
+  readCfg();
+  Versus.open({
+    game: "math-speed",
+    /* 방장이 고른 나이 단계·연산·문제 수를 참가자에게 그대로 적용한다 */
+    getSettings: function(){ return { lv: cfg.lv, ops: cfg.ops.slice(), n: VS.count }; },
+    settingsHTML: function(){
+      var A = AGE[cfg.lv];
+      if(!Versus.isHost){
+        return '<div class="vs-note">방장이 고른 <b>나이 단계 · 문제 수</b>로 둘 다 똑같은 문제를 풀어요. ' +
+               '더 많이 맞히고 연속으로 맞힌 사람이 이겨요!</div>';
+      }
+      var btn = function(n){
+        var on = (VS.count === n);
+        return '<button class="vs-btn" style="background:' + (on ? "#7f8bff" : "#efeaf6") + ';color:' +
+               (on ? "#fff" : "#4a4258") + '" onclick="vsPickCount(' + n + ',this)">' + n + '문제</button>';
+      };
+      return '<div class="vs-note">난이도: <b>' + A.emo + " " + A.nm + '</b> · 연산: <b>' +
+             cfg.ops.map(function(o){ return OP_LABEL[o]; }).join(", ") + '</b><br>' +
+             '바꾸려면 나가서 시작 화면에서 고른 뒤 다시 방을 만들어 주세요.</div>' +
+             '<div style="font-size:13px;font-weight:800;color:#8a83a0;margin:14px 0 6px">문제 수</div>' +
+             '<div class="vs-btns" style="margin-top:0">' + btn(5) + btn(10) + btn(20) + '</div>';
+    },
+    onStart: function(ctx){
+      var s = ctx.settings || {};
+      if(typeof s.lv === "number"){
+        cfg.lv = s.lv;
+        renderAge(); renderOps(); renderTimes();
+        if(s.ops && s.ops.length){
+          cfg.ops = s.ops.slice();
+          $("opsBox").querySelectorAll(".opt").forEach(function(o){
+            o.classList.toggle("on", cfg.ops.indexOf(o.dataset.op) >= 0);
+          });
+        }
+      }
+      VS.count = s.n || 10;
+      VS.sent = -1;
+      /* 문제 생성은 반드시 seeded 안에서 — 양쪽이 100% 똑같은 문제 세트를 받는다.
+         cfg.lv / cfg.ops 는 방장 설정으로 양쪽 모두 같은 값이므로 난수 소비도 같다. */
+      Versus.reseed(0);
+      VS.list = Versus.seeded(function(){
+        var arr = [];
+        for(var i = 0; i < VS.count; i++) arr.push(makeQ());
+        return arr;
+      });
+      beginGame("online");
+      Versus.setScore(0);
+    },
+    onLeave: function(){
+      clearInterval(timer);
+      if(S) S.over = true;
+      $("play").classList.add("hide");
+      $("over").classList.add("hide");
+      $("home").classList.remove("hide");
+      showBest();
+    },
+    onCancel: function(){
+      $("play").classList.add("hide");
+      $("over").classList.add("hide");
+      $("home").classList.remove("hide");
+    }
+  });
+}
+$("vsBtn").onclick = openVersus;
+
+/* ---------- 시작 ---------- */
+renderAge(); renderOps(); renderTimes(); showBest();
+
+/* 검증 스크립트에서 문제 생성기를 그대로 불러 쓰기 위한 통로 */
+window.__mathTest = { cfg:cfg, makeQ:makeQ, checkAns:checkAns, AGE:AGE, VS:VS, S:function(){ return S; } };
 </script>
 </body>
 </html>

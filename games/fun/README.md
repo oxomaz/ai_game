@@ -8,7 +8,7 @@
 
 | | 게임 | 인원 | 폴더 |
 |---|---|---|---|
-| 🔤 | [끝말잇기](kkeutmalitgi/) | 1인 / 최대 8인 / 🌐 온라인 | `kkeutmalitgi/` |
+| 🔤 | [끝말잇기](word-chain/) | 1인 / 최대 8인 / 🌐 온라인 | `word-chain/` |
 | 🔍 | [숨은그림찾기](hidden-object/) | 1인 / 2인 / 🌐 온라인 | `hidden-object/` |
 | 🃏 | [SET 카드게임](set/) | 1인 / 2인 / 🌐 온라인 | `set/` |
 | 🏃 | [점프맵 100](jump-map/) | 여러 명 / 🌐 온라인 | `jump-map/` |
