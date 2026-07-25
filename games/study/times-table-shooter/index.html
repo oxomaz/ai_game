@@ -489,6 +489,8 @@ stage.addEventListener("click", function(e){
     el.classList.add("bad");
     var k = G.q.txt.replace(" = ?","") + " = " + G.q.ans;
     G.wrongs[k] = (G.wrongs[k] || 0) + 1;
+    /* 서버 오답노트용 */
+    (G.notes || (G.notes = [])).push({ q: G.q.txt.replace(" = ?",""), a: String(G.q.ans), my: "" });
     loseLife("땡! 정답은 " + G.q.ans);
   }
 });
@@ -525,6 +527,7 @@ function finish(){
   }
 
   if(G.mode !== "single" && window.Versus && Versus.active()) Versus.finish(G.score);
+  if(window.Records && G.notes && G.notes.length) Records.note("times-table-shooter", G.notes.slice(0, 50));
 
   var info = saveRecord();
   $("newBest").classList.toggle("hide", !(info && info.res && info.res.isNewBest));
