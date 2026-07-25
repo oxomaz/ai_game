@@ -226,6 +226,58 @@
   }
   function on(ev, fn) { (listeners[ev] = listeners[ev] || []).push(fn); }
 
+  /* ---------------- 온라인 순위표 다리 (common/records.js) ----------------
+     기록은 항상 이 브라우저에 먼저 저장된다. 그 위에, 아래 표에 적힌
+     "순위표 모드"로 플레이한 판만 온라인 순위표(api/ + Upstash)에도 올린다.
+     서버는 게임당 순위표가 하나뿐이라, 난이도·주제가 뒤섞이면 순위가
+     무의미해지기 때문이다. 인터넷이 없거나 서버 설정 전이면 조용히 실패하고
+     records.js 가 큐에 담아 두었다가 다음 접속에 자동 재전송한다.
+     ※ SET 은 기록이 '초'(작을수록 좋음)이고 서버 순위표는 큰 값이 이기는
+        구조라 온라인 순위표에서는 제외한다(로컬 기록·배지는 그대로).      */
+  var RANKED = {
+    'math-speed':          { re: /^＋－ · 보통 · 60초$/,               label: '덧셈·뺄셈 · 보통 · 60초' },
+    'times-table-shooter': { re: /^2·3·4·5·6·7·8·9단 · 보통$/,        label: '전체 단 · 보통 속도' },
+    'word-cards':          { re: /^전체 주제 · 영→뜻$/,                label: '전체 주제 · 영→뜻' },
+    'quiz-science':        { re: /^전체 주제 · 20문제$/,               label: '전체 주제 · 20문제' },
+    'kkeutmalitgi':        { re: /^컴퓨터 · 보통$/,                    label: '컴퓨터 · 보통' },
+    'hidden-object':       { re: /^보통.* · 5판 · 제한시간$/,          label: '보통 · 5판 · 제한시간' },
+    'jump-map':            { re: /^혼자$/,                             label: '혼자 플레이' },
+    'subway-io':           { re: /^혼자$/,                             label: '혼자 플레이' },
+    'onitama':             { re: /^컴퓨터 · 보통$/,                    label: '컴퓨터 · 보통' }
+  };
+
+  /* records.js 를 옆 폴더에서 자동으로 불러온다 → 게임 파일은 손댈 필요 없음 */
+  var myScript = (document.currentScript) || (function () {
+    var s = document.getElementsByTagName('script');
+    return s[s.length - 1];
+  })();
+  var baseDir = (myScript && myScript.src) ? myScript.src.replace(/[^/]*$/, '') : '';
+  function bindRecords() {
+    if (!global.Records || !global.Records.useProfile) return;
+    try { global.Records.useProfile(player().id, player().name); } catch (e) {}
+  }
+  function loadRecords() {
+    if (global.Records) { bindRecords(); return; }
+    if (!baseDir) return;
+    try {
+      if (document.querySelector('script[src*="records.js"]')) return; // 페이지가 이미 넣어둠
+      var s = document.createElement('script');
+      s.src = baseDir + 'records.js';
+      s.async = true;
+      s.onload = bindRecords;
+      s.onerror = function () {};   // 없어도 게임은 그대로 돈다
+      document.head.appendChild(s);
+    } catch (e) {}
+  }
+  on('change', bindRecords);
+
+  /* 이 게임/모드가 온라인 순위표 대상인가 */
+  function rankedInfo(gameId, mode) {
+    var rk = RANKED[gameId];
+    if (!rk) return { ranked: false, label: null };
+    return { ranked: rk.re.test(String(mode)), label: rk.label };
+  }
+
   /* ---------------- 기록 ---------------- */
   /* submit('math-speed', {score:120, mode:'보통 60초'}) */
   function submit(gameId, opts) {
@@ -259,7 +311,20 @@
     if (gamesPlayed >= 5 && award('explorer-5')) earned.push('explorer-5');
     if (gamesPlayed >= Object.keys(GAMES).length && award('explorer-all')) earned.push('explorer-all');
 
-    return { best: r.best[mode], isNewBest: isNew, prevBest: prev, plays: r.plays, earned: earned };
+    /* 온라인 순위표에도 올린다 (순위표 모드로 플레이한 판만) */
+    var rk = rankedInfo(gameId, mode);
+    var online = null;
+    if (rk.ranked && global.Records && global.Records.submit) {
+      try {
+        bindRecords();
+        online = global.Records.submit(gameId, Math.max(0, Math.round(score)), { mode: mode, unit: opts.unit || '점' });
+      } catch (e) { online = null; }
+    }
+
+    return {
+      best: r.best[mode], isNewBest: isNew, prevBest: prev, plays: r.plays, earned: earned,
+      online: online, ranked: rk.ranked, rankedLabel: rk.label
+    };
   }
   function best(gameId, mode) {
     var d = bucket(ensure(read()));
@@ -373,7 +438,10 @@
     '.jg-res .jg-line b{font-weight:800;}',
     '.jg-res .jg-nb{background:#fef7e0;color:#b06000;border-radius:9px;padding:7px 10px;font-size:13px;font-weight:800;text-align:center;margin-bottom:8px;}',
     '.jg-res .jg-bg{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;}',
-    '.jg-res .jg-bd{background:#e6f4ea;color:#137333;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:800;}'
+    '.jg-res .jg-bd{background:#e6f4ea;color:#137333;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:800;}',
+    '.jg-on{margin-top:9px;font-size:12px;font-weight:700;color:#5f6368;line-height:1.5;word-break:keep-all;}',
+    '.jg-on.good{color:#1967d2;background:#e8f0fe;border-radius:9px;padding:7px 10px;font-weight:800;font-size:12.5px;}',
+    '.jg-on.wait{opacity:.65;}'
   ].join('');
 
   var styled = false;
@@ -566,8 +634,34 @@
         var b = BADGES[id]; return b ? '<span class="jg-bd">' + b.emoji + ' ' + b.title + '</span>' : '';
       }).join('') + '</div>';
     }
+    html += '<div class="jg-on" id="jgOn"></div>';
     html += '</div>';
     el.innerHTML = html;
+
+    /* 온라인 순위표 한 줄 (있을 때만) */
+    var line = el.querySelector('#jgOn');
+    if (!line) return;
+    if (res.ranked && res.online) {
+      line.className = 'jg-on wait';
+      line.textContent = '🌐 온라인 순위표에 올리는 중…';
+      res.online.then(function (r) {
+        if (r && r.ok && r.rank) {
+          line.className = 'jg-on good';
+          line.textContent = '🌐 온라인 순위 ' + r.rank + '위 / ' + r.total + '명 중' + (r.isBest ? ' · 내 최고 기록!' : '');
+        } else {
+          line.className = 'jg-on';
+          line.textContent = '🌐 지금은 순위표에 못 올렸어요. 인터넷이 연결되면 자동으로 올라가요.';
+        }
+      }, function () {
+        line.className = 'jg-on';
+        line.textContent = '🌐 지금은 순위표에 못 올렸어요. 인터넷이 연결되면 자동으로 올라가요.';
+      });
+    } else if (res.rankedLabel) {
+      line.className = 'jg-on';
+      line.textContent = '🌐 온라인 순위표는 「' + res.rankedLabel + '」 모드에서 올라가요';
+    } else {
+      line.style.display = 'none';
+    }
   }
 
   /* ---------------- 문제 랜덤화 도우미 ---------------- */
@@ -645,6 +739,7 @@
   function boot() {
     injectCSS();
     setupVH();
+    loadRecords();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
@@ -659,6 +754,7 @@
     badges: badges, hasBadge: hasBadge, award: award, awardAll: awardAll,
     toast: toast, mountChip: mountChip, openPicker: openPicker, resultBox: resultBox,
     shuffle: shuffle, shuffleBag: shuffleBag, recentFilter: recentFilter,
+    RANKED: RANKED, rankedInfo: rankedInfo,
     _read: read, _write: write, _reset: function () { mem = null; try { global.localStorage.removeItem(KEY); } catch (e) {} }
   };
 })(window);

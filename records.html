@@ -45,12 +45,13 @@
 <div class="wrap">
   <div class="top"><a href="./">← 게임 목록</a></div>
   <h1>📊 기록 보기</h1>
-  <p class="sub">플레이한 기록이 서버에 저장돼서, 다른 기기에서도 랭킹을 볼 수 있어요.</p>
+  <p class="sub">여기 있는 기록은 <b>서버에 저장</b>돼서 다른 기기·다른 사람에게도 보여요.<br>
+  게임 안에서 보는 최고기록·배지는 그 기기 안에만 남는 <b>내 개인 기록</b>이에요.</p>
 
   <div class="who">
     <span style="font-size:24px">🙋</span>
     <div><b id="myname">…</b><div style="font-size:12px;color:var(--sub)" id="myplays"></div></div>
-    <button id="rename">이름 바꾸기</button>
+    <button id="rename">플레이어 바꾸기</button>
   </div>
 
   <div class="tabs">
@@ -62,6 +63,7 @@
   <div id="view"><div class="card"><div class="empty">불러오는 중…</div></div></div>
 </div>
 
+<script src="./common/profile.js"></script>
 <script src="./common/records.js"></script>
 <script>
 const GAMES = [
@@ -84,7 +86,11 @@ async function header(){
   if (m && m.ok) document.getElementById("myplays").textContent = `총 ${m.plays.toLocaleString()}판 플레이`;
   return m;
 }
-document.getElementById("rename").onclick = async () => { await Records.changeName(); header(); render(); };
+document.getElementById("rename").onclick = () => {
+  if (window.JG) JG.openPicker();            // 게임과 같은 플레이어 목록을 그대로 쓴다
+  else Records.changeName().then(() => { header(); render(); });
+};
+if (window.JG) JG.on("change", () => { header(); render(); });
 
 async function tabMe(){
   const m = await Records.me();
@@ -127,9 +133,9 @@ async function drawBoard(game){
   const res = await Records.top(game, 30);
   if (!res || !res.ok) return void (box.innerHTML = offline);
   if (!res.top.length) return void (box.innerHTML =
-    '<div class="card"><div class="empty">아직 아무도 기록을 남기지 않았어요. 1등이 되어 보세요! 🥇</div></div>');
+    '<div class="card"><div class="empty">아직 아무도 기록을 남기지 않았어요. 1등이 되어 보세요! 🥇</div>' + rankedNote(game) + '</div>');
   const medal = ["🥇","🥈","🥉"];
-  box.innerHTML = `<div class="card"><h3>전체 ${res.total}명</h3><table>` +
+  box.innerHTML = `<div class="card">${rankedNote(game)}<h3>전체 ${res.total}명</h3><table>` +
     res.top.map(t => `<tr class="${t.me?"me":""}"><td style="width:40px">${medal[t.rank-1]||t.rank}</td>
       <td>${esc(t.name)}${t.me?' <span style="color:var(--blue)">(나)</span>':""}</td>
       <td class="n">${t.score.toLocaleString()}</td></tr>`).join("") +
@@ -162,7 +168,21 @@ document.querySelectorAll(".tab").forEach(b => b.onclick = () => {
   b.classList.add("on"); tab = b.dataset.t; render();
 });
 
-(async () => { await Records.ensureName(); header(); render(); })();
+/* 각 게임의 순위표가 어떤 모드 기준인지 알려준다 (profile.js 의 RANKED) */
+function rankedNote(gameKey){
+  try{
+    const rk = window.JG && JG.RANKED && JG.RANKED[gameKey];
+    if (rk) return `<div class="empty" style="text-align:left;padding:8px 2px 0">🌐 이 순위표는 <b>「${esc(rk.label)}」</b> 모드 기록만 올라가요.</div>`;
+    return '<div class="empty" style="text-align:left;padding:8px 2px 0">🌐 이 게임은 기록이 <b>시간(작을수록 좋음)</b>이라 순위표를 만들지 않았어요.</div>';
+  }catch(e){ return ''; }
+}
+
+(async () => {
+  /* 게임에서 쓰는 플레이어를 그대로 이어받는다 (프로필별로 서버 ID가 다름) */
+  if (window.JG && Records.useProfile) Records.useProfile(JG.player().id, JG.player().name);
+  if (!Records.name()) await Records.ensureName();
+  header(); render();
+})();
 </script>
 </body>
 </html>

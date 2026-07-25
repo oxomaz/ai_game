@@ -77,15 +77,53 @@
     store.set(PKEY, pid);
   }
 
+  /* ── 프로필(플레이어)별 신원 ────────────────────────────────────────────
+     common/profile.js 의 플레이어마다 서버 ID(pid)를 따로 발급한다.
+     같은 태블릿에서 형제가 번갈아 해도 온라인 기록이 섞이지 않는다.
+     맨 처음 프로필에는 기존 pid 를 그대로 물려줘서 예전 기록이 이어진다. */
+  var PMAP = 'jg_pid_map_v1';
+  var profileId = '';           // 현재 프로필 id ('' 이면 기기 공용 pid)
+  function pidMap() {
+    try { return JSON.parse(store.get(PMAP) || '{}') || {}; } catch (e) { return {}; }
+  }
+  function pidFor(id) {
+    var map = pidMap();
+    var v = map[id];
+    if (!v || !/^[A-Za-z0-9_-]{8,22}$/.test(v)) {
+      // 첫 프로필은 기기 pid 를 물려받는다 (그 전에 쌓인 기록 유지)
+      v = Object.keys(map).length ? makePid() : pid;
+      map[id] = v;
+      store.set(PMAP, JSON.stringify(map));
+    }
+    return v;
+  }
+  function nameKey() { return profileId ? NKEY + ':' + profileId : NKEY; }
+
+  /* profile.js 가 호출한다. 플레이어를 바꾸면 여기부터 다른 사람 기록이 된다. */
+  function useProfile(id, name) {
+    if (!id) return pid;
+    profileId = String(id);
+    pid = pidFor(profileId);
+    Records.pid = pid;
+    if (name) {
+      var n = String(name).trim().slice(0, 12);
+      if (n && n !== store.get(nameKey())) {
+        store.set(nameKey(), n);
+        send('/me', { pid: pid, name: n });   // 서버 쪽 표시 이름도 맞춰 둔다
+      }
+    }
+    return pid;
+  }
+
   function getName() {
-    return store.get(NKEY) || '';
+    return store.get(nameKey()) || '';
   }
   function setName(n) {
     n = String(n || '')
       .trim()
       .slice(0, 12);
     if (!n) return getName();
-    store.set(NKEY, n);
+    store.set(nameKey(), n);
     send('/me', { pid: pid, name: n });
     return n;
   }
@@ -381,6 +419,7 @@
   global.Records = {
     pid: pid,
     api: API,
+    useProfile: useProfile,
     name: getName,
     setName: setName,
     ensureName: ensureName,
