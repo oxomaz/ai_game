@@ -583,6 +583,8 @@ function submit(){
     S.miss++;
     S.combo = 0;
     S.wrongs.push(S.q.txt.replace(" = ?","") + " → " + S.q.ansStr + "  (내 답 " + mine + ")");
+    /* 서버 오답노트용 — 기록 페이지에서 다시 볼 수 있다 */
+    (S.notes || (S.notes = [])).push({ q: S.q.txt.replace(" = ?",""), a: S.q.ansStr, my: String(mine) });
     if(S.mode === "single") S.left = Math.max(1, S.left - AGE[cfg.lv].pen);   // 오답 시간 감점
     flash("no", function(){ nextQ(); paint(); });
   }
@@ -666,6 +668,7 @@ function finish(){
   var info = saveRecord();
   $("newBest").classList.toggle("hide", !(info && info.res && info.res.isNewBest));
   if(S.mode !== "single" && window.Versus && Versus.active()) Versus.finish(S.score);
+  if(window.Records && S.notes && S.notes.length) Records.note("math-speed", S.notes.slice(0, 50));
 
   if(info){
     JG.resultBox("jgRes", {
