@@ -47,6 +47,7 @@ export const GAMES = {
   'jump-map': { max: 100000, label: '점프맵 100' },
   'subway-io': { max: 1000000, label: '지하철 슬리더' },
   onitama: { max: 100000, label: '오니타마' },
+  'cooking-catch': { max: 100000, label: '요리조리 셰프' },
 };
 
 // ── HTTP 유틸 ──────────────────────────────────────────────────────────────
