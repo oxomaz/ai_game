@@ -82,6 +82,15 @@
   #boost.act{background:rgba(47,125,255,.5);}
   #hint{position:absolute; left:50%; transform:translateX(-50%); bottom:max(14px,env(safe-area-inset-bottom));
     font-size:12px; color:var(--sub); background:rgba(11,18,32,.7); padding:7px 14px; border-radius:20px;}
+  /* 아이템 효과 표시 · 속도 단계 안내 */
+  #fxbar{position:absolute; left:50%; transform:translateX(-50%); bottom:calc(max(14px,env(safe-area-inset-bottom)) + 40px);
+    display:flex; gap:6px; flex-wrap:wrap; justify-content:center; max-width:min(94vw,520px);}
+  #fxbar .fx{font-size:11.5px; font-weight:800; background:rgba(11,18,32,.8); border:1.5px solid #7cc4ff; color:#7cc4ff;
+    padding:4px 9px; border-radius:20px; white-space:nowrap;}
+  #toast{position:absolute; left:50%; top:34%; transform:translateX(-50%) scale(.9); opacity:0;
+    font-size:21px; font-weight:900; text-shadow:0 2px 12px rgba(0,0,0,.8); letter-spacing:-.4px;
+    transition:opacity .18s, transform .18s; white-space:nowrap;}
+  #toast.on{opacity:1; transform:translateX(-50%) scale(1);}
 
   /* ---------- 결과 ---------- */
   #over .inner{max-width:420px; margin-top:auto; margin-bottom:auto;}
@@ -120,6 +129,7 @@
     <div class="lab">탑승 승객</div>
     <div class="big" id="pax">0</div>
     <div class="sub2" id="cars">4칸 편성</div>
+    <div class="sub2" id="lvl" style="color:#ffd76a">속도 Lv.1</div>
   </div>
   <div class="card" id="board">
     <div class="bt">실시간 순위</div>
@@ -128,6 +138,8 @@
   <canvas id="mini" width="208" height="208"></canvas>
   <div id="boost">부스터</div>
   <div id="hint">마우스로 조향 · 클릭 또는 스페이스로 가속</div>
+  <div id="fxbar"></div>
+  <div id="toast"></div>
   <div id="vsNote">👻 상대 열차는 보이기만 해요 — 부딪히지 않아요! · AI 열차는 각자 화면에서 따로 움직여요</div>
 </div>
 
@@ -150,6 +162,9 @@
       <b>조작</b> · PC: 마우스 방향으로 이동, 클릭(또는 스페이스) 길게 누르면 가속<br>
       <b>모바일</b>: 화면을 누른 방향으로 이동, 왼쪽 아래 부스터 버튼으로 가속<br>
       가속하면 승객이 조금씩 내리니 필요할 때만 쓰세요.<br>
+      <b>편성</b>: 승객을 태우면 최대 <b>100칸</b>까지 길어져요.<br>
+      <b>난이도</b>: 25초마다 <b>속도 Lv.</b>가 올라가고 온 세상이 점점 빨라져요 (최고 Lv.12).<br>
+      <b>아이템</b>: 🐢 감속 · ⚡ 가속 · 🛡️ 무적(부딪혀도 안 죽고 오히려 격파!) · 🧲 자석(승객이 끌려와요)<br>
       <span style="opacity:.75">지도·노선·역 자료 © OpenStreetMap contributors (ODbL)</span>
     </div>
     <a class="hub-link" href="../../../">← 게임 목록</a>
@@ -261,14 +276,47 @@ const CAR_L        = 30;      // 차량 길이
 const CAR_W        = 17.5;    // 차량 폭
 const PATH_STEP    = 3;
 const BASE_CARS    = 4;
-const MAX_CARS     = 44;
-const PAX_PER_CAR  = 5;       // 승객 5명당 1칸
+const MAX_CARS     = 100;     // 최대 편성 (2026-07-29: 44 → 100)
+const PAX_PER_CAR  = 5;       // 승객 5명당 1칸 (44칸까지)
+const LONG_CARS    = 44;      // 여기부터는 조금 더 빨리 늘어난다
+const PAX_PER_LONG = 4;       // 44칸 넘어서는 승객 4명당 1칸 → 100칸이면 424명
 const BOOST_MIN    = 6;       // 부스터 최소 승객
 const BOOST_BURN   = 0.075;   // 프레임당 승객 소모
-const FOOD_TARGET  = 560;
+const FOOD_TARGET  = 640;
 const BOT_COUNT    = 11;
 const EAT_R        = 15;
 const MAGNET_R     = 62;
+
+/* ---------- 난이도: 시간이 지날수록 온 세상이 빨라진다 ---------- */
+const LV_SEC   = 25;      // 몇 초마다 한 단계씩 올라가는가
+const LV_STEP  = 0.075;   // 한 단계마다 빨라지는 비율
+const LV_MAX   = 12;      // 마지막 단계 (1 + 11*0.075 = 1.83배)
+let gameTime = 0;         // 출발한 뒤 흐른 시간(초)
+let shownLv  = 1;         // 화면에 알린 마지막 단계
+function speedLevel(){ return Math.min(LV_MAX, 1 + Math.floor(gameTime / LV_SEC)); }
+function worldSpeedMul(){ return 1 + (speedLevel() - 1) * LV_STEP; }
+
+/* ---------- 아이템 ----------
+   사용자 결정(2026-07-29): 아이템은 "나만" 먹는다. AI 열차는 아이템에 반응하지 않는다. */
+const ITEMS = {
+  slow:   {emoji:'🐢', name:'감속',  col:'#8fe3ff', sec:9,  mul:0.62},
+  fast:   {emoji:'⚡', name:'가속',  col:'#ffd76a', sec:7,  mul:1.5 },
+  shield: {emoji:'🛡️', name:'무적',  col:'#ff9ad5', sec:8  },
+  magnet: {emoji:'🧲', name:'자석',  col:'#b8ffbe', sec:10 }
+};
+const ITEM_KEYS   = Object.keys(ITEMS);
+const ITEM_TARGET = 7;    // 세상에 떠 있는 아이템 개수
+const ITEM_R      = 17;   // 아이템 크기(=먹는 반경)
+let items = [];
+let fx = {slow:0, fast:0, shield:0, magnet:0};   // 남은 시간(초)
+function fxClear(){ fx={slow:0, fast:0, shield:0, magnet:0}; }
+/* 내 열차의 속도 배율 = 세상 속도 × 아이템 효과 */
+function playerSpeedMul(){
+  let m = worldSpeedMul();
+  if(fx.slow>0) m *= ITEMS.slow.mul;
+  if(fx.fast>0) m *= ITEMS.fast.mul;
+  return m;
+}
 
 /* ---------- 유틸 ---------- */
 const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
@@ -309,6 +357,8 @@ function saveRecord(pax, cars, rank){
     const badges = JG.awardAll({
       'sub-len20': cars >= 20,
       'sub-len40': cars >= 40,
+      'sub-len70': cars >= 70,
+      'sub-len100': cars >= 100,
       'sub-first': rank === 1
     });
     return { res, badges, mode };
@@ -353,7 +403,13 @@ class Train{
     this.think_t=Math.floor(Math.random()*4); this.target=null; this.tgt_t=0;
     this.hunter=false; this.hunt_t=0; this.prey=null; this.boostUntil=0;
   }
-  get cars(){ return Math.min(MAX_CARS, BASE_CARS + Math.floor(this.pax/PAX_PER_CAR)); }
+  get cars(){
+    /* 44칸까지는 승객 5명당 1칸, 그 뒤로는 4명당 1칸 (100칸 = 424명) */
+    const base = BASE_CARS + Math.floor(this.pax/PAX_PER_CAR);
+    if(base <= LONG_CARS) return base;
+    const over = this.pax - (LONG_CARS-BASE_CARS)*PAX_PER_CAR;
+    return Math.min(MAX_CARS, LONG_CARS + Math.floor(over/PAX_PER_LONG));
+  }
   get scale(){ return 1 + Math.min(.45,(this.cars-BASE_CARS)*.011); }
   get bodyLen(){ return (this.cars-1)*SEG*this.scale; }
   get headR(){ return 8.0*this.scale; }
@@ -390,11 +446,13 @@ class Train{
   step(dt){
     // 편성이 길수록 회전이 무거워진다 (등급과 무관 — 칸수에만 의존)
     const heavy=1-Math.min(.34,(this.cars-BASE_CARS)*.0055);
-    const d=norm(this.tAng-this.ang), mt=TURN_RATE*heavy*dt;
+    /* 속도 배율. 빨라지면 회전도 같이 빨라져야 조종이 가능하다 (지수 .85 → 조금씩만 어려워짐) */
+    const mul = this.isPlayer ? playerSpeedMul() : worldSpeedMul();
+    const d=norm(this.tAng-this.ang), mt=TURN_RATE*heavy*dt*Math.pow(mul,0.85);
     this.ang+=clamp(d,-mt,mt);
-    let sp=BASE_SPEED;
+    let sp=BASE_SPEED*mul;
     if(this.boosting && this.pax>BOOST_MIN){
-      sp=BOOST_SPEED; this.burn+=BOOST_BURN*dt;
+      sp=BOOST_SPEED*mul; this.burn+=BOOST_BURN*dt;
       while(this.burn>=1){
         this.burn-=1; this.pax=Math.max(0,this.pax-1);
         const tail=this.carsPos[this.carsPos.length-1]||this;
@@ -551,6 +609,44 @@ function refillFood(){
   while(food.length<FOOD_TARGET && guard++<60){ const p=randPos(30); spawnOrb(p.x,p.y,1); }
 }
 
+/* ---------- 아이템 ---------- */
+function spawnItem(k){
+  const p=randPos(140);
+  items.push({x:p.x, y:p.y, k:k||ITEM_KEYS[(Math.random()*ITEM_KEYS.length)|0], ph:Math.random()*6.28});
+}
+function refillItems(){
+  let guard=0;
+  while(items.length<ITEM_TARGET && guard++<4) spawnItem();
+}
+/* 아이템 먹기 — 나만 먹는다 */
+function pickItems(){
+  if(!player || !player.alive) return;
+  const r=ITEM_R+player.headR;
+  for(let i=items.length-1;i>=0;i--){
+    const it=items[i];
+    if(Math.hypot(player.x-it.x, player.y-it.y) < r){ items.splice(i,1); applyItem(it.k); }
+  }
+}
+function applyItem(k){
+  const d=ITEMS[k];
+  if(k==='slow') fx.fast=0;          // 감속과 가속은 서로 지운다
+  if(k==='fast') fx.slow=0;
+  fx[k]=Math.min(d.sec*2, fx[k]+d.sec);
+  toast(`${d.emoji} ${d.name}!`, d.col);
+}
+/* 효과 시간 흘리기 (dt 는 16.7ms 한 칸 단위) */
+function tickFx(dt){
+  const sec=dt/60;
+  for(const k of ITEM_KEYS) if(fx[k]>0) fx[k]=Math.max(0, fx[k]-sec);
+}
+let toastT=0;
+function toast(text, col){
+  const el=document.getElementById('toast');
+  if(!el) return;
+  el.textContent=text; el.style.color=col||'#fff'; el.classList.add('on');
+  clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('on'), 1100);
+}
+
 /* ---------- 봇 ---------- */
 function spawnBot(){
   let p, tries=0;
@@ -655,8 +751,14 @@ function killTrain(t, reason){
 function collide(){
   for(const t of trains){
     if(!t.alive) continue;
-    // 경계
-    if(Math.hypot(t.x,t.y)>WORLD_R){ killTrain(t,'wall'); continue; }
+    // 경계 — 무적일 때는 죽지 않고 안쪽으로 튕겨 들어온다
+    if(Math.hypot(t.x,t.y)>WORLD_R){
+      if(t.isPlayer && fx.shield>0){
+        const a=Math.atan2(t.y,t.x);
+        t.x=Math.cos(a)*(WORLD_R-40); t.y=Math.sin(a)*(WORLD_R-40);
+        t.ang=t.tAng=a+Math.PI;
+      }else{ killTrain(t,'wall'); continue; }
+    }
     for(const o of trains){
       if(!t.alive) break;
       if(o===t||!o.alive) continue;
@@ -665,7 +767,11 @@ function collide(){
       const h=o.hull, n=o.hullN;
       for(let i=0;i<n;i+=2){
         const dx=h[i]-t.x, dy=h[i+1]-t.y;
-        if(dx*dx+dy*dy<lim){ o.kills++; killTrain(t,'crash:'+o.name); break; }
+        if(dx*dx+dy*dy<lim){
+          if(t.isPlayer && fx.shield>0){ t.kills++; killTrain(o,'crash:'+t.name); }  // 무적 = 뚫고 지나가며 격파
+          else { o.kills++; killTrain(t,'crash:'+o.name); }
+          break;
+        }
       }
     }
   }
@@ -675,14 +781,15 @@ function collide(){
 function eat(){
   for(const t of trains){
     if(!t.alive) continue;
-    const mr=MAGNET_R*t.scale, er=(EAT_R+t.headR*0.4);
+    const mag=(t.isPlayer && fx.magnet>0) ? 3.4 : 1;   // 🧲 아이템은 나만
+    const mr=MAGNET_R*t.scale*mag, er=(EAT_R+t.headR*0.4);
     for(let i=food.length-1;i>=0;i--){
       const f=food[i];
       const dx=t.x-f.x, dy=t.y-f.y, d2=dx*dx+dy*dy;
       if(d2>mr*mr) continue;
       const d=Math.sqrt(d2)||1;
       if(d<er){ t.pax+=f.v; f.gone=true; food.splice(i,1); }
-      else{ const pull=Math.min(3.4, 60/d); f.x+=dx/d*pull; f.y+=dy/d*pull; }
+      else{ const pull=Math.min(3.4*mag, 60*mag/d); f.x+=dx/d*pull; f.y+=dy/d*pull; }
     }
   }
 }
@@ -1149,6 +1256,22 @@ function drawWorld(){
     g.beginPath(); g.arc(f.x,f.y,pr,0,6.3); g.fill();
   }
 
+  // 아이템
+  for(const it of items){
+    if(it.x<L-40||it.x>R+40||it.y<T-40||it.y>B+40) continue;
+    const d=ITEMS[it.k], pu=1+Math.sin(tt*1.4+it.ph)*0.09, rr2=ITEM_R*pu;
+    g.save();
+    g.globalAlpha=.22; g.fillStyle=d.col;
+    g.beginPath(); g.arc(it.x,it.y,rr2*2.0,0,6.3); g.fill();
+    g.globalAlpha=1;
+    g.fillStyle='rgba(11,18,32,.92)'; g.strokeStyle=d.col; g.lineWidth=2.4;
+    g.beginPath(); g.arc(it.x,it.y,rr2,0,6.3); g.fill(); g.stroke();
+    g.font='700 '+(rr2*1.15).toFixed(1)+'px system-ui,"Apple SD Gothic Neo",sans-serif';
+    g.textAlign='center'; g.textBaseline='middle';
+    g.fillText(d.emoji, it.x, it.y+rr2*0.06);
+    g.restore();
+  }
+
   // 열차 (화면 밖 컬링)
   const cullR=Math.hypot(vw,vh)/2+60;
   for(const t of trains){
@@ -1157,7 +1280,18 @@ function drawWorld(){
     drawTrain(g,t);
   }
   if(VS.on) drawGhost(g);
-  if(player && player.alive) drawTrain(g,player);
+  if(player && player.alive){
+    drawTrain(g,player);
+    if(fx.shield>0){                       // 🛡️ 무적 — 머리에 보호막
+      g.save();
+      g.strokeStyle=ITEMS.shield.col; g.lineWidth=3;
+      g.globalAlpha=fx.shield<2 ? (0.35+0.45*Math.abs(Math.sin(frame*0.35))) : 0.85;
+      g.beginPath(); g.arc(player.x,player.y, player.headR*3.1+4, 0, 6.3); g.stroke();
+      g.globalAlpha=0.13; g.fillStyle=ITEMS.shield.col;
+      g.beginPath(); g.arc(player.x,player.y, player.headR*3.1+4, 0, 6.3); g.fill();
+      g.restore();
+    }
+  }
 
   g.restore();
 }
@@ -1231,6 +1365,10 @@ function drawMini(){
     g.fillStyle='rgba(8,12,22,.55)'; rr(g,x-4,y-3,8,6,1.5); g.fill();
     g.fillStyle=t.line.color; rr(g,x-3,y-2,6,4,1); g.fill();
   }
+  for(const it of items){                       // 아이템 = 작은 점
+    g.fillStyle=ITEMS[it.k].col;
+    g.beginPath(); g.arc(cx+it.x*k, cy+it.y*k, 2.6,0,6.3); g.fill();
+  }
   if(VS.on && VS.ghost && VS.ghost.pts.length>=2){   // 상대 위치도 미니맵에 표시
     g.strokeStyle='#c9dcff'; g.lineWidth=2;
     g.beginPath(); g.arc(cx+VS.ghost.pts[0]*k, cy+VS.ghost.pts[1]*k, 4.2,0,6.3); g.stroke();
@@ -1245,10 +1383,22 @@ function drawMini(){
 
 /* ---------- HUD ---------- */
 const elPax=document.getElementById('pax'), elCars=document.getElementById('cars'), elRanks=document.getElementById('ranks');
+const elLvl=document.getElementById('lvl'), elFx=document.getElementById('fxbar');
 function drawHud(){
   if(!player) return;
   elPax.textContent=player.pax;
   elCars.textContent=player.cars+'칸 편성'+(player.kills?' · '+player.kills+'대 격파':'');
+  const lv=speedLevel();
+  if(elLvl) elLvl.textContent='속도 Lv.'+lv+(lv>=LV_MAX?' 최고!':'');
+  if(elFx){
+    let h='';
+    for(const k of ITEM_KEYS){
+      if(fx[k]<=0) continue;
+      const d=ITEMS[k];
+      h+=`<span class="fx" style="border-color:${d.col};color:${d.col}">${d.emoji} ${d.name} ${Math.ceil(fx[k])}초</span>`;
+    }
+    elFx.innerHTML=h;
+  }
   const list=trains.filter(t=>t.alive).sort((a,b)=>b.pax-a.pax);
   const top=list.slice(0,5);
   const myRank=list.indexOf(player)+1;
@@ -1266,13 +1416,17 @@ function drawHud(){
 function loop(ts){
   if(!running) return;
   const dt=clamp((ts-lastT)/16.667, 0.2, 2.5); lastT=ts; frame++;
+  gameTime+=dt/60;
+  tickFx(dt);
+  const lv=speedLevel();
+  if(lv>shownLv){ shownLv=lv; toast('🚄 속도 Lv.'+lv+'!', '#ff9ad5'); }
 
   for(const t of trains){
     if(!t.alive) continue;
     if(!t.isPlayer){ if(((frame+t.think_t)&3)===0) botThink(t); }
     t.step(dt);
   }
-  eat(); collide(); refillFood();
+  eat(); pickItems(); collide(); refillFood(); refillItems();
 
   if(player&&player.alive){
     const lerp=0.12*dt;
@@ -1413,7 +1567,10 @@ function startGame(online){
 
   // 세상 만들기 — 온라인이면 시드 난수로 감싸서 양쪽이 똑같은 맵을 갖게 한다
   const build=()=>{
-    trains=[]; food=[]; stations=[]; frame=0;
+    trains=[]; food=[]; stations=[]; items=[]; frame=0;
+    gameTime=0; shownLv=1; fxClear();
+    document.getElementById('toast').classList.remove('on');
+    if(elFx) elFx.innerHTML='';
     /* 지도로 쓸 노선. 혼자 할 때는 내가 고른 노선,
        온라인 대결에서는 두 사람이 고른 노선이 다를 수 있으므로
        시드 난수로 뽑아 양쪽이 똑같은 지도를 보게 한다. */
@@ -1437,6 +1594,7 @@ function startGame(online){
       }
     }
     for(let i=0;i<14;i++) refillFood();
+    for(let i=0;i<ITEM_TARGET;i++) spawnItem();
     const myName = VS.on ? (Versus.myName||'나') : '나';
     const makeMe=(p)=>{
       player=new Train(p.x,p.y,Math.atan2(-p.y,-p.x),pick.line,pick.grade,myName,true);
@@ -1483,6 +1641,7 @@ function endGame(reason){
     `<div class="rrow"><span>탑승 승객</span><b>${player.pax}명</b></div>`+
     `<div class="rrow"><span>최종 편성</span><b>${player.cars}칸</b></div>`+
     `<div class="rrow"><span>격파한 열차</span><b>${player.kills}대</b></div>`+
+    `<div class="rrow"><span>버틴 시간</span><b>${Math.floor(gameTime/60)}분 ${Math.floor(gameTime%60)}초 · 속도 Lv.${speedLevel()}</b></div>`+
     `<div class="rrow"><span>최종 순위</span><b>${rank}위 / ${list.length}대</b></div>`;
   const resEl=document.getElementById('jgRes');
   if(info){
@@ -1529,19 +1688,21 @@ window.SUBWAY={Train,LINES,GRADES,gradeStyle,startGame,
   spawnOrb, killTrain, botThink, spawnBot, paintCar, drawStation, VIS_L, VIS_W,
   setPick(l,g){ pick.line=l; pick.grade=g; },
   render(){ drawWorld(); drawMini(); drawHud(); },
+  get items(){return items;}, get fx(){return fx;}, get gameTime(){return gameTime;},
+  setTime(t){ gameTime=t; }, applyItem, speedLevel, worldSpeedMul, spawnItem,
   headless(n, autoPlayer){
     for(let i=0;i<n;i++){
-      frame++;
+      frame++; gameTime+=1/60; tickFx(1);
       for(const t of trains){
         if(!t.alive) continue;
         if(!t.isPlayer){ if(((frame+t.think_t)&3)===0) botThink(t); }
         else if(autoPlayer){ if((frame&3)===0) botThink(t); }
         t.step(1);
       }
-      eat(); collide(); refillFood();
+      eat(); pickItems(); collide(); refillFood(); refillItems();
     }
   },
-  C:{WORLD_R,BASE_SPEED,BOOST_SPEED,TURN_RATE,SEG,CAR_L,CAR_W,BASE_CARS,MAX_CARS,PAX_PER_CAR}};
+  C:{WORLD_R,BASE_SPEED,BOOST_SPEED,TURN_RATE,SEG,CAR_L,CAR_W,BASE_CARS,MAX_CARS,PAX_PER_CAR,LV_SEC,LV_STEP,LV_MAX,ITEM_TARGET}};
 </script>
 </body>
 </html>

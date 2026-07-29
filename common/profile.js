@@ -134,6 +134,8 @@
     /* 지하철 슬리더 */
     'sub-len20':    { emoji: '🚋', title: '20량 편성',     desc: '열차를 20량까지 늘리기',                 game: 'subway-io' },
     'sub-len40':    { emoji: '🚄', title: '40량 편성',     desc: '열차를 40량까지 늘리기',                 game: 'subway-io' },
+    'sub-len70':    { emoji: '🚅', title: '70량 편성',     desc: '열차를 70량까지 늘리기',                 game: 'subway-io' },
+    'sub-len100':   { emoji: '🏆', title: '100량 편성',    desc: '열차를 최대 100량까지 늘리기',           game: 'subway-io' },
     'sub-first':    { emoji: '🥇', title: '1위 달성',      desc: '순위표 1위에 오르기',                    game: 'subway-io' },
 
     /* 오니타마 */
