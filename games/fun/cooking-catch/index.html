@@ -48,6 +48,8 @@
   .big:active{transform:translateY(2px); box-shadow:0 2px 0 #227c3c;}
   .big.blue{background:var(--blue); box-shadow:0 4px 0 #2b62c9;}
   .big.blue:active{box-shadow:0 2px 0 #2b62c9;}
+  .big.vs{background:#6b5ce7; box-shadow:0 4px 0 #5344c0;}
+  .big.vs:active{box-shadow:0 2px 0 #5344c0;}
   a.hub-link{display:block;text-align:center;margin:14px auto 2px;padding:6px;color:#a9967f;font-size:13px;text-decoration:none;font-family:inherit;}
   a.hub-link:hover{text-decoration:underline;}
 
@@ -139,6 +141,7 @@
     </div>
 
     <button class="big" id="startBtn">🍽️ 요리 시작!</button>
+    <button class="big vs" id="onlineBtn" style="margin-top:9px">🌐 친구랑 온라인 대결</button>
     <a class="hub-link" href="../../../">← 게임 목록</a>
   </div>
 
@@ -185,6 +188,7 @@
 </div>
 
 <script src="../../../common/profile.js"></script>
+<script src="../../../common/versus.js"></script>
 <script>
 (function(){
 'use strict';
@@ -295,22 +299,43 @@ if (window.visualViewport) window.visualViewport.addEventListener('resize', resi
 /* ══════════════ 판 만들기 ══════════════ */
 function newRecipe(){
   const d = DIFF[diff];
-  let r, tries = 0;
-  do { r = pick(RECIPES); tries++; } while (st && st.lastRecipe === r.n && tries < 12);
+  let r;
+  if (st && st.queue && st.queue.length){
+    r = st.queue.shift();                    // 온라인 대결: 양쪽이 똑같은 순서로 요리한다
+  } else {
+    let tries = 0;
+    do { r = pick(RECIPES); tries++; } while (st && st.lastRecipe === r.n && tries < 12);
+  }
   const need = r.need.slice(0, d.maxNeed);
   return { e:r.e, n:r.n, need:need, got:{} };
 }
 
-function startGame(){
+/* 온라인 대결용 — 시드로 만든 "요리 순서표". 양쪽이 100% 같아야 한다. */
+function makeQueue(){
+  return Versus.seeded(function(){
+    const q = []; let last = '';
+    for (let i=0; i<80; i++){
+      let r, tries = 0;
+      do { r = pick(RECIPES); tries++; } while (r.n === last && tries < 12);
+      q.push(r); last = r.n;
+    }
+    return q;
+  });
+}
+
+function startGame(queue){
   const d = DIFF[diff];
   st = {
     score:0, hearts:3, combo:0, bestCombo:0, mistakes:0, dishes:[],
     time:TOTAL_TIME, speed:d.speed, spawnGap:d.spawn,
     items:[], fx:[], floats:[], shake:0,
     potW:0, potX:0, targetX:0, potSpeedKey:0,
-    spawnT:0, last:0, lastTick:-1, paused:false, recipe:null, lastRecipe:'', over:false
+    spawnT:0, last:0, lastTick:-1, paused:false, recipe:null, lastRecipe:'', over:false,
+    queue: queue || null, sentScore:-1,
+    online: !!(window.Versus && Versus.active())
   };
   st.recipe = newRecipe();
+  $('pauseBtn').style.display = st.online ? 'none' : '';
   show('play');
   resize();
   st.potW = Math.max(70, Math.min(112, W*0.26));
@@ -328,6 +353,13 @@ function drawHud(){
   const pct = Math.max(0, st.time/TOTAL_TIME*100);
   $('timeBar').firstElementChild.style.width = pct + '%';
   $('timeBar').classList.toggle('warn', st.time <= 10);
+  syncScore();
+}
+/* 온라인 대결일 때만, 점수가 바뀐 순간에만 상대에게 알린다 */
+function syncScore(){
+  if (!st || !st.online || st.sentScore === st.score) return;
+  st.sentScore = st.score;
+  try{ Versus.setScore(st.score); }catch(e){}
 }
 function drawRecipe(){
   const r = st.recipe;
@@ -595,7 +627,7 @@ window.addEventListener('keyup', function(e){
 });
 
 function togglePause(force){
-  if (!st || st.over) return;
+  if (!st || st.over || st.online) return;   /* 대결 중에는 멈출 수 없다 */
   st.paused = (force === undefined) ? !st.paused : force;
   $('pauseMsg').classList.toggle('on', st.paused);
   if (!st.paused) st.last = performance.now();
@@ -607,7 +639,7 @@ $('soundBtn').addEventListener('click', function(){
   $('soundBtn').textContent = soundOn ? '🔊' : '🔇';
 });
 document.addEventListener('visibilitychange', function(){
-  if (document.hidden) togglePause(true);
+  if (document.hidden && st && !st.online) togglePause(true);
 });
 
 /* ══════════════ 판 끝 ══════════════ */
@@ -616,6 +648,7 @@ function endGame(){
   st.over = true; st.paused = false;
   S.over();
   const dishes = st.dishes, n = dishes.length;
+  if (st.online){ try{ Versus.finish(st.score); }catch(e){} }
 
   $('ovScore').textContent = st.score;
   $('ovEmoji').textContent = n ? dishes[dishes.length-1].e : '🍽️';
@@ -632,7 +665,11 @@ function endGame(){
     if (window.JG){
       JG.stat(GAME_ID, 'dishes', n);
       const totalDishes = JG.stat(GAME_ID, 'dishes');
-      res = JG.submit(GAME_ID, { score:st.score, mode:DIFF[diff].label + ' · 60초', unit:'점' });
+      res = JG.submit(GAME_ID, {
+        score: st.score,
+        mode: st.online ? '온라인 대결' : (DIFF[diff].label + ' · 60초'),
+        unit: '점'
+      });
       earned = JG.awardAll({
         'ck-dish3'    : n >= 3,
         'ck-dish6'    : n >= 6,
@@ -649,7 +686,7 @@ function endGame(){
         ['완성한 요리', n + '개'],
         ['최고 연속', st.bestCombo + '개'],
         ['실수', st.mistakes + '번'],
-        ['난이도', DIFF[diff].label]
+        ['난이도', DIFF[diff].label + (st.online ? ' · 온라인 대결' : '')]
       ]
     });
   }catch(e){ $('jgRes').innerHTML = ''; }
@@ -664,9 +701,47 @@ $('diffOpts').addEventListener('click', function(e){
   diff = b.dataset.d;
   Array.prototype.forEach.call($('diffOpts').children, function(o){ o.classList.toggle('on', o===b); });
 });
-$('startBtn').addEventListener('click', startGame);
-$('againBtn').addEventListener('click', startGame);
+$('startBtn').addEventListener('click', function(){ startGame(); });
+$('againBtn').addEventListener('click', function(){ startGame(); });
 $('backBtn').addEventListener('click', function(){ st = null; show('start'); });
+
+/* ══════════════ 온라인 대결 ══════════════
+   양쪽이 같은 시드로 만든 "요리 순서표"를 받아 같은 요리를 같은 순서로 만든다.
+   떨어지는 재료는 각자의 남은 재료에 맞춰 나오므로(그래야 게임이 된다),
+   판 자체가 아니라 60초 동안 누가 더 많이 요리했는지로 승부를 가린다. */
+function startOnline(ctx){
+  diff = (ctx.settings && ctx.settings.diff) ? ctx.settings.diff : 'normal';
+  Array.prototype.forEach.call($('diffOpts').children, function(o){
+    o.classList.toggle('on', o.dataset.d === diff);
+  });
+  Versus.reseed(0);
+  startGame(makeQueue());
+}
+function seedVersusName(){
+  if (!window.JG) return;
+  try{
+    const fill = function(){
+      const i = document.getElementById('vsName');
+      if (i && !i.value) i.value = JG.player().name.slice(0,8);
+    };
+    fill(); setTimeout(fill, 40);
+  }catch(e){}
+}
+$('onlineBtn').addEventListener('click', function(){
+  if (!window.Versus){ alert('온라인 대결을 불러오지 못했어요. 새로고침해 보세요.'); return; }
+  Versus.open({
+    game: 'cooking-catch',
+    getSettings: function(){ return { diff: diff }; },
+    settingsHTML: function(){
+      return '<div class="vs-note">방장이 고른 <b>난이도</b>로 둘 다 플레이해요.<br>' +
+             '<b>똑같은 요리가 똑같은 순서로</b> 나오니까, 60초 동안 더 많이 요리한 사람이 이겨요! 🍳</div>';
+    },
+    onStart: startOnline,
+    onLeave: function(){ st = null; show('start'); },
+    onCancel: function(){ show('start'); }
+  });
+  seedVersusName();
+});
 
 try{ if (window.JG) JG.mountChip('jgChip'); }catch(e){}
 resize();
