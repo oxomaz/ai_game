@@ -48,6 +48,7 @@ export const GAMES = {
   'subway-io': { max: 1000000, label: '지하철 슬리더' },
   onitama: { max: 100000, label: '오니타마' },
   'cooking-catch': { max: 100000, label: '요리조리 셰프' },
+  dalmuti: { max: 100000, label: '달무티' },
 };
 
 // ── HTTP 유틸 ──────────────────────────────────────────────────────────────

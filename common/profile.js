@@ -71,7 +71,8 @@
     'jump-map':            { emoji: '🏃', title: '점프맵 200',       cat: 'fun' },
     'subway-io':           { emoji: '🚇', title: '지하철 슬리더',    cat: 'fun' },
     'onitama':             { emoji: '🥷', title: '오니타마',         cat: 'fun' },
-    'cooking-catch':       { emoji: '🍳', title: '요리조리 셰프',    cat: 'fun' }
+    'cooking-catch':       { emoji: '🍳', title: '요리조리 셰프',    cat: 'fun' },
+    'dalmuti':             { emoji: '👑', title: '달무티',          cat: 'fun' }
   };
 
   /* ---------------- 배지 카탈로그 ---------------- */
@@ -81,7 +82,7 @@
     'play-10':      { emoji: '🎮', title: '단골 손님',     desc: '게임을 10판 했어요',                     game: '*' },
     'play-50':      { emoji: '🏅', title: '게임 고수',     desc: '게임을 50판 했어요',                     game: '*' },
     'explorer-5':   { emoji: '🧭', title: '탐험가',        desc: '서로 다른 게임 5개를 해봤어요',          game: '*' },
-    'explorer-all': { emoji: '🌟', title: '올라운더',      desc: '11개 게임을 전부 해봤어요',              game: '*' },
+    'explorer-all': { emoji: '🌟', title: '올라운더',      desc: '12개 게임을 전부 해봤어요',              game: '*' },
 
     /* 연산 스피드 퀴즈 */
     'ms-hit20':     { emoji: '➕', title: '계산 척척',     desc: '한 판에 20문제 맞히기',                  game: 'math-speed' },
@@ -148,7 +149,14 @@
     'ck-dish6':     { emoji: '👩‍🍳', title: '바쁜 셰프',     desc: '한 판에 요리 6개 완성',                  game: 'cooking-catch' },
     'ck-score200':  { emoji: '🏅', title: '200점 셰프',    desc: '한 판에 200점 넘기기',                   game: 'cooking-catch' },
     'ck-clean':     { emoji: '✨', title: '깔끔한 손맛',   desc: '실수 없이 요리 3개 완성',                game: 'cooking-catch' },
-    'ck-total30':   { emoji: '🍽️', title: '요리 30접시',    desc: '모두 합쳐 요리 30개 완성',               game: 'cooking-catch' }
+    'ck-total30':   { emoji: '🍽️', title: '요리 30접시',    desc: '모두 합쳐 요리 30개 완성',               game: 'cooking-catch' },
+
+    /* 달무티 */
+    'dm-play':      { emoji: '🃏', title: '궁정 입성',     desc: '달무티 한 게임을 끝까지 해봤어요',       game: 'dalmuti' },
+    'dm-win':       { emoji: '👑', title: '대달무티',      desc: '최종 1등을 차지했어요',                  game: 'dalmuti' },
+    'dm-hard':      { emoji: '🏰', title: '왕좌의 주인',   desc: '어려움 컴퓨터들을 상대로 1등',           game: 'dalmuti' },
+    'dm-win5':      { emoji: '🏆', title: '영원한 통치',   desc: '달무티에서 5번 우승',                    game: 'dalmuti' },
+    'dm-rev':       { emoji: '🔥', title: '대혁명',        desc: '대농노로 대혁명을 일으켰어요',           game: 'dalmuti' }
   };
 
   /* ---------------- 아바타 후보 ---------------- */
@@ -257,7 +265,8 @@
     'jump-map':            { re: /^혼자$/,                                label: '혼자 플레이' },
     'subway-io':           { re: /^혼자$/,                                label: '혼자 플레이' },
     'onitama':             { re: /^컴퓨터 · 보통$/,                       label: '컴퓨터 · 보통' },
-    'cooking-catch':       { re: /^보통 · 60초$/,                         label: '보통 · 60초' }
+    'cooking-catch':       { re: /^보통 · 60초$/,                         label: '보통 · 60초' },
+    'dalmuti':             { re: /^4명 · 보통 · 5판$/,                    label: '4명 · 보통 · 5판' }
   };
 
   /* records.js 를 옆 폴더에서 자동으로 불러온다 → 게임 파일은 손댈 필요 없음 */

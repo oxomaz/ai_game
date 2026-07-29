@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>달무티</title>
+<script src="../../../common/profile.js"></script>
+<script src="../../../common/room.js"></script>
+<style>
+  :root{
+    --gold:#c9a227; --deep:#2b2340; --deep2:#3a3057; --cream:#f6f1e4;
+    --ink:#2f2a3d; --sub:#8b8299; --line:#e3dccd;
+    --good:#2e8b57; --bad:#c0392b;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0;}
+  body{
+    background:radial-gradient(circle at 50% 0%, #453a68 0%, #2b2340 55%, #1e1830 100%);
+    color:var(--cream); min-height:var(--jg-vh,100vh);
+    font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",-apple-system,BlinkMacSystemFont,sans-serif;
+    overflow-x:hidden; user-select:none;
+  }
+  button{font-family:inherit;}
+  .hub-link{
+    position:fixed; left:calc(10px + env(safe-area-inset-left)); top:calc(10px + env(safe-area-inset-top));
+    color:#d8cfe8; text-decoration:none; font-size:13px; font-weight:800; z-index:60;
+    background:rgba(0,0,0,.28); padding:7px 11px; border-radius:12px;
+  }
+  .screen{display:none;}
+  .screen.on{display:block;}
+
+  /* ══════════ 시작 화면 ══════════ */
+  #start{
+    max-width:520px; margin:0 auto;
+    padding:calc(52px + env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom));
+  }
+  .crown{text-align:center; font-size:52px; line-height:1;}
+  h1{
+    text-align:center; font-size:clamp(30px,10vw,42px); margin:6px 0 2px; letter-spacing:-1px;
+    color:var(--gold); font-weight:900; text-shadow:0 2px 0 rgba(0,0,0,.35);
+  }
+  .tag{text-align:center; color:#c5bcd8; font-size:13.5px; font-weight:700; margin:0 0 16px; line-height:1.7;}
+  .box{
+    background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.13);
+    border-radius:18px; padding:15px; margin-bottom:12px;
+  }
+  .box h4{margin:0 0 10px; font-size:14px; color:#e6dcc4; font-weight:900; letter-spacing:.02em;}
+  .opts{display:flex; gap:7px; flex-wrap:wrap;}
+  .opt{
+    flex:1 1 auto; min-width:62px; text-align:center; padding:10px 8px; border-radius:12px;
+    background:rgba(255,255,255,.06); border:2px solid transparent; color:#d9d1e6;
+    font-size:13.5px; font-weight:800; cursor:pointer;
+  }
+  .opt.on{background:rgba(201,162,39,.22); border-color:var(--gold); color:#fff2cf;}
+  .opt small{display:block; font-size:10.5px; font-weight:700; opacity:.72; margin-top:2px;}
+  .big{
+    display:block; width:100%; border:0; border-radius:18px; padding:16px; margin-top:6px;
+    font-size:17px; font-weight:900; cursor:pointer; color:#2b2340;
+    background:linear-gradient(160deg,#f0d67a,#c9a227); box-shadow:0 5px 0 #8f7318;
+  }
+  .big:active{transform:translateY(3px); box-shadow:0 2px 0 #8f7318;}
+  .big.alt{background:linear-gradient(160deg,#8fa4ff,#6b5ce7); color:#fff; box-shadow:0 5px 0 #493ba8;}
+  .big.alt:active{box-shadow:0 2px 0 #493ba8;}
+  .ghost{
+    display:block; width:100%; border:2px solid rgba(255,255,255,.2); background:transparent;
+    color:#cfc6de; border-radius:16px; padding:12px; margin-top:9px; font-size:14px; font-weight:800; cursor:pointer;
+  }
+  #jgChip{margin:0 0 14px;}
+
+  /* ══════════ 게임 화면 ══════════ */
+  #table{
+    display:none; flex-direction:column; height:var(--jg-vh,100vh);
+    padding:calc(4px + env(safe-area-inset-top)) calc(6px + env(safe-area-inset-right))
+            calc(4px + env(safe-area-inset-bottom)) calc(6px + env(safe-area-inset-left));
+  }
+  #table.on{display:flex;}
+  .topbar{
+    display:flex; align-items:center; gap:6px; flex:0 0 auto; padding:2px 2px 5px;
+  }
+  .tb-hand{
+    background:rgba(201,162,39,.2); color:#f0e0ac; border-radius:10px; padding:4px 9px;
+    font-size:12px; font-weight:900; white-space:nowrap;
+  }
+  .tb-me{
+    flex:1; min-width:0; font-size:12.5px; font-weight:800; color:#e8dfc9;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .tb-btn{
+    border:0; background:rgba(255,255,255,.11); color:#ded5ea; border-radius:10px;
+    padding:5px 9px; font-size:12px; font-weight:800; cursor:pointer;
+  }
+
+  /* 플레이어 줄 */
+  .players{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(88px,1fr)); gap:5px;
+    flex:0 0 auto; margin-bottom:4px;
+  }
+  .pl{
+    background:rgba(255,255,255,.07); border:2px solid transparent; border-radius:12px;
+    padding:5px 6px; min-width:0; position:relative;
+  }
+  .pl.turn{border-color:var(--gold); background:rgba(201,162,39,.17);}
+  .pl.me{background:rgba(120,150,255,.16);}
+  .pl.me.turn{background:rgba(201,162,39,.22);}
+  .pl.done{opacity:.5;}
+  .pl-n{font-size:12px; font-weight:900; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#f2ecdc;}
+  .pl-t{font-size:10px; font-weight:800; color:#bdb2d0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .pl-b{display:flex; align-items:center; gap:4px; margin-top:2px;}
+  .pl-c{font-size:11.5px; font-weight:900; color:#ffe9a8;}
+  .pl-s{margin-left:auto; font-size:10.5px; font-weight:800; color:#9fe0b7;}
+  .pl-tag{
+    position:absolute; right:4px; top:3px; font-size:9.5px; font-weight:900;
+    border-radius:6px; padding:1px 4px;
+  }
+  .pl-tag.pass{background:rgba(255,255,255,.16); color:#cfc6de;}
+  .pl-tag.out{background:rgba(46,139,87,.35); color:#c6f0d7;}
+
+  /* 가운데 더미 */
+  .mid{
+    flex:1 1 auto; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:6px; min-height:96px; position:relative;
+  }
+  .pile-lbl{font-size:12px; font-weight:800; color:#b9afd0; text-align:center; line-height:1.6;}
+  .pile{display:flex; gap:3px; justify-content:center; flex-wrap:wrap;}
+  .log{
+    position:absolute; left:0; right:0; bottom:0; max-height:40%; overflow:auto;
+    background:rgba(0,0,0,.55); border-radius:12px; padding:9px 11px; font-size:12px;
+    line-height:1.75; color:#ded6ea; display:none; text-align:left;
+  }
+  .log.on{display:block;}
+
+  /* 카드 */
+  .card{
+    width:var(--cw,52px); border-radius:8px; background:linear-gradient(165deg,#fdfaf0,#eee3c9);
+    color:#2f2a3d; border:1.5px solid #c9bb95; position:relative; flex:0 0 auto;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:4px 2px 3px; box-shadow:0 2px 5px rgba(0,0,0,.32);
+  }
+  .card .r{font-size:calc(var(--cw,52px)*.42); font-weight:900; line-height:1;}
+  .card .e{font-size:calc(var(--cw,52px)*.30); line-height:1.15;}
+  .card .nm{font-size:calc(var(--cw,52px)*.17); font-weight:800; color:#6a6152; line-height:1.15;
+    max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .card.j{background:linear-gradient(165deg,#fff3f8,#ffdcec); border-color:#e0a8c4;}
+  .card.j .r{color:#b3376f;}
+  .card.sm{--cw:40px;}
+
+  /* 내 손패 */
+  .handwrap{flex:0 0 auto;}
+  .myrow{
+    display:flex; align-items:center; gap:5px; padding:0 2px 4px; font-size:12px; font-weight:800; color:#cdc3e0;
+  }
+  .hand{
+    display:flex; flex-wrap:wrap; gap:4px; justify-content:center; align-content:flex-start;
+    max-height:34vh; overflow-y:auto; padding:3px 1px;
+  }
+  .hand .card{cursor:pointer; transition:transform .09s;}
+  .hand .card.sel{transform:translateY(-9px); box-shadow:0 6px 12px rgba(0,0,0,.45); border-color:var(--gold); outline:2px solid var(--gold);}
+  .hand .card.no{opacity:.42;}
+  .acts{display:flex; gap:7px; padding:6px 0 2px;}
+  .act{
+    flex:1; border:0; border-radius:14px; padding:13px 8px; font-size:15px; font-weight:900; cursor:pointer;
+    background:rgba(255,255,255,.13); color:#ddd4ea; box-shadow:0 4px 0 rgba(0,0,0,.28);
+  }
+  .act:active{transform:translateY(2px); box-shadow:0 2px 0 rgba(0,0,0,.28);}
+  .act.play{background:linear-gradient(160deg,#f0d67a,#c9a227); color:#2b2340; box-shadow:0 4px 0 #8f7318;}
+  .act.play:disabled{background:rgba(255,255,255,.1); color:#8d84a0; box-shadow:0 4px 0 rgba(0,0,0,.22); cursor:default;}
+  .act.pass{background:linear-gradient(160deg,#7d7396,#5c5477); color:#fff;}
+  .hint{text-align:center; font-size:11.5px; font-weight:800; color:#a99fbe; min-height:15px; padding-bottom:2px;}
+
+  /* ══════════ 모달 ══════════ */
+  .modal{
+    position:fixed; inset:0; z-index:200; display:none; align-items:center; justify-content:center;
+    background:rgba(18,14,30,.72); backdrop-filter:blur(5px); padding:16px;
+  }
+  .modal.on{display:flex;}
+  .mcard{
+    background:var(--cream); color:var(--ink); border-radius:22px; padding:20px 18px;
+    width:min(460px,100%); max-height:calc(var(--jg-vh,100vh) - 34px); overflow:auto;
+    box-shadow:0 18px 44px rgba(0,0,0,.45);
+  }
+  .mcard h3{margin:0 0 6px; font-size:20px; font-weight:900; text-align:center;}
+  .mcard p{margin:0 0 12px; font-size:13.5px; font-weight:700; color:#6d6480; line-height:1.7; text-align:center;}
+  .mcard .hand{max-height:30vh;}
+  .mbtns{display:flex; gap:8px; margin-top:12px;}
+  .mbtn{
+    flex:1; border:0; border-radius:15px; padding:13px; font-size:15px; font-weight:900; cursor:pointer;
+    background:#e6e0d1; color:#4a4258; box-shadow:0 4px 0 rgba(0,0,0,.13);
+  }
+  .mbtn:active{transform:translateY(2px); box-shadow:0 2px 0 rgba(0,0,0,.13);}
+  .mbtn.go{background:linear-gradient(160deg,#f0d67a,#c9a227); color:#2b2340; box-shadow:0 4px 0 #8f7318;}
+  .mbtn.go:disabled{opacity:.45; cursor:default;}
+  .rank-list{margin:8px 0 0; padding:0; list-style:none;}
+  .rank-list li{
+    display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:12px;
+    font-size:14px; font-weight:800; margin-bottom:5px; background:#efe9d9;
+  }
+  .rank-list li.me{background:#ffeec4; outline:2px solid var(--gold);}
+  .rank-list .pos{width:26px; font-size:16px; text-align:center;}
+  .rank-list .nm{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .rank-list .sc{font-size:12.5px; color:#7a7189; font-weight:800;}
+  .rules{text-align:left; font-size:13.5px; line-height:1.85; color:#403a4f;}
+  .rules h5{margin:14px 0 4px; font-size:14.5px; color:#2b2340;}
+  .rules ul{margin:4px 0; padding-left:19px;}
+  .rules b{color:#8a6a12;}
+  .deckview{display:flex; flex-wrap:wrap; gap:4px; justify-content:center; margin:6px 0 2px;}
+  #jgRes{margin-top:10px;}
+
+  @media (max-width:400px){
+    .card{--cw:44px;}
+    .players{grid-template-columns:repeat(auto-fit,minmax(74px,1fr));}
+  }
+  @media (max-height:520px){
+    .hand{max-height:30vh;}
+    .act{padding:10px 8px; font-size:14px;}
+  }
+</style>
+</head>
+<body>
+
+<a class="hub-link" id="hubLink" href="../../../">← 게임 목록</a>
+
+<!-- ══════════ 시작 화면 ══════════ -->
+<div id="start" class="screen on">
+  <div class="crown">👑</div>
+  <h1>달 무 티</h1>
+  <p class="tag">계급이 모든 것을 정하는 카드 게임.<br>먼저 손을 털면 <b>대달무티</b>, 꼴찌는 <b>대농노</b>가 된다.</p>
+
+  <div id="jgChip"></div>
+
+  <div class="box">
+    <h4>👥 인원</h4>
+    <div class="opts" id="optPlayers"></div>
+    <p style="margin:8px 0 0;font-size:11.5px;color:#a79dbd;font-weight:700;line-height:1.6" id="playersNote"></p>
+  </div>
+
+  <div class="box">
+    <h4>🤖 컴퓨터 실력</h4>
+    <div class="opts" id="optLevel"></div>
+  </div>
+
+  <div class="box">
+    <h4>🔁 몇 판?</h4>
+    <div class="opts" id="optRounds"></div>
+  </div>
+
+  <div class="box">
+    <h4>⚙️ 패스 규칙</h4>
+    <div class="opts" id="optPass"></div>
+    <p style="margin:8px 0 0;font-size:11.5px;color:#a79dbd;font-weight:700;line-height:1.6">
+      원작은 패스해도 자기 차례가 다시 오면 낼 수 있어요.</p>
+  </div>
+
+  <button class="big" id="btnSolo">혼자 하기 (컴퓨터와)</button>
+  <button class="big alt" id="btnOnline">🌐 여럿이서 온라인</button>
+  <button class="ghost" id="btnRules">📜 게임 방법 보기</button>
+</div>
+
+<!-- ══════════ 게임 화면 ══════════ -->
+<div id="table">
+  <div class="topbar">
+    <span class="tb-hand" id="tbHand">1판</span>
+    <span class="tb-me" id="tbMe"></span>
+    <button class="tb-btn" id="btnLog">기록</button>
+    <button class="tb-btn" id="btnRules2">규칙</button>
+    <button class="tb-btn" id="btnQuit">나가기</button>
+  </div>
+
+  <div class="players" id="players"></div>
+
+  <div class="mid">
+    <div class="pile-lbl" id="pileLbl"></div>
+    <div class="pile" id="pile"></div>
+    <div class="log" id="log"></div>
+  </div>
+
+  <div class="handwrap">
+    <div class="myrow"><span id="myTitle"></span><span style="margin-left:auto" id="myCount"></span></div>
+    <div class="hand" id="hand"></div>
+    <div class="hint" id="hint"></div>
+    <div class="acts">
+      <button class="act play" id="btnPlay" disabled>내기</button>
+      <button class="act pass" id="btnPass">패스</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ 모달 ══════════ -->
+<div class="modal" id="mdRules"><div class="mcard">
+  <h3>📜 달무티 게임 방법</h3>
+  <div class="rules" id="rulesBody"></div>
+  <div class="mbtns"><button class="mbtn go" data-close="mdRules">알겠어요</button></div>
+</div></div>
+
+<div class="modal" id="mdRev"><div class="mcard">
+  <h3>🃏 혁명을 일으킬까?</h3>
+  <p id="revText"></p>
+  <div class="mbtns">
+    <button class="mbtn go" id="revYes">혁명!</button>
+    <button class="mbtn" id="revNo">그냥 넘기기</button>
+  </div>
+</div></div>
+
+<div class="modal" id="mdTax"><div class="mcard">
+  <h3 id="taxTitle">💰 세금</h3>
+  <p id="taxText"></p>
+  <div class="hand" id="taxHand"></div>
+  <div class="mbtns"><button class="mbtn go" id="taxOk" disabled>보내기</button></div>
+</div></div>
+
+<div class="modal" id="mdHand"><div class="mcard">
+  <h3 id="handTitle">판 결과</h3>
+  <p id="handText"></p>
+  <ul class="rank-list" id="handRanks"></ul>
+  <div class="mbtns"><button class="mbtn go" id="handNext">다음 판</button></div>
+</div></div>
+
+<div class="modal" id="mdEnd"><div class="mcard">
+  <h3 id="endTitle">최종 결과</h3>
+  <p id="endText"></p>
+  <ul class="rank-list" id="endRanks"></ul>
+  <div id="jgRes"></div>
+  <div class="mbtns">
+    <button class="mbtn go" id="endAgain">한 번 더</button>
+    <button class="mbtn" id="endOut">나가기</button>
+  </div>
+</div></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   달무티 (The Great Dalmuti) — 원작 규칙 구현
+   구조: 방장(또는 혼자 플레이 중인 사람)이 판정을 전부 맡고,
+        참가자에게는 각자에게 보여줄 화면(view)만 보내준다.
+   ═══════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  /* ────────── 카드 ────────── */
+  var RANKS = [
+    null,
+    { ko: '대달무티',   emo: '👑' },
+    { ko: '대주교',     emo: '⛪' },
+    { ko: '궁내경',     emo: '🛡️' },
+    { ko: '남작부인',   emo: '👸' },
+    { ko: '수녀원장',   emo: '✝️' },
+    { ko: '기사',       emo: '🐴' },
+    { ko: '재봉사',     emo: '🧵' },
+    { ko: '석공',       emo: '🧱' },
+    { ko: '요리사',     emo: '🍲' },
+    { ko: '양치기',     emo: '🐑' },
+    { ko: '광부',       emo: '⛏️' },
+    { ko: '농노',       emo: '🌾' },
+    { ko: '광대',       emo: '🤡' }
+  ];
+  var JOKER = 13;
+
+  function makeDeck() {
+    var d = [], id = 0, r, i;
+    for (r = 1; r <= 12; r++) for (i = 0; i < r; i++) d.push({ id: ++id, r: r });
+    d.push({ id: ++id, r: JOKER });
+    d.push({ id: ++id, r: JOKER });
+    return d;                         // 1~12 각 숫자만큼 + 광대 2장 = 80장
+  }
+
+  function shuffle(a) {
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function sortHand(h) {
+    h.sort(function (a, b) { return a.r - b.r || a.id - b.id; });
+    return h;
+  }
+
+  /* ────────── 계급 이름 ────────── */
+  function title(i, n) {
+    if (n <= 2) return i === 0 ? '대달무티' : '대농노';
+    if (i === 0) return '대달무티';
+    if (i === n - 1) return '대농노';
+    if (n >= 4 && i === 1) return '소달무티';
+    if (n >= 4 && i === n - 2) return '소농노';
+    return '상인';
+  }
+  function titleEmo(i, n) {
+    var t = title(i, n);
+    return t === '대달무티' ? '👑' : t === '소달무티' ? '🎩' : t === '대농노' ? '🥔' : t === '소농노' ? '🧺' : '⚖️';
+  }
+
+  /* ────────── 낸 카드 묶음 해석 ────────── */
+  /* cards: [{r}] → {ok, rank, count}  (광대는 같이 낸 숫자의 값이 되고, 혼자 내면 13) */
+  function analyze(cards) {
+    if (!cards || !cards.length) return { ok: false };
+    var jk = 0, base = 0, i;
+    for (i = 0; i < cards.length; i++) {
+      var r = cards[i].r;
+      if (r === JOKER) { jk++; continue; }
+      if (!base) base = r;
+      else if (base !== r) return { ok: false, why: '같은 숫자끼리만 낼 수 있어요.' };
+    }
+    if (!base) return { ok: true, rank: JOKER, count: jk, jokers: jk };  // 광대만
+    return { ok: true, rank: base, count: cards.length, jokers: jk };
+  }
+
+  /* 낼 수 있는가? pile 이 null 이면 리드(아무거나) */
+  function canPlay(cards, pile) {
+    var a = analyze(cards);
+    if (!a.ok) return a.why || '이렇게는 낼 수 없어요.';
+    if (!pile) return null;
+    if (a.count !== pile.count) return pile.count + '장을 내야 해요.';
+    if (a.rank >= pile.rank) return pile.rank + '보다 작은 숫자를 내야 해요.';
+    return null;
+  }
+
+  /* 손패에서 가능한 모든 수 (봇·힌트용) */
+  function enumMoves(hand, pile) {
+    var by = {}, jk = [], i;
+    for (i = 0; i < hand.length; i++) {
+      if (hand[i].r === JOKER) jk.push(hand[i]);
+      else (by[hand[i].r] || (by[hand[i].r] = [])).push(hand[i]);
+    }
+    var out = [];
+    function push(cards, rank) {
+      out.push({ cards: cards, rank: rank, count: cards.length });
+    }
+    for (var r in by) {
+      var g = by[r], rr = +r;
+      for (var a = 1; a <= g.length; a++) {
+        for (var b = 0; b <= jk.length; b++) {
+          var tot = a + b;
+          if (pile) { if (tot !== pile.count || rr >= pile.rank) continue; }
+          push(g.slice(0, a).concat(jk.slice(0, b)), rr);
+        }
+      }
+    }
+    for (var b2 = 1; b2 <= jk.length; b2++) {         // 광대만 내기 (13)
+      if (pile) { if (b2 !== pile.count || JOKER >= pile.rank) continue; }
+      push(jk.slice(0, b2), JOKER);
+    }
+    return out;
+  }
+
+  /* ────────── 게임 상태 ────────── */
+  var G = null;   // 방장(=판정하는 쪽)만 가진다
+  var CFG = { players: 4, level: 'normal', rounds: 5, passLock: false };
+  var NET = null; // {isHost, myId, players} — 온라인일 때만
+  var MYSEAT = 0; // 내 자리 (참가자는 서버가 알려준 값)
+  var view = null;
+  var sel = {};   // 내가 고른 카드 id
+  var uiMode = 'play';
+
+  function newGame(seatDefs) {
+    var n = seatDefs.length;
+    /* 첫 판 계급은 원작처럼 카드를 한 장씩 뽑아 정한다 */
+    var draw = seatDefs.map(function (s, i) { return { i: i, c: 0 }; });
+    var pool = shuffle(makeDeck());
+    draw.forEach(function (d, k) { d.c = pool[k].r + Math.random() * 0.5; });
+    draw.sort(function (a, b) { return a.c - b.c; });
+    var seats = draw.map(function (d) {
+      var s = seatDefs[d.i];
+      return { pid: s.pid, name: s.name, bot: !!s.bot, score: 0, hand: [], done: -1, passed: false, last: null };
+    });
+    G = {
+      n: n, seats: seats, handNo: 0, rounds: CFG.rounds,
+      phase: 'deal', pile: null, turn: 0, lastPlayer: -1, passStreak: 0,
+      finish: [], log: [], revBy: -1, greatRev: false, greatRevBy: {},
+      taxNeed: {}, taxGive: {}, over: false
+    };
+    log('👑 게임 시작! 카드를 뽑아 계급을 정했어요.');
+    startHand();
+  }
+
+  function log(s) {
+    G.log.push(s);
+    if (G.log.length > 120) G.log.shift();
+  }
+
+  function startHand() {
+    G.handNo++;
+    G.pile = null; G.lastPlayer = -1; G.passStreak = 0; G.finish = [];
+    G.revBy = -1; G.greatRev = false; G.taxNeed = {}; G.taxGive = {};
+    var i;
+    for (i = 0; i < G.n; i++) {
+      G.seats[i].hand = []; G.seats[i].done = -1; G.seats[i].passed = false; G.seats[i].last = null;
+    }
+    /* 딜 — 대농노가 섞고, 대달무티부터 한 장씩 */
+    var deck = shuffle(makeDeck());
+    for (i = 0; i < deck.length; i++) G.seats[i % G.n].hand.push(deck[i]);
+    for (i = 0; i < G.n; i++) sortHand(G.seats[i].hand);
+    log('── ' + G.handNo + '판 시작 · 카드를 나눴어요');
+
+    /* 혁명 확인 — 광대 2장을 다 가진 사람 */
+    var rev = -1;
+    for (i = 0; i < G.n; i++) {
+      if (G.seats[i].hand.filter(function (c) { return c.r === JOKER; }).length === 2) { rev = i; break; }
+    }
+    if (rev >= 0) {
+      G.phase = 'revolution';
+      G.revAsk = rev;
+      if (G.seats[rev].bot) {
+        setTimeout(function () { decideRevolution(rev, botRevolution(rev)); }, 700);
+      }
+      push();
+      return;
+    }
+    beginTax();
+  }
+
+  function decideRevolution(seat, yes) {
+    if (G.phase !== 'revolution' || G.revAsk !== seat) return;
+    if (yes) {
+      G.revBy = seat;
+      var isGP = (seat === G.n - 1);
+      G.greatRev = isGP && G.n >= 2;
+      if (G.greatRev) G.greatRevBy[G.seats[seat].pid] = true;   // 배지용 — 게임 내내 남긴다
+      log('🃏 ' + G.seats[seat].name + ' 님이 ' + (G.greatRev ? '대혁명' : '혁명') + '을 일으켰어요! 세금 없음' +
+        (G.greatRev ? ' · 계급이 뒤집힙니다' : ''));
+      if (G.greatRev) {
+        G.seats.reverse();
+        for (var i = 0; i < G.n; i++) G.seats[i].last = null;
+      }
+      beginPlay();
+    } else {
+      log('🃏 ' + G.seats[seat].name + ' 님은 혁명을 하지 않았어요.');
+      beginTax();
+    }
+  }
+
+  /* 세금: 대농노 ↔ 대달무티 2장, 소농노 ↔ 소달무티 1장 */
+  function beginTax() {
+    var pairs = [];
+    if (G.n >= 3) pairs.push({ hi: 0, lo: G.n - 1, k: 2 });
+    if (G.n >= 4) pairs.push({ hi: 1, lo: G.n - 2, k: 1 });
+    if (G.n === 2) pairs.push({ hi: 0, lo: 1, k: 2 });
+    G.taxPairs = pairs;
+    if (!pairs.length) { beginPlay(); return; }
+    G.phase = 'tax';
+    G.taxGive = {};
+    pairs.forEach(function (p) {
+      if (G.seats[p.hi].bot) {
+        var give = botTaxGive(p.hi, p.k);
+        G.taxGive[p.hi] = give;
+      }
+    });
+    push();
+    maybeFinishTax();
+  }
+
+  function submitTax(seat, ids) {
+    if (G.phase !== 'tax') return;
+    var p = null;
+    G.taxPairs.forEach(function (q) { if (q.hi === seat) p = q; });
+    if (!p || G.taxGive[seat]) return;
+    var hand = G.seats[seat].hand;
+    var pick = ids.map(function (id) {
+      for (var i = 0; i < hand.length; i++) if (hand[i].id === id) return hand[i];
+      return null;
+    }).filter(Boolean);
+    if (pick.length !== p.k) return;
+    G.taxGive[seat] = pick;
+    push();
+    maybeFinishTax();
+  }
+
+  function maybeFinishTax() {
+    for (var i = 0; i < G.taxPairs.length; i++) {
+      if (!G.taxGive[G.taxPairs[i].hi]) return;
+    }
+    /* 동시에 교환한다 */
+    G.taxPairs.forEach(function (p) {
+      var hiS = G.seats[p.hi], loS = G.seats[p.lo];
+      var best = sortHand(loS.hand.slice()).slice(0, p.k);           // 농노는 가장 좋은(숫자 작은) 카드
+      var give = G.taxGive[p.hi];
+      remove(loS.hand, best); remove(hiS.hand, give);
+      hiS.hand = sortHand(hiS.hand.concat(best));
+      loS.hand = sortHand(loS.hand.concat(give));
+      log('💰 ' + loS.name + ' → ' + hiS.name + ' 세금 ' + p.k + '장 (' +
+        best.map(function (c) { return cardName(c.r); }).join(', ') + ')');
+    });
+    beginPlay();
+  }
+
+  function remove(hand, cards) {
+    cards.forEach(function (c) {
+      for (var i = 0; i < hand.length; i++) if (hand[i].id === c.id) { hand.splice(i, 1); return; }
+    });
+  }
+
+  function cardName(r) { return r === JOKER ? '광대' : r + '(' + RANKS[r].ko + ')'; }
+
+  function beginPlay() {
+    G.phase = 'play';
+    G.pile = null; G.lastPlayer = -1; G.passStreak = 0;
+    for (var i = 0; i < G.n; i++) { G.seats[i].passed = false; G.seats[i].last = null; }
+    G.turn = 0;                     // 대달무티가 먼저 낸다
+    log('▶ ' + G.seats[0].name + '(대달무티)부터 시작!');
+    push();
+    tick();
+  }
+
+  function holders() {
+    var a = [];
+    for (var i = 0; i < G.n; i++) if (G.seats[i].hand.length) a.push(i);
+    return a;
+  }
+
+  function nextSeat(from) {
+    for (var k = 1; k <= G.n; k++) {
+      var i = (from + k) % G.n;
+      if (G.seats[i].hand.length && !(CFG.passLock && G.seats[i].passed)) return i;
+    }
+    return -1;
+  }
+
+  function doPlay(seat, ids) {
+    if (G.phase !== 'play' || G.turn !== seat) return false;
+    var hand = G.seats[seat].hand;
+    var cards = ids.map(function (id) {
+      for (var i = 0; i < hand.length; i++) if (hand[i].id === id) return hand[i];
+      return null;
+    }).filter(Boolean);
+    if (cards.length !== ids.length) return false;
+    if (canPlay(cards, G.pile)) return false;
+    var a = analyze(cards);
+    remove(hand, cards);
+    G.pile = { rank: a.rank, count: a.count, by: seat, cards: cards.slice() };
+    G.seats[seat].last = { rank: a.rank, count: a.count };
+    G.lastPlayer = seat;
+    G.passStreak = 0;
+    for (var i = 0; i < G.n; i++) G.seats[i].passed = false;
+    log('🂠 ' + G.seats[seat].name + ' : ' + a.count + '장 · ' + cardName(a.rank) +
+      (a.jokers ? ' (광대 ' + a.jokers + ')' : ''));
+
+    if (!hand.length) {
+      G.finish.push(seat);
+      G.seats[seat].done = G.finish.length;
+      log('✅ ' + G.seats[seat].name + ' 님이 ' + G.finish.length + '등으로 손을 털었어요!');
+    }
+    afterMove(seat);
+    return true;
+  }
+
+  function doPass(seat) {
+    if (G.phase !== 'play' || G.turn !== seat) return false;
+    if (!G.pile) return false;                    // 리드는 패스할 수 없다
+    G.seats[seat].passed = true;
+    G.passStreak++;
+    log('· ' + G.seats[seat].name + ' 패스');
+    afterMove(seat);
+    return true;
+  }
+
+  function afterMove(seat) {
+    var hs = holders();
+    if (hs.length <= 1) return endHand();
+
+    /* 트릭이 끝났는지 — 마지막에 낸 사람 빼고 카드 가진 사람이 모두 연속 패스했으면 끝 */
+    var need = hs.length - ((G.lastPlayer >= 0 && G.seats[G.lastPlayer].hand.length) ? 1 : 0);
+    if (CFG.passLock) {
+      /* 변형 규칙: 한 번 패스하면 그 트릭은 쉰다 */
+      var alive = hs.filter(function (i) { return !G.seats[i].passed; });
+      if (alive.length <= 1) return newTrick();
+    } else if (G.pile && G.passStreak >= need && need > 0) {
+      return newTrick();
+    }
+
+    var nx = nextSeat(seat);
+    if (nx < 0) return newTrick();
+    G.turn = nx;
+    push();
+    tick();
+  }
+
+  function newTrick() {
+    var winner = G.lastPlayer;
+    var wname = winner >= 0 ? G.seats[winner].name : '';
+    log('🏁 ' + wname + ' 님이 이 판을 가져갑니다.');
+    G.pile = null; G.passStreak = 0;
+    for (var i = 0; i < G.n; i++) { G.seats[i].passed = false; G.seats[i].last = null; }
+    var hs = holders();
+    if (hs.length <= 1) return endHand();
+    var lead = (winner >= 0 && G.seats[winner].hand.length) ? winner : nextHolder(winner);
+    G.turn = lead;
+    push();
+    tick();
+  }
+
+  function nextHolder(from) {
+    for (var k = 1; k <= G.n; k++) {
+      var i = ((from < 0 ? 0 : from) + k) % G.n;
+      if (G.seats[i].hand.length) return i;
+    }
+    return 0;
+  }
+
+  function endHand() {
+    var i;
+    for (i = 0; i < G.n; i++) {
+      if (G.seats[i].done < 0) { G.finish.push(i); G.seats[i].done = G.finish.length; }
+    }
+    /* 점수 — 나갈 때 아직 카드를 든 사람 수만큼 (원작 선택 규칙) */
+    for (i = 0; i < G.finish.length; i++) {
+      G.seats[G.finish[i]].score += (G.n - 1 - i);
+    }
+    var order = G.finish.slice();
+    G.lastResult = order.map(function (s, k) {
+      /* 판이 끝나면 자리가 나간 순서로 다시 짜이므로 seat = k 가 된다 */
+      return { name: G.seats[s].name, pos: k + 1, got: G.n - 1 - k, seat: k,
+               score: G.seats[s].score, pid: G.seats[s].pid, bot: G.seats[s].bot };
+    });
+    log('🏆 ' + G.seats[order[0]].name + ' 님이 이번 판 대달무티!');
+    /* 다음 판 계급 = 나간 순서 */
+    var ns = order.map(function (s) { return G.seats[s]; });
+    G.seats = ns;
+    G.phase = (G.handNo >= G.rounds) ? 'gameEnd' : 'handEnd';
+    if (G.phase === 'gameEnd') {
+      G.over = true;
+      G.final = G.seats.map(function (s, k) { return { name: s.name, score: s.score, pid: s.pid, bot: s.bot, seat: k }; })
+        .slice().sort(function (a, b) { return b.score - a.score; });
+    }
+    push();
+  }
+
+  /* 봇 차례면 자동 진행 */
+  var tickTimer = null;
+  var THINK = 1;              // 자동 검사에서 1보다 작게 줄여 빠르게 돌린다
+  function tick() {
+    clearTimeout(tickTimer);
+    if (G.phase !== 'play') return;
+    var s = G.seats[G.turn];
+    if (!s || !s.bot) return;
+    var delay = (CFG.level === 'easy' ? 340 : 480) + Math.random() * 220;
+    tickTimer = setTimeout(function () {
+      if (G.phase !== 'play') return;
+      var mv = botMove(G.turn);
+      if (mv) doPlay(G.turn, mv.cards.map(function (c) { return c.id; }));
+      else doPass(G.turn);
+    }, delay * THINK);
+  }
+
+  /* ────────── 컴퓨터 두뇌 ────────── */
+  function botRevolution(seat) {
+    if (seat === G.n - 1) return true;                 // 대농노는 무조건 (대혁명)
+    return seat >= Math.ceil(G.n / 2);                 // 아래 계급이면 세금 안 내는 게 이득
+  }
+
+  function botTaxGive(seat, k) {
+    var h = sortHand(G.seats[seat].hand.slice());
+    var out = [];
+    /* 가장 나쁜(숫자 큰) 카드부터 준다. 단 광대는 아깝다 */
+    for (var i = h.length - 1; i >= 0 && out.length < k; i--) {
+      if (h[i].r === JOKER) continue;
+      out.push(h[i]);
+    }
+    for (var j = h.length - 1; j >= 0 && out.length < k; j--) {
+      if (out.indexOf(h[j]) < 0) out.push(h[j]);
+    }
+    return out;
+  }
+
+  function botMove(seat) {
+    var s = G.seats[seat];
+    var moves = enumMoves(s.hand, G.pile);
+    if (!moves.length) return null;
+    var lvl = CFG.level;
+
+    if (lvl === 'easy') {
+      if (!G.pile) {
+        /* 아무 묶음이나 (조금은 큰 묶음 선호) */
+        moves.sort(function (a, b) { return b.count - a.count || b.rank - a.rank; });
+        return moves[Math.min(moves.length - 1, Math.floor(Math.random() * 2))];
+      }
+      if (Math.random() < 0.25) return null;
+      moves.sort(function (a, b) { return b.rank - a.rank; });
+      return moves[0];
+    }
+
+    var others = 0, minOther = 99;
+    for (var i = 0; i < G.n; i++) {
+      if (i !== seat && G.seats[i].hand.length) {
+        others++; minOther = Math.min(minOther, G.seats[i].hand.length);
+      }
+    }
+
+    if (!G.pile) {
+      /* 리드 — 이번에 다 털 수 있으면 그렇게 한다 */
+      var finisher = null;
+      moves.forEach(function (m) { if (m.count === s.hand.length && (!finisher || m.rank > finisher.rank)) finisher = m; });
+      if (finisher) return finisher;
+      var scored = moves.map(function (m) {
+        /* 큰 묶음 + 나쁜(숫자 큰) 카드를 먼저 버린다. 좋은 카드는 아껴둔다. */
+        var v = m.count * 12 + m.rank * 1.4 - (m.rank <= 3 ? 26 : 0);
+        if (m.rank === JOKER) v -= 40;                      // 광대는 조커로 아껴둔다
+        if (usesJoker(m)) v -= 14;
+        if (lvl === 'hard' && s.hand.length <= 6) v += m.count * 6;
+        return { m: m, v: v };
+      });
+      scored.sort(function (a, b) { return b.v - a.v; });
+      if (lvl === 'normal' && scored.length > 1 && Math.random() < 0.2) return scored[1].m;
+      return scored[0].m;
+    }
+
+    /* 따라가기 */
+    var cands = moves.map(function (m) {
+      var v = -m.rank * 2;                                  // 숫자 큰(나쁜) 카드로 이기는 게 이득
+      if (usesJoker(m)) v -= 22;
+      if (m.count === s.hand.length) v += 120;              // 이걸로 손을 털 수 있으면 최고
+      if (m.rank <= 3) v -= 30;                             // 좋은 카드는 아껴둔다
+      if (m.count >= s.hand.length - 1) v += 25;
+      return { m: m, v: v };
+    });
+    cands.sort(function (a, b) { return b.v - a.v; });
+    var best = cands[0];
+    /* 남은 사람이 얼마 없거나 좋은 카드밖에 없으면 패스 */
+    var mustKeep = best.m.rank <= 2 && s.hand.length > 4 && G.pile.count === 1;
+    if (lvl === 'hard') {
+      if (best.m.count === s.hand.length) return best.m;
+      if (mustKeep && minOther > 3) return null;
+      if (usesJoker(best.m) && s.hand.length > 5 && G.pile.rank <= 6) return null;
+    } else {
+      if (mustKeep && Math.random() < 0.75) return null;
+      if (Math.random() < 0.1) return null;
+    }
+    return best.m;
+  }
+
+  function usesJoker(m) {
+    return m.rank !== JOKER && m.cards.some(function (c) { return c.r === JOKER; });
+  }
+
+  /* ════════════════════════════════════════════
+     화면에 보낼 정보 만들기 (자리마다 다르다)
+     ════════════════════════════════════════════ */
+  function viewFor(seat) {
+    var v = {
+      n: G.n, seat: seat, handNo: G.handNo, rounds: G.rounds, phase: G.phase,
+      turn: G.turn, pile: G.pile ? { rank: G.pile.rank, count: G.pile.count, by: G.pile.by, cards: G.pile.cards.map(function (c) { return c.r; }) } : null,
+      log: G.log.slice(-40),
+      seats: G.seats.map(function (s, i) {
+        return {
+          name: s.name, bot: s.bot, cards: s.hand.length, done: s.done,
+          passed: s.passed, last: s.last, score: s.score, title: title(i, G.n), emo: titleEmo(i, G.n)
+        };
+      }),
+      hand: G.seats[seat].hand.map(function (c) { return { id: c.id, r: c.r }; }),
+      revAsk: G.phase === 'revolution' ? G.revAsk : -1,
+      greatRev: G.greatRev, revBy: G.revBy,
+      didGreatRev: !!G.greatRevBy[G.seats[seat].pid],
+      lastResult: G.lastResult || null, final: G.final || null
+    };
+    if (G.phase === 'tax') {
+      var mine = null;
+      (G.taxPairs || []).forEach(function (p) {
+        if (p.hi === seat && !G.taxGive[seat]) mine = { give: p.k, to: G.seats[p.lo].name, role: 'hi' };
+        if (p.lo === seat) mine = mine || { give: 0, to: G.seats[p.hi].name, role: 'lo', k: p.k };
+      });
+      v.tax = mine;
+      v.taxWait = (G.taxPairs || []).filter(function (p) { return !G.taxGive[p.hi]; })
+        .map(function (p) { return G.seats[p.hi].name; });
+    }
+    return v;
+  }
+
+  /* 상태가 바뀔 때마다 모두에게 보낸다 */
+  function push() {
+    if (!G) return;
+    for (var i = 0; i < G.n; i++) {
+      var s = G.seats[i];
+      if (s.bot) continue;
+      if (!NET || s.pid === NET.myId) { MYSEAT = i; render(viewFor(i)); }
+      else if (NET && NET.isHost) Room.to(s.pid, { t: 'view', v: viewFor(i) });
+    }
+  }
+
+  /* ════════════════════════════════════════════
+     화면 그리기 (방장·참가자 공통)
+     ════════════════════════════════════════════ */
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function cardHTML(r, cls) {
+    var d = RANKS[r];
+    return '<div class="card' + (r === JOKER ? ' j' : '') + (cls ? ' ' + cls : '') + '">' +
+      '<div class="r">' + (r === JOKER ? '🤡' : r) + '</div>' +
+      (r === JOKER ? '' : '<div class="e">' + d.emo + '</div>') +
+      '<div class="nm">' + d.ko + '</div></div>';
+  }
+
+  function render(v) {
+    view = v;
+    show('table');
+    $('tbHand').textContent = v.handNo + '판 / ' + v.rounds + '판';
+    var me = v.seats[v.seat];
+    $('tbMe').textContent = me.emo + ' ' + me.name + ' · ' + me.title;
+    $('myTitle').textContent = me.emo + ' 내 계급: ' + me.title;
+    $('myCount').textContent = '남은 카드 ' + me.cards + '장';
+
+    /* 플레이어 줄 */
+    $('players').innerHTML = v.seats.map(function (s, i) {
+      var tag = s.done > 0 ? '<span class="pl-tag out">' + s.done + '등</span>'
+        : (s.passed ? '<span class="pl-tag pass">패스</span>' : '');
+      return '<div class="pl' + (i === v.turn && v.phase === 'play' ? ' turn' : '') +
+        (i === v.seat ? ' me' : '') + (s.done > 0 ? ' done' : '') + '">' + tag +
+        '<div class="pl-n">' + (s.bot ? '🤖 ' : '') + esc(s.name) + '</div>' +
+        '<div class="pl-t">' + s.emo + ' ' + s.title + '</div>' +
+        '<div class="pl-b"><span class="pl-c">🂠 ' + s.cards + '</span>' +
+        '<span class="pl-s">' + s.score + '점</span></div></div>';
+    }).join('');
+
+    /* 가운데 */
+    if (v.pile) {
+      $('pileLbl').innerHTML = esc(v.seats[v.pile.by].name) + ' 가 낸 <b>' + v.pile.count + '장 · ' +
+        (v.pile.rank === JOKER ? '광대' : v.pile.rank + ' ' + RANKS[v.pile.rank].ko) + '</b>';
+      $('pile').innerHTML = v.pile.cards.map(function (r) { return cardHTML(r); }).join('');
+    } else {
+      $('pileLbl').textContent = v.phase === 'play'
+        ? (v.turn === v.seat ? '내 차례! 아무 묶음이나 먼저 내세요' : v.seats[v.turn].name + ' 님이 먼저 낼 차례')
+        : '';
+      $('pile').innerHTML = '';
+    }
+    $('log').innerHTML = v.log.map(function (s) { return esc(s); }).join('<br>');
+    if ($('log').classList.contains('on')) $('log').scrollTop = 99999;
+
+    /* 손패 */
+    drawHand();
+
+    /* 모달 — 세금 고르는 중이면 다시 그리지 않는다(고른 카드가 날아가므로) */
+    var taxOpen = $('mdTax').classList.contains('on');
+    var keepTax = taxOpen && v.phase === 'tax' && v.tax && v.tax.role === 'hi';
+    if (!keepTax) closeAll();
+    if (v.phase === 'revolution' && v.revAsk === v.seat) askRevolution(v);
+    else if (v.phase === 'tax' && v.tax && v.tax.role === 'hi') { if (!keepTax) askTax(v); }
+    else if (v.phase === 'handEnd') showHandEnd(v);
+    else if (v.phase === 'gameEnd') showGameEnd(v);
+  }
+
+  function drawHand() {
+    var v = view;
+    if (!v) return;
+    var canAct = v.phase === 'play' && v.turn === v.seat;
+    var legalRanks = {};
+    if (canAct) {
+      enumMoves(v.hand, v.pile).forEach(function (m) {
+        m.cards.forEach(function (c) { legalRanks[c.r] = true; });
+      });
+    }
+    $('hand').innerHTML = v.hand.map(function (c) {
+      var cls = (sel[c.id] ? ' sel' : '') + (canAct && !legalRanks[c.r] ? ' no' : '');
+      return '<div class="card' + (c.r === JOKER ? ' j' : '') + cls + '" data-id="' + c.id + '">' +
+        '<div class="r">' + (c.r === JOKER ? '🤡' : c.r) + '</div>' +
+        (c.r === JOKER ? '' : '<div class="e">' + RANKS[c.r].emo + '</div>') +
+        '<div class="nm">' + RANKS[c.r].ko + '</div></div>';
+    }).join('');
+
+    var picked = v.hand.filter(function (c) { return sel[c.id]; });
+    var why = picked.length ? canPlay(picked, v.pile) : '카드를 골라주세요';
+    $('btnPlay').disabled = !canAct || !picked.length || !!why;
+    $('btnPass').disabled = !canAct || !v.pile;
+    $('btnPass').style.opacity = (!canAct || !v.pile) ? .45 : 1;
+    if (!canAct) {
+      $('hint').textContent = v.phase === 'play' ? (v.seats[v.turn].name + ' 님 차례…') : '';
+    } else if (!picked.length) {
+      $('hint').textContent = v.pile
+        ? (v.pile.count + '장 · ' + v.pile.rank + '보다 작은 숫자를 내거나 패스')
+        : '낼 카드를 고르세요 (같은 숫자 여러 장 가능)';
+    } else {
+      $('hint').textContent = why || ('✅ ' + picked.length + '장 · ' +
+        (analyze(picked).rank === JOKER ? '광대' : analyze(picked).rank) + ' 내기');
+    }
+  }
+
+  /* 카드 탭 — 필요한 장수만큼 자동으로 채워준다 */
+  $('hand').addEventListener('click', function (e) {
+    var el = e.target.closest('.card');
+    if (!el || !view) return;
+    if (!(view.phase === 'play' && view.turn === view.seat)) return;
+    var id = +el.dataset.id;
+    var card = null, i;
+    for (i = 0; i < view.hand.length; i++) if (view.hand[i].id === id) card = view.hand[i];
+    if (!card) return;
+
+    if (sel[id]) { delete sel[id]; drawHand(); return; }
+
+    var picked = view.hand.filter(function (c) { return sel[c.id]; });
+    var a = picked.length ? analyze(picked) : null;
+    /* 다른 숫자를 고르고 있었다면 새로 시작 */
+    if (a && a.ok && card.r !== JOKER && a.rank !== JOKER && a.rank !== card.r) { sel = {}; picked = []; }
+    if (a && a.ok && card.r === JOKER && a.rank === JOKER) { /* 광대끼리 */ }
+
+    sel[id] = true;
+    /* 따라가는 중이면 필요한 장수까지 같은 숫자로 자동 채움 */
+    if (view.pile) {
+      var need = view.pile.count;
+      var cur = view.hand.filter(function (c) { return sel[c.id]; });
+      var base = card.r === JOKER ? (analyze(cur).rank) : card.r;
+      if (cur.length < need) {
+        view.hand.forEach(function (c) {
+          if (cur.length >= need) return;
+          if (sel[c.id]) return;
+          if (c.r === base) { sel[c.id] = true; cur.push(c); }
+        });
+      }
+      if (cur.length < need) {   // 모자라면 광대로 채운다
+        view.hand.forEach(function (c) {
+          if (cur.length >= need) return;
+          if (sel[c.id] || c.r !== JOKER) return;
+          sel[c.id] = true; cur.push(c);
+        });
+      }
+    }
+    drawHand();
+  });
+
+  $('btnPlay').onclick = function () {
+    if (!view) return;
+    var ids = view.hand.filter(function (c) { return sel[c.id]; }).map(function (c) { return c.id; });
+    if (!ids.length) return;
+    sel = {};
+    act({ a: 'play', ids: ids });
+  };
+  $('btnPass').onclick = function () { sel = {}; act({ a: 'pass' }); };
+
+  /* 내 행동을 판정하는 쪽으로 보낸다 */
+  function act(msg) {
+    if (NET && !NET.isHost) { Room.send(msg); $('btnPlay').disabled = true; $('btnPass').disabled = true; return; }
+    handleAction(MYSEAT, msg);
+  }
+
+  function handleAction(seat, m) {
+    if (!G) return;
+    if (m.a === 'play') doPlay(seat, m.ids);
+    else if (m.a === 'pass') doPass(seat);
+    else if (m.a === 'tax') submitTax(seat, m.ids);
+    else if (m.a === 'rev') decideRevolution(seat, !!m.yes);
+  }
+
+  /* ────────── 모달들 ────────── */
+  function openM(id) { $(id).classList.add('on'); }
+  function closeM(id) { $(id).classList.remove('on'); }
+  function closeAll() { ['mdRev', 'mdTax', 'mdHand', 'mdEnd'].forEach(closeM); }
+
+  function askRevolution(v) {
+    $('revText').innerHTML = '광대 두 장을 모두 가졌어요!<br>혁명을 일으키면 <b>이번 판 세금이 없어집니다.</b>' +
+      (v.seat === v.n - 1 ? '<br>대농노인 내가 하면 <b>대혁명</b> — 계급이 통째로 뒤집혀요!' : '');
+    openM('mdRev');
+    $('revYes').onclick = function () { closeM('mdRev'); act({ a: 'rev', yes: true }); };
+    $('revNo').onclick = function () { closeM('mdRev'); act({ a: 'rev', yes: false }); };
+  }
+
+  var taxSel = {};
+  function askTax(v) {
+    taxSel = {};
+    var k = v.tax.give;
+    $('taxTitle').textContent = '💰 세금 돌려주기';
+    $('taxText').innerHTML = esc(v.tax.to) + ' 님이 가장 좋은 카드 <b>' + k + '장</b>을 내게 바쳐요.<br>' +
+      '대신 아무 카드나 <b>' + k + '장</b>을 골라 돌려주세요.';
+    function paint() {
+      $('taxHand').innerHTML = v.hand.map(function (c) {
+        return '<div class="card' + (c.r === JOKER ? ' j' : '') + (taxSel[c.id] ? ' sel' : '') + '" data-id="' + c.id + '">' +
+          '<div class="r">' + (c.r === JOKER ? '🤡' : c.r) + '</div>' +
+          (c.r === JOKER ? '' : '<div class="e">' + RANKS[c.r].emo + '</div>') +
+          '<div class="nm">' + RANKS[c.r].ko + '</div></div>';
+      }).join('');
+      $('taxOk').disabled = Object.keys(taxSel).length !== k;
+    }
+    paint();
+    $('taxHand').onclick = function (e) {
+      var el = e.target.closest('.card');
+      if (!el) return;
+      var id = +el.dataset.id;
+      if (taxSel[id]) delete taxSel[id];
+      else if (Object.keys(taxSel).length < k) taxSel[id] = true;
+      paint();
+    };
+    $('taxOk').onclick = function () {
+      closeM('mdTax');
+      act({ a: 'tax', ids: Object.keys(taxSel).map(Number) });
+    };
+    openM('mdTax');
+  }
+
+  function rankListHTML(rows, mySeat) {
+    var medal = ['🥇', '🥈', '🥉'];
+    return rows.map(function (r, i) {
+      return '<li' + (r.seat === mySeat ? ' class="me"' : '') + '>' +
+        '<span class="pos">' + (medal[i] || (i + 1)) + '</span>' +
+        '<span class="nm">' + (r.bot ? '🤖 ' : '') + esc(r.name) + '</span>' +
+        '<span class="sc">' + (r.got != null ? '+' + r.got + '점 · ' : '') + '합계 ' + r.score + '점</span></li>';
+    }).join('');
+  }
+
+  function showHandEnd(v) {
+    var me = v.seats[v.seat];
+    $('handTitle').textContent = v.handNo + '판 결과';
+    /* 판이 끝나면 자리 순서 = 나간 순서 → 내 자리 번호가 곧 내 등수 */
+    var mine = v.lastResult[v.seat] || null;
+    $('handText').innerHTML = mine
+      ? '나는 <b>' + mine.pos + '등</b> — 다음 판 계급은 <b>' + title(mine.pos - 1, v.n) + '</b>!'
+      : '';
+    $('handRanks').innerHTML = rankListHTML(v.lastResult, v.seat);
+    $('handNext').textContent = (NET && !NET.isHost) ? '방장을 기다리는 중…' : '다음 판';
+    $('handNext').disabled = !!(NET && !NET.isHost);
+    $('handNext').onclick = function () {
+      closeM('mdHand');
+      if (NET && !NET.isHost) return;
+      startHand();
+    };
+    openM('mdHand');
+  }
+
+  function showGameEnd(v) {
+    var me = v.seats[v.seat];
+    var rows = v.final;
+    $('endTitle').textContent = '👑 최종 결과';
+    var pos = 0;
+    rows.forEach(function (r, i) { if (r.seat === v.seat) pos = i + 1; });
+    $('endText').innerHTML = pos === 1 ? '🎉 내가 <b>최후의 대달무티</b>!' : '나는 <b>' + pos + '등</b>으로 끝났어요.';
+    $('endRanks').innerHTML = rankListHTML(rows, v.seat);
+    $('endAgain').textContent = (NET && !NET.isHost) ? '방장을 기다리는 중…' : '한 번 더';
+    $('endAgain').disabled = !!(NET && !NET.isHost);
+    openM('mdEnd');
+    submitRecord(v, pos, rows.length);
+  }
+
+  /* ────────── 기록 · 배지 ────────── */
+  function submitRecord(v, pos, total) {
+    if (!window.JG) return;
+    try {
+      var myScore = 0;
+      v.final.forEach(function (r) { if (r.seat === v.seat) myScore = r.score; });
+      var mode = NET ? '온라인 대결' : (total + '명 · ' + LEVELS[CFG.level] + ' · ' + v.rounds + '판');
+      var res = JG.submit('dalmuti', { score: myScore, mode: mode, unit: '점' });
+      JG.stat('dalmuti', 'games', 1);
+      var wins = JG.stat('dalmuti', 'wins', pos === 1 ? 1 : 0) || 0;
+      var badges = JG.awardAll({
+        'dm-play': true,
+        'dm-win': pos === 1,
+        'dm-hard': pos === 1 && !NET && CFG.level === 'hard',
+        'dm-win5': wins >= 5,
+        'dm-rev': !!v.didGreatRev
+      });
+      JG.resultBox('jgRes', {
+        gameId: 'dalmuti', score: myScore, res: res, unit: '점', badges: badges,
+        extra: [['이번 게임 순위', pos + '등 / ' + total + '명'],
+                ['최종 계급', v.seats[v.seat].title]]
+      });
+    } catch (e) { }
+  }
+
+  /* ────────── 화면 전환 ────────── */
+  function show(which) {
+    $('start').classList.toggle('on', which === 'start');
+    $('table').classList.toggle('on', which === 'table');
+    $('hubLink').style.display = which === 'start' ? '' : 'none';
+  }
+
+  /* ────────── 시작 화면 설정 ────────── */
+  var LEVELS = { easy: '쉬움', normal: '보통', hard: '어려움' };
+  function buildOpts(boxId, items, cur, cb) {
+    var box = $(boxId);
+    box.innerHTML = items.map(function (it) {
+      return '<div class="opt' + (it.v === cur ? ' on' : '') + '" data-v="' + it.v + '">' + it.t +
+        (it.s ? '<small>' + it.s + '</small>' : '') + '</div>';
+    }).join('');
+    box.onclick = function (e) {
+      var el = e.target.closest('.opt');
+      if (!el) return;
+      [].forEach.call(box.children, function (c) { c.classList.remove('on'); });
+      el.classList.add('on');
+      var v = el.dataset.v;
+      cb(isNaN(+v) ? v : +v);
+    };
+  }
+
+  function paintPlayersNote() {
+    var n = CFG.players;
+    var t = [];
+    for (var i = 0; i < n; i++) t.push(title(i, n));
+    $('playersNote').textContent = '계급: ' + t.join(' → ');
+  }
+
+  buildOpts('optPlayers', [2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (n) { return { v: n, t: n + '명' }; }),
+    CFG.players, function (v) { CFG.players = v; paintPlayersNote(); });
+  buildOpts('optLevel', [{ v: 'easy', t: '쉬움' }, { v: 'normal', t: '보통' }, { v: 'hard', t: '어려움' }],
+    CFG.level, function (v) { CFG.level = v; });
+  buildOpts('optRounds', [{ v: 3, t: '3판' }, { v: 5, t: '5판' }, { v: 10, t: '10판' }, { v: 20, t: '20판', s: '원작 권장' }],
+    CFG.rounds, function (v) { CFG.rounds = v; });
+  buildOpts('optPass', [{ v: 0, t: '원작', s: '다시 낼 수 있음' }, { v: 1, t: '변형', s: '한 번 패스면 쉼' }],
+    0, function (v) { CFG.passLock = !!v; });
+  paintPlayersNote();
+
+  /* ────────── 혼자 하기 ────────── */
+  var BOTNAMES = ['보리', '초코', '단추', '하늘', '구름', '바람', '노을', '별이', '달이'];
+  function myName() {
+    try { if (window.JG) return JG.player().name || '나'; } catch (e) { }
+    return '나';
+  }
+
+  $('btnSolo').onclick = function () {
+    NET = null;
+    var defs = [{ pid: 'me', name: myName(), bot: false }];
+    var names = BOTNAMES.slice();
+    for (var i = 1; i < CFG.players; i++) {
+      defs.push({ pid: 'b' + i, name: names.splice(Math.floor(Math.random() * names.length), 1)[0], bot: true });
+    }
+    sel = {};
+    newGame(defs);
+  };
+
+  /* ────────── 온라인 ────────── */
+  $('btnOnline').onclick = function () {
+    Room.open({
+      game: 'dalmuti', min: 1, max: 10, canFill: true,   /* 빈 자리는 컴퓨터가 채우므로 혼자서도 시작 가능 */
+      settingsHTML: function () {
+        return '<div class="rm-note" style="text-align:center">' +
+          '<b>빈 자리 컴퓨터로 채우기</b><br>' +
+          '<span style="font-size:12px">전체 인원 ' +
+          '<select id="rmTot" style="font-family:inherit;font-weight:800;font-size:14px;padding:3px 6px;border-radius:8px;border:2px solid #ddd6ef">' +
+          [2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (k) { return '<option value="' + k + '"' + (k === CFG.players ? ' selected' : '') + '>' + k + '명</option>'; }).join('') +
+          '</select> · 판 수 ' +
+          '<select id="rmRds" style="font-family:inherit;font-weight:800;font-size:14px;padding:3px 6px;border-radius:8px;border:2px solid #ddd6ef">' +
+          [3, 5, 10, 20].map(function (k) { return '<option value="' + k + '"' + (k === CFG.rounds ? ' selected' : '') + '>' + k + '판</option>'; }).join('') +
+          '</select></span></div>';
+      },
+      /* 사람이 새로 들어오면 대기실이 다시 그려진다 → 고른 값을 CFG 에 담아 유지한다 */
+      onLobbyDraw: function () {
+        var t = document.getElementById('rmTot'), r = document.getElementById('rmRds');
+        if (t) t.onchange = function () { CFG.players = +this.value; };
+        if (r) r.onchange = function () { CFG.rounds = +this.value; };
+      },
+      getSettings: function () {
+        var tot = +(document.getElementById('rmTot') || {}).value || CFG.players;
+        var rds = +(document.getElementById('rmRds') || {}).value || CFG.rounds;
+        return { total: tot, rounds: rds, level: CFG.level, passLock: CFG.passLock };
+      },
+      validate: function (st, humans) {
+        if (st.total < humans) return '전체 인원이 방에 있는 사람보다 적어요.';
+        if (st.total < 2) return '2명 이상이어야 해요.';
+        return null;
+      },
+      onStart: function (info) {
+        NET = { isHost: info.isHost, myId: info.myId, players: info.players };
+        CFG.rounds = info.settings.rounds;
+        CFG.level = info.settings.level || CFG.level;
+        CFG.passLock = !!info.settings.passLock;
+        sel = {};
+        if (info.isHost) {
+          var defs = info.players.map(function (p) { return { pid: p.id, name: p.name, bot: false }; });
+          var names = BOTNAMES.slice();
+          for (var i = defs.length; i < info.settings.total; i++) {
+            defs.push({ pid: 'b' + i, name: names.splice(Math.floor(Math.random() * names.length), 1)[0], bot: true });
+          }
+          newGame(defs);
+        } else {
+          show('table');
+          $('pileLbl').textContent = '방장이 카드를 나누는 중…';
+        }
+      },
+      onData: function (m, from) {
+        if (NET && NET.isHost) {
+          var seat = -1;
+          for (var i = 0; i < G.n; i++) if (G.seats[i].pid === from) seat = i;
+          if (seat >= 0) handleAction(seat, m);
+        } else if (m && m.t === 'view') {
+          render(m.v);
+        }
+      },
+      onPeerLeave: function (pid, name) {
+        if (!NET || !NET.isHost || !G) return;
+        for (var i = 0; i < G.n; i++) {
+          if (G.seats[i].pid === pid) {
+            G.seats[i].bot = true;
+            G.seats[i].name = name + '(컴)';
+            log('🤖 ' + name + ' 님이 나가서 컴퓨터가 대신합니다.');
+          }
+        }
+        push();
+        tick();
+      },
+      onHostGone: function () {
+        alert('방장이 나가서 게임이 끝났어요.');
+        location.reload();
+      },
+      onLeave: function () { location.reload(); },
+      onCancel: function () { show('start'); }
+    });
+  };
+
+  /* ────────── 버튼들 ────────── */
+  $('btnLog').onclick = function () {
+    $('log').classList.toggle('on');
+    if ($('log').classList.contains('on')) $('log').scrollTop = 99999;
+  };
+  $('btnQuit').onclick = function () {
+    if (!confirm('게임을 그만할까요?')) return;
+    if (NET) Room.leave();
+    else location.reload();
+  };
+  $('endOut').onclick = function () {
+    if (NET) Room.leave();
+    else location.reload();
+  };
+  $('endAgain').onclick = function () {
+    closeM('mdEnd');
+    if (NET && !NET.isHost) return;
+    if (NET) {
+      var defs = G.seats.map(function (s) { return { pid: s.pid, name: s.name.replace(/\(컴\)$/, ''), bot: s.bot }; });
+      newGame(defs);
+    } else {
+      var defs2 = G.seats.map(function (s) { return { pid: s.pid, name: s.name, bot: s.bot }; });
+      newGame(defs2);
+    }
+  };
+
+  document.querySelectorAll('[data-close]').forEach(function (b) {
+    b.onclick = function () { closeM(b.dataset.close); };
+  });
+  $('btnRules').onclick = $('btnRules2').onclick = function () { openM('mdRules'); };
+
+  $('rulesBody').innerHTML =
+    '<p style="text-align:left;margin:0 0 6px">먼저 손의 카드를 다 털어내면 <b>대달무티(1등)</b>, 끝까지 남으면 <b>대농노(꼴찌)</b>. ' +
+    '다음 판에서 계급이 그대로 바뀌고, 아래 계급은 위 계급에게 <b>세금</b>을 바쳐야 해요.</p>' +
+    '<h5>🃏 카드 80장</h5><div class="deckview">' +
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map(function (r) { return cardHTML(r, 'sm'); }).join('') +
+    '</div><ul><li>숫자가 <b>작을수록 강해요</b> (1이 가장 셈).</li>' +
+    '<li>숫자 n은 딱 n장씩 있어요. 1은 1장, 12는 12장.</li>' +
+    '<li><b>광대</b> 2장은 만능. 다른 숫자와 같이 내면 그 숫자가 되고, 혼자 내면 13(가장 약함)이에요.</li></ul>' +
+    '<h5>💰 세금</h5><ul>' +
+    '<li>대농노 → 대달무티에게 <b>가장 좋은 카드 2장</b>, 대달무티는 아무 카드 2장을 돌려줘요.</li>' +
+    '<li>소농노 → 소달무티에게 1장, 소달무티도 아무 카드 1장.</li></ul>' +
+    '<h5>🔥 혁명</h5><ul>' +
+    '<li>광대 2장을 모두 가진 사람은 <b>혁명</b>을 선언할 수 있어요 → 이번 판 세금 없음.</li>' +
+    '<li><b>대농노</b>가 선언하면 <b>대혁명</b> — 계급이 통째로 뒤집혀요!</li></ul>' +
+    '<h5>🂠 카드 내기</h5><ul>' +
+    '<li>대달무티가 먼저 <b>같은 숫자 여러 장</b>을 냅니다. (예: 7 세 장)</li>' +
+    '<li>다음 사람은 <b>같은 장수</b>에 <b>더 작은 숫자</b>를 내거나 패스해요.</li>' +
+    '<li>모두가 연달아 패스하면 마지막에 낸 사람이 그 판을 가져가고 다시 먼저 냅니다.</li>' +
+    '<li>원작에서는 패스해도 자기 차례가 돌아오면 다시 낼 수 있어요.</li></ul>' +
+    '<h5>🏆 점수</h5><ul>' +
+    '<li>손을 털 때 아직 카드를 든 사람 수만큼 점수를 받아요. (1등이 가장 많음)</li>' +
+    '<li>정한 판 수가 끝나면 점수 합계가 가장 높은 사람이 우승!</li></ul>';
+
+  /* 플레이어 칩 */
+  try { if (window.JG) JG.mountChip('jgChip'); } catch (e) { }
+
+  /* ────────── 자동 검사용 훅 ────────── */
+  window.__dal = {
+    RANKS: RANKS, JOKER: JOKER, makeDeck: makeDeck, analyze: analyze, canPlay: canPlay,
+    enumMoves: enumMoves, title: title,
+    get G() { return G; },
+    CFG: CFG,
+    newGame: newGame, doPlay: doPlay, doPass: doPass, botMove: botMove,
+    startHand: startHand, decideRevolution: decideRevolution, submitTax: submitTax,
+    setCFG: function (o) { for (var k in o) CFG[k] = o[k]; },
+    setSpeed: function (x) { THINK = x; },
+    viewFor: viewFor, holders: holders
+  };
+})();
+</script>
+</body>
+</html>

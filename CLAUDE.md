@@ -17,7 +17,7 @@
    - 대신 **GitHub Desktop**(설치·로그인 완료)을 컴퓨터 사용 권한으로 직접 조작한다: `Current repository`가 `jerry-games`인지 확인 → Summary 입력 → **Commit to main** → **Push origin**.
    - 브랜치 기본값 변경·삭제·이름 변경처럼 깃허브 웹에서만 되는 작업은 **구글 크롬**으로 `github.com/oxomaz/jerry-games`에 들어가 처리한다.
    - 푸시 후에는 `https://oxomaz.github.io/jerry-games/` 와 새 게임 주소가 실제로 열리는지 확인한다. (Pages: `main` 브랜치 / root)
-7-1. **여러 게임이 함께 쓰는 코드는 루트 `common/` 폴더에 둔다.** 지금은 온라인 대결 라이브러리 `common/versus.js`와 그것이 쓰는 `common/peerjs.min.js`가 들어 있다. 게임에서는 `<script src="../../../common/versus.js"></script>`로 불러온다. PeerJS는 CDN이 막힌 환경에서도 되도록 저장소에 함께 넣어두고, 없으면 unpkg CDN으로 자동 대체된다.
+7-1. **여러 게임이 함께 쓰는 코드는 루트 `common/` 폴더에 둔다.** 지금은 1:1 온라인 대결 라이브러리 `common/versus.js`, **여러 명(2~10명)이 한 방에 모이는 `common/room.js`**, 그리고 둘이 함께 쓰는 `common/peerjs.min.js`가 들어 있다. 게임에서는 `<script src="../../../common/versus.js"></script>`(또는 `room.js`)로 불러온다. 인원이 3명 이상이거나 손패처럼 **비밀 정보**가 있는 게임은 `room.js` 를 쓴다 — 방장이 판정을 전부 맡고(host-authoritative) 자리마다 다른 화면 정보만 보내주는 구조라 남의 손패가 전송되지 않는다. PeerJS는 CDN이 막힌 환경에서도 되도록 저장소에 함께 넣어두고, 없으면 unpkg CDN으로 자동 대체된다.
 7-2. **새 게임은 반드시 `common/profile.js`(플레이어 · 기록 · 배지)를 붙인다.** `<script src="../../../common/profile.js"></script>` 로 불러오고, 전역 `JG` 를 쓴다.
    - 시작 화면에 `<div id="jgChip"></div>` + `JG.mountChip('jgChip')` — 현재 플레이어 칩(누르면 전환·추가).
    - 판이 끝나면 `JG.submit('<게임id>', {score, mode, unit, lowerIsBetter})`. `mode` 는 난이도·주제 같은 설정을 **사람이 읽을 수 있는 문자열**로 (모드별로 최고 기록이 따로 쌓인다). 온라인 대결 판은 `mode:"온라인 대결"` 로 분리한다.
