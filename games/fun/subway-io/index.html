@@ -87,6 +87,8 @@
     display:flex; gap:6px; flex-wrap:wrap; justify-content:center; max-width:min(94vw,520px);}
   #fxbar .fx{font-size:11.5px; font-weight:800; background:rgba(11,18,32,.8); border:1.5px solid #7cc4ff; color:#7cc4ff;
     padding:4px 9px; border-radius:20px; white-space:nowrap;}
+  #fxbar .fx.bad{background:rgba(60,12,20,.85); animation:badblink .9s ease-in-out infinite;}
+  @keyframes badblink{50%{opacity:.55;}}
   #toast{position:absolute; left:50%; top:34%; transform:translateX(-50%) scale(.9); opacity:0;
     font-size:21px; font-weight:900; text-shadow:0 2px 12px rgba(0,0,0,.8); letter-spacing:-.4px;
     transition:opacity .18s, transform .18s; white-space:nowrap;}
@@ -164,7 +166,8 @@
       가속하면 승객이 조금씩 내리니 필요할 때만 쓰세요.<br>
       <b>편성</b>: 승객을 태우면 최대 <b>100칸</b>까지 길어져요.<br>
       <b>난이도</b>: 25초마다 <b>속도 Lv.</b>가 올라가고 온 세상이 점점 빨라져요 (최고 Lv.12).<br>
-      <b>아이템</b>: 🐢 감속 · ⚡ 가속 · 🛡️ 무적(부딪혀도 안 죽고 오히려 격파!) · 🧲 자석(승객이 끌려와요)<br>
+      <b>아이템</b>: 선로의 <b>❓ 상자</b>는 먹기 전에는 뭔지 알 수 없어요! 좋은 것 4가지(감속·가속·무적·자석)와
+      함정 2가지(10초 정지·승객 이탈)가 섞여 있습니다.<br>
       <span style="opacity:.75">지도·노선·역 자료 © OpenStreetMap contributors (ODbL)</span>
     </div>
     <a class="hub-link" href="../../../">← 게임 목록</a>
@@ -299,19 +302,28 @@ function worldSpeedMul(){ return 1 + (speedLevel() - 1) * LV_STEP; }
 /* ---------- 아이템 ----------
    사용자 결정(2026-07-29): 아이템은 "나만" 먹는다. AI 열차는 아이템에 반응하지 않는다. */
 const ITEMS = {
-  slow:   {emoji:'🐢', name:'감속',  col:'#8fe3ff', sec:9,  mul:0.62},
-  fast:   {emoji:'⚡', name:'가속',  col:'#ffd76a', sec:7,  mul:1.5 },
-  shield: {emoji:'🛡️', name:'무적',  col:'#ff9ad5', sec:8  },
-  magnet: {emoji:'🧲', name:'자석',  col:'#b8ffbe', sec:10 }
+  slow:   {emoji:'🐢',  name:'감속',      col:'#8fe3ff', sec:9,  w:3, mul:0.62},
+  fast:   {emoji:'⚡',  name:'가속',      col:'#ffd76a', sec:7,  w:3, mul:1.5 },
+  shield: {emoji:'🛡️',  name:'무적',      col:'#ff9ad5', sec:8,  w:2 },
+  magnet: {emoji:'🧲',  name:'자석',      col:'#b8ffbe', sec:10, w:3 },
+  /* ▼ 함정 (2026-07-29 사용자 아이디어) — 좋은 아이템보다 덜 나온다 */
+  freeze: {emoji:'🧊',  name:'정지',      col:'#9fd0ff', sec:10, w:1, bad:true },
+  leak:   {emoji:'💸',  name:'승객 이탈', col:'#ff7b7b', sec:12, w:2, bad:true }
 };
 const ITEM_KEYS   = Object.keys(ITEMS);
+/* 뽑기 주머니 — 가중치만큼 넣어두고 하나 꺼낸다 */
+const ITEM_BAG    = ITEM_KEYS.flatMap(k=>Array(ITEMS[k].w).fill(k));
 const ITEM_TARGET = 7;    // 세상에 떠 있는 아이템 개수
 const ITEM_R      = 17;   // 아이템 크기(=먹는 반경)
+const LEAK_PER_SEC= 2.5;  // 💸 초당 내리는 승객 수
 let items = [];
-let fx = {slow:0, fast:0, shield:0, magnet:0};   // 남은 시간(초)
-function fxClear(){ fx={slow:0, fast:0, shield:0, magnet:0}; }
+let fx = {};   // 남은 시간(초)
+let leakBurn = 0;
+function fxClear(){ fx={}; for(const k of ITEM_KEYS) fx[k]=0; leakBurn=0; }
+fxClear();
 /* 내 열차의 속도 배율 = 세상 속도 × 아이템 효과 */
 function playerSpeedMul(){
+  if(fx.freeze>0) return 0;              // 🧊 정지 — 완전히 멈춘다
   let m = worldSpeedMul();
   if(fx.slow>0) m *= ITEMS.slow.mul;
   if(fx.fast>0) m *= ITEMS.fast.mul;
@@ -448,7 +460,8 @@ class Train{
     const heavy=1-Math.min(.34,(this.cars-BASE_CARS)*.0055);
     /* 속도 배율. 빨라지면 회전도 같이 빨라져야 조종이 가능하다 (지수 .85 → 조금씩만 어려워짐) */
     const mul = this.isPlayer ? playerSpeedMul() : worldSpeedMul();
-    const d=norm(this.tAng-this.ang), mt=TURN_RATE*heavy*dt*Math.pow(mul,0.85);
+    /* 회전은 mul 이 0(정지)이어도 멈추지 않는다 — 멈춘 동안에도 방향은 미리 잡을 수 있게 */
+    const d=norm(this.tAng-this.ang), mt=TURN_RATE*heavy*dt*Math.pow(Math.max(mul,0.5),0.85);
     this.ang+=clamp(d,-mt,mt);
     let sp=BASE_SPEED*mul;
     if(this.boosting && this.pax>BOOST_MIN){
@@ -459,6 +472,15 @@ class Train{
         spawnOrb(tail.x+rnd(-6,6), tail.y+rnd(-6,6), 1, this.line.color);
       }
     } else this.boosting=false;
+    /* 💸 승객 이탈 — 조금씩 내려서 선로에 남는다 (다시 주우면 되찾을 수 있다) */
+    if(this.isPlayer && fx.leak>0 && this.pax>0){
+      leakBurn += LEAK_PER_SEC*dt/60;
+      while(leakBurn>=1 && this.pax>0){
+        leakBurn-=1; this.pax--;
+        const tail=this.carsPos[this.carsPos.length-1]||this;
+        spawnOrb(tail.x+rnd(-8,8), tail.y+rnd(-8,8), 1, '#ff9a9a');
+      }
+    }
     const dist=sp*dt;
     this.x+=Math.cos(this.ang)*dist; this.y+=Math.sin(this.ang)*dist; this.s+=dist;
     const last=this.path[this.path.length-1];
@@ -612,7 +634,7 @@ function refillFood(){
 /* ---------- 아이템 ---------- */
 function spawnItem(k){
   const p=randPos(140);
-  items.push({x:p.x, y:p.y, k:k||ITEM_KEYS[(Math.random()*ITEM_KEYS.length)|0], ph:Math.random()*6.28});
+  items.push({x:p.x, y:p.y, k:k||ITEM_BAG[(Math.random()*ITEM_BAG.length)|0], ph:Math.random()*6.28});
 }
 function refillItems(){
   let guard=0;
@@ -629,10 +651,13 @@ function pickItems(){
 }
 function applyItem(k){
   const d=ITEMS[k];
-  if(k==='slow') fx.fast=0;          // 감속과 가속은 서로 지운다
-  if(k==='fast') fx.slow=0;
+  if(k==='slow')   fx.fast=0;        // 감속과 가속은 서로 지운다
+  if(k==='fast')   fx.slow=0;
+  if(k==='freeze') fx.fast=0;
+  if(k==='leak')   leakBurn=0;
   fx[k]=Math.min(d.sec*2, fx[k]+d.sec);
-  toast(`${d.emoji} ${d.name}!`, d.col);
+  /* 먹기 전에는 정체를 모르니(❓) 먹은 순간에 알려준다 */
+  toast(`${d.emoji} ${d.name}${d.bad?'…':'!'}`, d.col);
 }
 /* 효과 시간 흘리기 (dt 는 16.7ms 한 칸 단위) */
 function tickFx(dt){
@@ -1257,18 +1282,25 @@ function drawWorld(){
   }
 
   // 아이템
+  /* 아이템은 먹기 전에는 정체를 알 수 없다 — 전부 똑같은 ❓ 상자로 보인다
+     (2026-07-29 사용자 요청). 색만 무지개처럼 천천히 돌아 눈에 띄게 한다. */
   for(const it of items){
     if(it.x<L-40||it.x>R+40||it.y<T-40||it.y>B+40) continue;
-    const d=ITEMS[it.k], pu=1+Math.sin(tt*1.4+it.ph)*0.09, rr2=ITEM_R*pu;
+    const pu=1+Math.sin(tt*1.4+it.ph)*0.09, rr2=ITEM_R*pu;
+    const hue=((tt*22+it.ph*57)%360+360)%360;
+    const col='hsl('+hue.toFixed(0)+',95%,72%)';
     g.save();
-    g.globalAlpha=.22; g.fillStyle=d.col;
-    g.beginPath(); g.arc(it.x,it.y,rr2*2.0,0,6.3); g.fill();
+    g.translate(it.x,it.y);
+    g.globalAlpha=.20; g.fillStyle=col;
+    g.beginPath(); g.arc(0,0,rr2*2.0,0,6.3); g.fill();
     g.globalAlpha=1;
-    g.fillStyle='rgba(11,18,32,.92)'; g.strokeStyle=d.col; g.lineWidth=2.4;
-    g.beginPath(); g.arc(it.x,it.y,rr2,0,6.3); g.fill(); g.stroke();
-    g.font='700 '+(rr2*1.15).toFixed(1)+'px system-ui,"Apple SD Gothic Neo",sans-serif';
+    g.rotate(Math.sin(tt*0.8+it.ph)*0.13);
+    g.fillStyle='rgba(11,18,32,.92)'; g.strokeStyle=col; g.lineWidth=2.6;
+    rr(g,-rr2,-rr2,rr2*2,rr2*2,rr2*0.42); g.fill(); g.stroke();
+    g.fillStyle=col;
+    g.font='900 '+(rr2*1.5).toFixed(1)+'px system-ui,"Apple SD Gothic Neo",sans-serif';
     g.textAlign='center'; g.textBaseline='middle';
-    g.fillText(d.emoji, it.x, it.y+rr2*0.06);
+    g.fillText('?', 0, rr2*0.08);
     g.restore();
   }
 
@@ -1282,6 +1314,16 @@ function drawWorld(){
   if(VS.on) drawGhost(g);
   if(player && player.alive){
     drawTrain(g,player);
+    if(fx.freeze>0){                       // 🧊 정지 — 얼어붙은 표시
+      g.save();
+      g.strokeStyle=ITEMS.freeze.col; g.lineWidth=2.5; g.globalAlpha=.8;
+      const R2=player.headR*3.4;
+      g.beginPath(); g.arc(player.x,player.y,R2,0,6.3); g.stroke();
+      for(let i=0;i<6;i++){ const a=i/6*6.283+frame*0.01;
+        g.beginPath(); g.moveTo(player.x+Math.cos(a)*R2*0.55, player.y+Math.sin(a)*R2*0.55);
+        g.lineTo(player.x+Math.cos(a)*R2, player.y+Math.sin(a)*R2); g.stroke(); }
+      g.restore();
+    }
     if(fx.shield>0){                       // 🛡️ 무적 — 머리에 보호막
       g.save();
       g.strokeStyle=ITEMS.shield.col; g.lineWidth=3;
@@ -1365,8 +1407,8 @@ function drawMini(){
     g.fillStyle='rgba(8,12,22,.55)'; rr(g,x-4,y-3,8,6,1.5); g.fill();
     g.fillStyle=t.line.color; rr(g,x-3,y-2,6,4,1); g.fill();
   }
-  for(const it of items){                       // 아이템 = 작은 점
-    g.fillStyle=ITEMS[it.k].col;
+  for(const it of items){                       // 아이템 = 작은 흰 점 (정체는 안 보여준다)
+    g.fillStyle='rgba(255,255,255,.85)';
     g.beginPath(); g.arc(cx+it.x*k, cy+it.y*k, 2.6,0,6.3); g.fill();
   }
   if(VS.on && VS.ghost && VS.ghost.pts.length>=2){   // 상대 위치도 미니맵에 표시
@@ -1395,7 +1437,7 @@ function drawHud(){
     for(const k of ITEM_KEYS){
       if(fx[k]<=0) continue;
       const d=ITEMS[k];
-      h+=`<span class="fx" style="border-color:${d.col};color:${d.col}">${d.emoji} ${d.name} ${Math.ceil(fx[k])}초</span>`;
+      h+=`<span class="fx${d.bad?' bad':''}" style="border-color:${d.col};color:${d.col}">${d.emoji} ${d.name} ${Math.ceil(fx[k])}초</span>`;
     }
     elFx.innerHTML=h;
   }
