@@ -145,7 +145,6 @@ body.vs-playing #hud .hbar{padding-top:3.1em}
       <div class="chip"><span class="lb">LV</span><b id="hLv">1</b><span style="opacity:.4">/200</span></div>
       <div class="chip"><span class="lb">TIME</span><b id="hTime">0.00</b></div>
       <div class="chip"><span class="lb">BEST</span><b id="hBest">-</b></div>
-      <div class="chip"><b id="hStar">☆☆☆</b></div>
       <div class="chip"><span class="lb">사망</span><b id="hDie">0</b></div>
       <div class="chip vsonly"><span class="lb">코스</span><b id="hProg">1/3</b></div>
       <div class="chip vsonly"><span class="lb">남은시간</span><b id="hLeft">0</b></div>
@@ -244,7 +243,6 @@ body.vs-playing #hud .hbar{padding-top:3.1em}
   <div class="screen" id="scClear"><div class="sc-body" style="justify-content:safe center">
     <h1 style="font-size:2.6em">클리어!</h1>
     <div class="sub" id="clLv">레벨 1</div>
-    <div class="starrow" id="clStars">☆☆☆</div>
     <div class="card">
       <div><div class="k">기록</div><div class="v" id="clTime">0.00</div></div>
       <div><div class="k">내 최고기록</div><div class="v" id="clBest">0.00</div></div>
@@ -524,8 +522,7 @@ function jgClearLevel(level){
       'jm-30':     level>=30,
       'jm-60':     level>=60,
       'jm-100':    level>=100,
-      'jm-200':    level>=200,
-      'jm-star30': stars>=30
+      'jm-200':    level>=200
     });
     return {res:res, badges:badges, stars:stars};
   }, null);
@@ -836,22 +833,8 @@ function genLevel(L){
     });
   }
 
-  /* ── 별 3개 (발판 바로 위 → 항상 도달 가능) ── */
-  var stars=[], cand=[];
-  for(var e=1;e<count-1;e++) if(plats[e].w>=44 && plats[e].type!=='phase') cand.push(e);
-  if(cand.length<3) for(var e2=1;e2<count-1;e2++) if(cand.indexOf(e2)<0) cand.push(e2);
-  var picks=[];
-  if(cand.length){
-    for(var si=0;si<3;si++){
-      var want=Math.floor(cand.length*(si+0.5)/3);
-      var idx=cand[clamp(want,0,cand.length-1)];
-      var guard=0;
-      while(picks.indexOf(idx)>=0 && guard<cand.length){ idx=cand[(cand.indexOf(idx)+1)%cand.length]; guard++; }
-      picks.push(idx);
-      var sp=plats[idx];
-      stars.push({px:idx, ox:clamp(rr(12,sp.w-12),10,sp.w-10), oy:-rr(56,104), got:false});
-    }
-  }
+  /* ── 별 없음 (2026-07-29 제거) ── */
+  var stars=[];
 
   /* ── 추격 가시벽 (90레벨~) ── */
   var wallSpd = L>=90 ? (L<=100 ? (0.72+0.30*(L-90)/10)
@@ -1064,15 +1047,6 @@ function step(){
     else if(h.kind==='pend'){ if(circHit(h.bx,h.by,11,box)){die();return;} }
   }
 
-  /* 별 */
-  var st=G.lvl.stars;
-  for(var si=0;si<st.length;si++){
-    var s2=st[si]; if(s2.got) continue;
-    var sp=G.lvl.plats[s2.px], sx=sp.cx+s2.ox, sy2=sp.y+s2.oy;
-    if(circHit(sx,sy2,20,box)){ s2.got=true; G.gotStars++; SFX.star();
-      burst(sx,sy2,'#fde047',18,3.2); hudLevel(); }
-  }
-
   /* 체크포인트 */
   for(var c=0;c<G.lvl.cps.length;c++){
     var cp=G.lvl.cps[c];
@@ -1109,13 +1083,11 @@ function clearLevel(){
   var pr=prof();
   var b=pr.best[G.level], isNew=(b==null||G.timeMs<b);
   if(isNew) pr.best[G.level]=Math.round(G.timeMs);
-  pr.stars[G.level]=Math.max(pr.stars[G.level]||0, G.gotStars);
   pr.deaths=(pr.deaths||0)+G.deaths;
   if(pr.unlocked<G.level+1) pr.unlocked=Math.min(200,G.level+1);
   writeSave(); SFX.clear();
   for(var i=0;i<70;i++) burst(G.lvl.goal.x+27,G.lvl.goal.y+30,['#fde047','#7dd3fc','#a78bfa','#34d399','#fb7185'][i%5],1,7);
   $('clLv').textContent='레벨 '+G.level+' · '+theme().n;
-  $('clStars').textContent=['☆☆☆','★☆☆','★★☆','★★★'][clamp(G.gotStars,0,3)];
   $('clTime').textContent=fmt(G.timeMs);
   $('clBest').textContent=fmt(pr.best[G.level]);
   $('clDie').textContent=G.deaths;
@@ -1137,7 +1109,7 @@ function clearLevel(){
       JG.resultBox('jgRes', {
         gameId:'jump-map', score:G.level, res:info.res, unit:'단계', badges:info.badges,
         extra:[['걸린 시간', fmt(G.timeMs)],
-               ['모은 별 전부', info.stars+'개']]
+               ['죽은 횟수', G.deaths+'번']]
       });
     });
   }
@@ -1184,7 +1156,6 @@ function draw(){
   L.haz.forEach(function(h){ if(h.kind==='beam') drawBeam(h); });
   L.plats.forEach(function(p){ drawPlat(p,T); });
   L.haz.forEach(function(h){ if(h.kind==='spike') drawSpike(h); else if(h.kind==='pop') drawPop(h); });
-  L.stars.forEach(function(s){ drawStar(s); });
   L.haz.forEach(function(h){
     if(h.kind==='saw') drawSaw(h);
     else if(h.kind==='rotor') drawRotor(h);
@@ -1484,16 +1455,6 @@ function drawFlag(c){
   ctx.lineTo(bx+4+22+(c.on?Math.sin(G.t*0.12)*3:0),by+11); ctx.lineTo(bx+4,by+19); ctx.closePath(); ctx.fill();
   if(c.on){ ctx.globalAlpha=0.35; ctx.fillStyle='#fde047'; ctx.beginPath(); ctx.arc(bx+2,by+11,16,0,6.3); ctx.fill(); ctx.globalAlpha=1; }
 }
-function drawStar(s){
-  if(s.got) return;
-  var sp=G.lvl.plats[s.px], x=sp.cx+s.ox, y=sp.y+s.oy+Math.sin(G.t*0.06+s.px)*4;
-  ctx.save(); ctx.translate(x,y); ctx.rotate(Math.sin(G.t*0.03+s.px)*0.25);
-  ctx.globalAlpha=0.3; ctx.fillStyle='#fde047'; ctx.beginPath(); ctx.arc(0,0,17,0,6.3); ctx.fill(); ctx.globalAlpha=1;
-  ctx.fillStyle='#fde047'; ctx.strokeStyle='#f59e0b'; ctx.lineWidth=2; ctx.beginPath();
-  for(var i=0;i<10;i++){ var a=-Math.PI/2+i*Math.PI/5, r=(i%2?4.6:11);
-    ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r); }
-  ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
-}
 function drawGoal(g,T){
   var pulse=1+Math.sin(G.t*0.08)*0.06;
   ctx.save(); ctx.translate(g.x+g.w/2,g.y+g.h/2); ctx.scale(pulse,pulse);
@@ -1545,7 +1506,6 @@ function hudLevel(){
   $('hLv').textContent=G.level;
   $('hBest').textContent=pr?fmt(pr.best[G.level]):'-';
   $('hDie').textContent=G.deaths;
-  $('hStar').textContent=['☆☆☆','★☆☆','★★☆','★★★'][clamp(G.gotStars,0,3)];
   if(pr){ $('hName').textContent=pr.name;
     var a=$('hAva'), gg=a.getContext('2d'); gg.clearRect(0,0,26,30); drawChar(gg,pr.ch,5,10,16,20,1,0); }
   if(VS.on){ $('hName').textContent=Versus.myName;
@@ -1567,11 +1527,11 @@ function buildGrid(){
   for(var i=1;i<=200;i++){
     (function(L){
       var b=document.createElement('button');
-      var locked=L>pr.unlocked, done=pr.best[L]!=null, st=pr.stars[L]||0;
+      var locked=L>pr.unlocked, done=pr.best[L]!=null;
       b.className='lv'+(locked?' lock':'')+(done?' clr':'');
       b.innerHTML='<span class="bar" style="background:'+diffColor(L)+'"></span>'+L+
         '<span class="t">'+(done?fmt(pr.best[L]):(locked?'🔒':'—'))+'</span>'+
-        '<span class="st">'+(done?['','★','★★','★★★'][st]:'')+'</span>';
+        '<span class="st"></span>';
       if(!locked) b.onclick=function(){ SFX.click(); startLevel(L); };
       gr.appendChild(b);
     })(i);
@@ -1611,7 +1571,7 @@ function buildTitle(){
     b.appendChild(charThumb(p.ch,34));
     var d=document.createElement('div');
     d.innerHTML='<div class="nm">'+esc(p.name)+'</div>'+
-                '<div class="mt">최고 '+bestLevel(p)+'단계 · ⭐'+starSum(p)+'</div>';
+                '<div class="mt">최고 '+bestLevel(p)+'단계</div>';
     b.appendChild(d);
     var x=document.createElement('span'); x.className='nx'; x.textContent='✕'; x.title='지우기';
     x.onclick=function(ev){ ev.stopPropagation();
@@ -1642,8 +1602,8 @@ function buildProfiles(){
     var b=document.createElement('button'); b.className='pcard'+(p.id===save.cur?' cur':'');
     b.appendChild(charThumb(p.ch,42));
     var box=document.createElement('div');
-    var cl=Object.keys(p.best).length, st=starSum(p);
-    box.innerHTML='<div class="nm">'+esc(p.name)+'</div><div class="mt">'+cl+'개 클리어 · ⭐'+st+' · 최고 '+bestLevel(p)+'단계</div>';
+    var cl=Object.keys(p.best).length;
+    box.innerHTML='<div class="nm">'+esc(p.name)+'</div><div class="mt">'+cl+'개 클리어 · 최고 '+bestLevel(p)+'단계</div>';
     b.appendChild(box);
     var del=document.createElement('span'); del.className='del'; del.textContent='🗑';
     del.onclick=function(ev){ ev.stopPropagation();
@@ -1669,30 +1629,28 @@ function buildChars(){
 var rankMode='clear';
 function buildRank(){
   var tabs=$('rtabs'); tabs.innerHTML='';
-  [['clear','클리어 수'],['star','⭐ 별'],['time','총 기록'],['level','최고 도달']].forEach(function(t){
+  [['clear','클리어 수'],['time','총 기록'],['level','최고 도달']].forEach(function(t){
     var b=document.createElement('button'); b.className='tab'+(rankMode===t[0]?' on':''); b.textContent=t[1];
     b.onclick=function(){ SFX.click(); rankMode=t[0]; buildRank(); }; tabs.appendChild(b);
   });
   var rows=save.profiles.map(function(p){
-    var cl=Object.keys(p.best).length, st=0, tm=0;
-    for(var k in p.stars) st+=p.stars[k];
+    var cl=Object.keys(p.best).length, tm=0;
     for(var k2 in p.best) tm+=p.best[k2];
-    return {p:p,cl:cl,st:st,tm:tm,lv:p.unlocked,dz:p.deaths||0};
+    return {p:p,cl:cl,tm:tm,lv:p.unlocked,dz:p.deaths||0};
   });
   rows.sort(function(a,b){
     if(rankMode==='clear') return b.cl-a.cl || a.tm-b.tm;
-    if(rankMode==='star')  return b.st-a.st || b.cl-a.cl;
     if(rankMode==='level') return b.lv-a.lv || a.tm-b.tm;
     if(a.cl!==b.cl) return b.cl-a.cl;
     return a.tm-b.tm;
   });
   var t=$('rtbl');
   if(!rows.length){ t.innerHTML=''; $('rnote').textContent='아직 기록이 없어요. 플레이어를 만들고 게임을 해보세요!'; return; }
-  var h='<tr><th>#</th><th style="text-align:left">플레이어</th><th>클리어</th><th>⭐</th><th>총 기록</th><th>최고 도달</th><th>사망</th></tr>';
+  var h='<tr><th>#</th><th style="text-align:left">플레이어</th><th>클리어</th><th>총 기록</th><th>최고 도달</th><th>사망</th></tr>';
   rows.forEach(function(r,i){
     h+='<tr class="'+(r.p.id===save.cur?'me':'')+'"><td class="rk">'+(['🥇','🥈','🥉'][i]||(i+1))+'</td>'+
        '<td class="nm"><span class="mini" id="mini_'+r.p.id+'"></span>'+esc(r.p.name)+'</td>'+
-       '<td>'+r.cl+'</td><td>'+r.st+'</td><td>'+(r.tm?fmt(r.tm):'-')+'</td><td>'+r.lv+'</td><td>'+r.dz+'</td></tr>';
+       '<td>'+r.cl+'</td><td>'+(r.tm?fmt(r.tm):'-')+'</td><td>'+r.lv+'</td><td>'+r.dz+'</td></tr>';
   });
   t.innerHTML=h;
   rows.forEach(function(r){ var el=$('mini_'+r.p.id); if(el) el.appendChild(charThumb(r.p.ch,26)); });
@@ -1777,7 +1735,7 @@ buildTitle();
 
 /* ══════════ 온라인 대결 ══════════ */
 /* 같은 맵 레이스: 방장이 고른 난이도로 양쪽이 똑같은 코스를 달린다.
-   점수 = 깬 코스 ×1000 + 모은 별 ×100 + 지금 코스 진행도(최대 500) + 완주 시 남은 시간(초) */
+   점수 = 깬 코스 ×1000 + 지금 코스 진행도(최대 500) + 완주 시 남은 시간(초) */
 
 function vsMyChar(){ var p=prof(); return p?p.ch:'box'; }
 
@@ -1785,10 +1743,10 @@ function vsMyChar(){ var p=prof(); return p?p.ch:'box'; }
 function vsLive(){
   if(VS.done || !G.lvl) return VS.live||0;
   var L=G.lvl, p=clamp((P.x-L.plats[0].x)/(L.goal.x-L.plats[0].x),0,1);
-  VS.live=Math.floor(p*500)+clamp(G.gotStars,0,3)*100;
+  VS.live=Math.floor(p*500);
   return VS.live;
 }
-function vsScore(){ return VS.cleared*1000 + VS.stars*100 + vsLive() + VS.bonus; }
+function vsScore(){ return VS.cleared*1000 + vsLive() + VS.bonus; }
 
 /* 매 프레임 — 시간 줄이기 · 내 위치 보내기. true 를 돌려주면 이번 프레임은 여기서 끝 */
 function vsStep(){
@@ -1806,7 +1764,7 @@ function vsStep(){
 /* 코스 하나 클리어 → 바로 다음 코스로 (기록은 저장하지 않는다) */
 function vsClearLevel(){
   SFX.clear();
-  VS.cleared++; VS.stars+=clamp(G.gotStars,0,3); VS.live=0;
+  VS.cleared++; VS.live=0;
   for(var i=0;i<50;i++)
     burst(G.lvl.goal.x+27,G.lvl.goal.y+30,['#fde047','#7dd3fc','#a78bfa','#34d399','#fb7185'][i%5],1,7);
   VS.idx++;
@@ -1889,7 +1847,7 @@ function openVersus(){
     settingsHTML:function(){
       if(!Versus.isHost)
         return '<div class="vs-note">방장이 고른 <b>난이도 · 코스 수 · 제한 시간</b>으로 둘 다 <b>똑같은 맵</b>을 달려요!<br>' +
-               '점수 = 깬 코스 ×1000 + 별 ×100 + 지금 진행도 + 완주하면 남은 시간</div>';
+               '점수 = 깬 코스 ×1000 + 지금 진행도 + 완주하면 남은 시간</div>';
       return '<div style="text-align:left;font-weight:800;font-size:13px;color:#4a4258">' +
         '<div style="margin:8px 0 4px">난이도 (시작 레벨)</div>' +
         '<select class="vs-sel" id="vsJmDiff">' +
@@ -1909,7 +1867,7 @@ function openVersus(){
           '<option value="180" selected>3분</option><option value="300">5분</option></select>' +
         '</div>' +
         '<div class="vs-note">둘 다 <b>똑같은 맵</b>을 달려요. 상대는 반투명 <b>고스트</b>로 보여요!<br>' +
-        '점수 = 깬 코스 ×1000 + 별 ×100 + 지금 진행도 + 완주하면 남은 시간</div>';
+        '점수 = 깬 코스 ×1000 + 지금 진행도 + 완주하면 남은 시간</div>';
     },
     onStart:function(c){
       var s=c.settings||{};
