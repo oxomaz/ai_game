@@ -46,7 +46,6 @@ export const GAMES = {
   set: { max: 100000, label: 'SET 카드게임' },
   'jump-map': { max: 100000, label: '점프맵 100' },
   'subway-io': { max: 1000000, label: '지하철 슬리더' },
-  onitama: { max: 100000, label: '오니타마' },
   'cooking-catch': { max: 100000, label: '요리조리 셰프' },
   dalmuti: { max: 100000, label: '달무티' },
   'memory-cards': { max: 100000, label: '메모리 카드' },

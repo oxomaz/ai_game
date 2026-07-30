@@ -273,7 +273,6 @@ jerry-games/
 │       ├── set/index.html            ← SET 카드게임
 │       ├── jump-map/index.html       ← 점프맵 200
 │       ├── subway-io/index.html      ← 지하철 슬리더
-│       ├── onitama/index.html        ← 오니타마
 │       ├── cooking-catch/index.html  ← 요리조리 셰프
 │       ├── dalmuti/index.html        ← 달무티
 │       ├── memory-cards/index.html   ← 메모리 카드

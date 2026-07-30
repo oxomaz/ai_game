@@ -46,7 +46,6 @@ const GAMES = [
   ['games/fun/set/', 'set'],
   ['games/fun/jump-map/', 'jump-map'],
   ['games/fun/subway-io/', 'subway-io'],
-  ['games/fun/onitama/', 'onitama'],
 ];
 
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });

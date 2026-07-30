@@ -70,7 +70,6 @@
     'set':                 { emoji: '🃏', title: 'SET 카드게임',     cat: 'fun' },
     'jump-map':            { emoji: '🏃', title: '점프맵 200',       cat: 'fun' },
     'subway-io':           { emoji: '🚇', title: '지하철 슬리더',    cat: 'fun' },
-    'onitama':             { emoji: '🥷', title: '오니타마',         cat: 'fun' },
     'cooking-catch':       { emoji: '🍳', title: '요리조리 셰프',    cat: 'fun' },
     'dalmuti':             { emoji: '👑', title: '달무티',          cat: 'fun' },
     'memory-cards':        { emoji: '🧠', title: '메모리 카드',    cat: 'fun' },
@@ -84,7 +83,7 @@
     'play-10':      { emoji: '🎮', title: '단골 손님',     desc: '게임을 10판 했어요',                     game: '*' },
     'play-50':      { emoji: '🏅', title: '게임 고수',     desc: '게임을 50판 했어요',                     game: '*' },
     'explorer-5':   { emoji: '🧭', title: '탐험가',        desc: '서로 다른 게임 5개를 해봤어요',          game: '*' },
-    'explorer-all': { emoji: '🌟', title: '올라운더',      desc: '14개 게임을 전부 해봤어요',              game: '*' },
+    'explorer-all': { emoji: '🌟', title: '올라운더',      desc: '13개 게임을 전부 해봤어요',              game: '*' },
 
     /* 연산 스피드 퀴즈 */
     'ms-hit20':     { emoji: '➕', title: '계산 척척',     desc: '한 판에 20문제 맞히기',                  game: 'math-speed' },
@@ -140,11 +139,6 @@
     'sub-len70':    { emoji: '🚅', title: '70량 편성',     desc: '열차를 70량까지 늘리기',                 game: 'subway-io' },
     'sub-len100':   { emoji: '🏆', title: '100량 편성',    desc: '열차를 최대 100량까지 늘리기',           game: 'subway-io' },
     'sub-first':    { emoji: '🥇', title: '1위 달성',      desc: '순위표 1위에 오르기',                    game: 'subway-io' },
-
-    /* 오니타마 */
-    'oni-win':      { emoji: '🥷', title: '첫 승',         desc: '컴퓨터를 이겼어요',                      game: 'onitama' },
-    'oni-hard':     { emoji: '👑', title: '고수 격파',     desc: '어려움 컴퓨터를 이겼어요',               game: 'onitama' },
-    'oni-master':   { emoji: '🏯', title: '사범님',        desc: '오니타마 5승 달성',                      game: 'onitama' },
 
     /* 요리조리 셰프 */
     'ck-dish3':     { emoji: '🍳', title: '주방 입문',     desc: '한 판에 요리 3개 완성',                  game: 'cooking-catch' },
@@ -281,7 +275,6 @@
     'hidden-object':       { re: /^보통.* · 5판 · 제한시간$/,             label: '보통 · 5판 · 제한시간' },
     'jump-map':            { re: /^혼자$/,                                label: '혼자 플레이' },
     'subway-io':           { re: /^혼자$/,                                label: '혼자 플레이' },
-    'onitama':             { re: /^컴퓨터 · 보통$/,                       label: '컴퓨터 · 보통' },
     'cooking-catch':       { re: /^보통 · 60초$/,                         label: '보통 · 60초' },
     'dalmuti':             { re: /^4명 · 보통 · 5판$/,                    label: '4명 · 보통 · 5판' },
     'memory-cards':        { re: /^세계 국기 · 국기 ↔ 나라 이름 · 보통$/, label: '세계 국기 · 국기↔나라 · 보통' }

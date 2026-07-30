@@ -128,7 +128,7 @@ await p3.goto(URL_);
 ok('localStorage 차단돼도 에러 없음', errs3.length === 0, errs3);
 res = await p3.evaluate(async () => {
   Records.setName('시크릿');
-  return Records.submit('onitama', 12);
+  return Records.submit('set', 12);
 });
 ok('그래도 점수 전송됨', res && res.ok, res);
 
