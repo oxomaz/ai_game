@@ -1,8 +1,13 @@
 /* =====================================================================
  * ui.js — 화면 그리기 전부
  * ---------------------------------------------------------------------
- * 화면은 index.html 에 있는 <section class="screen"> 들을 갈아 끼우는 방식.
- * 데이터 → HTML 변환만 하고, 게임 규칙은 건드리지 않는다.
+ * 화면은 index.html 의 <section class="screen"> 을 갈아 끼우는 방식.
+ * 규칙 계산은 하지 않고, 데이터 → HTML 변환만 한다.
+ *
+ * 이 파일의 약속:
+ *  - 모든 화면 맨 위에는 "여기가 무엇을 하는 곳인지" 한 줄 설명(helpLine)이 있다.
+ *  - 누를 수 있는 것(아이템·장비·몬스터·문제유형·업적·상점)은 누르면
+ *    무엇인지 설명해 주는 카드(UI.sheet)가 뜬다.
  * ===================================================================== */
 (function () {
   'use strict';
@@ -12,28 +17,52 @@
   function pct(a, b) { return Math.max(0, Math.min(100, b ? a / b * 100 : 0)); }
 
   var cur = 'title';
+  var mapReady = false;
+
+  /* 화면마다 위에 붙는 안내 한 줄 */
+  var HELP = {
+    map: '⚔️ 길 위의 칸을 눌러 몬스터와 싸워요. 이기면 다음 칸으로 한 걸음 나아가요.',
+    bag: '🎒 장비를 누르면 무엇이 좋아지는지 알려줘요. 좋은 걸 골라 끼면 더 세져요.',
+    codex: '📖 만난 몬스터·모은 아이템·풀어 본 문제가 여기 모여요. 눌러서 자세히 보세요.',
+    quest: '🎯 미션을 끝내면 골드와 보석을 받아요. 오늘 것과 이번 주 것이 따로 있어요.',
+    shop: '🛒 골드로 도우미를 사요. 전투 중에 힘들 때 쓰면 큰 도움이 돼요.'
+  };
+  function helpLine(k) { return '<p class="help-line">' + HELP[k] + '</p>'; }
 
   var UI = MQ.UI = {
 
     /* ---------------- 화면 전환 ---------------- */
-    show: function (name) {
+    show: function (name, opt) {
+      opt = opt || {};
       var list = document.querySelectorAll('.screen');
       for (var i = 0; i < list.length; i++) list[i].classList.toggle('on', list[i].id === 'sc-' + name);
       cur = name;
       document.body.classList.toggle('in-battle', name === 'battle');
+      document.body.classList.toggle('in-map', name === 'map');
       var nav = $('nav');
       if (nav) nav.classList.toggle('hidden', name === 'battle' || name === 'title' || name === 'assess');
       var tabs = document.querySelectorAll('#nav button');
       for (var j = 0; j < tabs.length; j++) tabs[j].classList.toggle('on', tabs[j].getAttribute('data-go') === name);
-      if (name === 'map') UI.paintMap();
+
+      if (name === 'map') UI.paintMap(opt.walk !== false);
       if (name === 'bag') UI.paintBag();
       if (name === 'codex') UI.paintCodex();
       if (name === 'quest') UI.paintQuests();
       if (name === 'shop') UI.paintShop();
       UI.paintHud();
+      UI.music();
       window.scrollTo(0, 0);
     },
     current: function () { return cur; },
+
+    /* 화면에 맞는 배경음악 */
+    music: function () {
+      try {
+        if (!MQ.Bgm) return;
+        var kind = MQ.Battle && MQ.Battle.active() && MQ.Battle.state() ? MQ.Battle.state().kind : null;
+        MQ.Bgm.play(MQ.Bgm.forScreen(cur, MQ.S ? MQ.S.region : 0, kind));
+      } catch (e) { }
+    },
 
     /* ---------------- 위쪽 상태바 ---------------- */
     paintHud: function () {
@@ -47,89 +76,128 @@
         '<div class="hud-lv">' +
         '<b>Lv ' + S.lv + '</b>' +
         '<span class="rank" style="color:' + rk.color + '">' + rk.name + '</span>' +
+        (S.sp > 0 ? '<span class="sp-dot">✨' + S.sp + '</span>' : '') +
         '<div class="xp"><i style="width:' + pct(S.exp, need) + '%"></i></div>' +
         '</div></div>' +
         '<div class="hud-r">' +
         '<span class="pill">💰 ' + S.gold + '</span>' +
         '<span class="pill">💎 ' + S.gem + '</span>' +
-        '<button class="pill ghost" id="btnMenu">⚙️</button>' +
+        '<button class="pill ghost" id="btnMenu" title="설정">⚙️</button>' +
         '</div>';
       var b = $('btnMenu'); if (b) b.onclick = UI.menu;
       var badge = $('navQuestDot');
-      if (badge) badge.classList.toggle('on', MQ.Prog.pendingRewards(S) > 0);
+      if (badge) badge.classList.toggle('on', MQ.Prog.pendingRewards(MQ.S) > 0);
     },
 
     /* =====================================================================
-     * 지도
+     * 지도 — 세계지도 위를 걸어 다닌다
      * ===================================================================== */
-    paintMap: function () {
+    paintMap: function (walk) {
       var S = MQ.S;
-      var open = MQ.P.unlockedRegions(S);
-      var html = '<div class="region-strip">';
+
+      /* 지역 칩 */
+      var open = MQ.P.unlockedRegions(S), html = '';
       for (var i = 0; i < MQ.REGIONS.length; i++) {
         var r = MQ.REGIONS[i], lock = i >= open;
         html += '<button class="rg' + (i === S.region ? ' on' : '') + (lock ? ' lock' : '') + '" data-rg="' + i + '">' +
           '<span class="rg-e">' + r.emoji + '</span><span class="rg-n">' + esc(r.name) + '</span>' +
           (lock ? '<span class="rg-l">🔒 Lv' + r.unlock + '</span>' : '') + '</button>';
       }
-      html += '</div>';
-
-      var r2 = MQ.REGIONS[S.region];
-      html += '<div class="region-head" style="background:linear-gradient(135deg,' + r2.sky[0] + ',' + r2.sky[1] + ')">' +
-        '<div class="rh-e">' + r2.emoji + '</div>' +
-        '<div><h2>' + esc(r2.name) + '</h2><p>' + esc(r2.desc) + '</p>' +
-        '<span class="rh-tag">기준 난이도 ' + MQ.P.rank(r2.diff).name + '</span></div></div>';
-
-      html += '<div class="stages">';
-      for (var s = 0; s < r2.stages; s++) {
-        var isBoss = (s === r2.stages - 1);
-        var done = !!S.cleared[S.region + '-' + s];
-        var canGo = s <= S.stage || done;
-        html += '<button class="node' + (isBoss ? ' boss' : '') + (done ? ' done' : '') + (canGo ? '' : ' lock') + '" data-st="' + s + '">' +
-          '<span class="node-i">' + (isBoss ? MQ.REGIONS[S.region].boss.emoji : (done ? '⭐' : (canGo ? '⚔️' : '🔒'))) + '</span>' +
-          '<span class="node-t">' + (isBoss ? '보스' : (s + 1)) + '</span>' +
-          '</button>';
-      }
-      html += '</div>';
-
-      html += '<div class="map-actions">' +
-        '<button class="big-btn primary" id="btnFight">⚔️ 모험 계속하기</button>' +
-        '<button class="big-btn" id="btnDungeon">🗝️ 랜덤 던전</button>' +
-        '</div>';
-
-      html += '<div class="skill-strip">';
-      for (var k = 0; k < MQ.SKILL_IDS.length; k++) {
-        var sk = MQ.SKILL_IDS[k], m = MQ.SKILLS[sk];
-        var lvv = S.skillLv[sk] || 1, ex = S.skillExp[sk] || 0, nd = MQ.P.skillNeed(lvv);
-        html += '<div class="sk"><span class="sk-i">' + m.icon + '</span>' +
-          '<b>' + esc(m.name) + '</b><span class="sk-lv">Lv' + lvv + '</span>' +
-          '<div class="sk-bar"><i style="width:' + pct(ex, nd) + '%;background:' + m.color + '"></i></div></div>';
-      }
-      html += '</div>';
-
-      $('mapBody').innerHTML = html;
-
-      var rgs = document.querySelectorAll('#mapBody .rg');
+      $('regionStrip').innerHTML = html;
+      var rgs = document.querySelectorAll('#regionStrip .rg');
       for (var a = 0; a < rgs.length; a++) rgs[a].onclick = function () {
         var i = +this.getAttribute('data-rg');
         if (i >= MQ.P.unlockedRegions(MQ.S)) {
-          MQ.FX.toast('Lv ' + MQ.REGIONS[i].unlock + ' 이 되면 열려요!', 'warn'); MQ.Snd.play('wrong'); return;
+          UI.sheet('<div class="sh-head"><span class="sh-e">🔒</span><div><b>' + esc(MQ.REGIONS[i].name) + '</b>' +
+            '<i>Lv ' + MQ.REGIONS[i].unlock + ' 부터 갈 수 있어요</i></div></div>' +
+            '<p class="sh-p">' + esc(MQ.REGIONS[i].desc) + '</p>' +
+            '<p class="sh-p">지금 레벨은 <b>Lv ' + MQ.S.lv + '</b> 이에요. 앞 지역에서 조금만 더 모험하면 열려요!</p>');
+          MQ.Snd.play('wrong'); return;
         }
         MQ.S.region = i;
-        if (MQ.S.stage >= MQ.REGIONS[i].stages) MQ.S.stage = 0;
-        // 그 지역에서 가장 앞선 곳으로 커서 이동
         var st = 0;
         while (st < MQ.REGIONS[i].stages - 1 && MQ.S.cleared[i + '-' + st]) st++;
         MQ.S.stage = st;
-        MQ.Snd.play('tap'); MQ.Game.save(); UI.paintMap();
+        MQ.Snd.play('tap'); MQ.Game.save();
+        MQ.World.lookAt(i);
+        UI.paintMap(false);
+        UI.music();
       };
-      var nodes = document.querySelectorAll('#mapBody .node');
-      for (var b = 0; b < nodes.length; b++) nodes[b].onclick = function () {
-        if (this.classList.contains('lock')) { MQ.FX.toast('앞 단계를 먼저 깨야 해요', 'warn'); return; }
-        MQ.Game.startStage(MQ.S.region, +this.getAttribute('data-st'));
-      };
+
+      /* 캔버스 지도 */
+      if (!mapReady) {
+        MQ.World.attach($('worldCv'), UI.pickNode);
+        mapReady = true;
+        MQ.World.goto(S.region, S.stage, false);
+      } else {
+        MQ.World.refresh();
+        MQ.World.goto(S.region, S.stage, !!walk);
+      }
+
+      /* 아래 버튼 + 능력치 */
+      var b2 = '<div class="map-actions">' +
+        '<button class="big-btn primary" id="btnFight">⚔️ 모험 계속하기</button>' +
+        '<button class="big-btn" id="btnDungeon">🗝️ 랜덤 던전</button></div>' +
+        helpLine('map');
+
+      b2 += '<h3 class="sec">🧠 내 능력치 <small>문제를 맞힌 분야가 자라요</small></h3><div class="skill-strip">';
+      for (var k = 0; k < MQ.SKILL_IDS.length; k++) {
+        var sk = MQ.SKILL_IDS[k], m = MQ.SKILLS[sk];
+        var lvv = S.skillLv[sk] || 1, ex = S.skillExp[sk] || 0, nd = MQ.P.skillNeed(lvv);
+        b2 += '<button class="sk" data-skill="' + sk + '"><span class="sk-i">' + m.icon + '</span>' +
+          '<b>' + esc(m.name) + '</b><span class="sk-lv">Lv' + lvv + '</span>' +
+          '<div class="sk-bar"><i style="width:' + pct(ex, nd) + '%;background:' + m.color + '"></i></div></button>';
+      }
+      b2 += '</div>';
+      $('mapBody').innerHTML = b2;
+
       $('btnFight').onclick = function () { MQ.Game.startStage(MQ.S.region, MQ.S.stage); };
       $('btnDungeon').onclick = function () { MQ.Game.dungeonPick(); };
+      var sks = document.querySelectorAll('#mapBody .sk');
+      for (var s2 = 0; s2 < sks.length; s2++) sks[s2].onclick = function () { UI.skillDetail(this.getAttribute('data-skill')); };
+
+      UI.showNodeCard(null);
+    },
+
+    /* 지도에서 칸을 눌렀을 때 — 설명 카드 */
+    pickNode: function (nd, canGo) {
+      MQ.Snd.play('tap');
+      UI.showNodeCard(nd, canGo);
+    },
+
+    showNodeCard: function (nd, canGo) {
+      var box = $('nodeCard');
+      if (!nd) {
+        var S0 = MQ.S, r0 = MQ.REGIONS[S0.region];
+        box.className = 'node-card';
+        box.innerHTML = '<div class="nc-i">' + r0.emoji + '</div>' +
+          '<div class="nc-b"><b>' + esc(r0.name) + ' · ' + (S0.stage + 1) + '단계</b>' +
+          '<i>' + esc(r0.desc) + '</i></div>' +
+          '<button class="nc-go" id="ncGo">도전 ▶</button>';
+        var g0 = $('ncGo'); if (g0) g0.onclick = function () { MQ.Game.startStage(MQ.S.region, MQ.S.stage); };
+        return;
+      }
+      var r = MQ.REGIONS[nd.region];
+      var done = !!MQ.S.cleared[nd.region + '-' + nd.stage];
+      var title, desc, icon;
+      if (nd.region >= MQ.P.unlockedRegions(MQ.S)) {
+        icon = '🔒'; title = r.name + ' · 아직 잠김';
+        desc = 'Lv ' + r.unlock + ' 이 되면 이 지역으로 갈 수 있어요.';
+      } else if (nd.boss) {
+        icon = r.boss.emoji; title = r.name + ' 보스 · ' + r.boss.name;
+        desc = '문제 ' + r.boss.q + '개를 연속으로 이겨야 해요. 실수하면 크게 아파요!' + (done ? ' (이미 물리쳤어요)' : '');
+      } else {
+        icon = done ? '⭐' : '⚔️';
+        var mons = Math.min(3, 1 + Math.floor(nd.stage / 4)), qq = 5 + Math.floor(nd.stage / 3);
+        title = r.name + ' · ' + (nd.stage + 1) + '단계';
+        desc = '몬스터 ' + mons + '마리 · 한 마리에 문제 약 ' + qq + '개' + (done ? ' · 이미 깬 곳이에요' : '');
+      }
+      box.className = 'node-card on' + (canGo ? '' : ' locked');
+      box.innerHTML = '<div class="nc-i">' + icon + '</div>' +
+        '<div class="nc-b"><b>' + esc(title) + '</b><i>' + esc(desc) + '</i></div>' +
+        (canGo ? '<button class="nc-go" id="ncGo">도전 ▶</button>' : '<span class="nc-lock">🔒</span>');
+      var g = $('ncGo');
+      if (g) g.onclick = function () { MQ.Game.startStage(nd.region, nd.stage); };
     },
 
     /* =====================================================================
@@ -156,9 +224,8 @@
 
     paintQuestion: function (B) {
       var p = B.p;
-      var meta = '<span class="q-type">' + p.icon + ' ' + esc(p.typeName) + '</span>' +
+      $('btQMeta').innerHTML = '<span class="q-type">' + p.icon + ' ' + esc(p.typeName) + '</span>' +
         '<span class="q-rank" style="color:' + MQ.P.rank(p.lv).color + '">' + MQ.P.rank(p.lv).name + '</span>';
-      $('btQMeta').innerHTML = meta;
       $('btQText').innerHTML = p.text;
       $('btQSub').innerHTML = p.sub || '';
       $('btQSub').classList.toggle('hidden', !p.sub);
@@ -169,8 +236,7 @@
 
       var html = '';
       for (var i = 0; i < p.shuffled.length; i++) {
-        html += '<button class="choice" data-c="' + esc(p.shuffled[i]) + '"><span class="ck">' +
-          '⬢'.charAt(0) + '</span>' + esc(p.shuffled[i]) + '</button>';
+        html += '<button class="choice" data-c="' + esc(p.shuffled[i]) + '">' + esc(p.shuffled[i]) + '</button>';
       }
       var box = $('btChoices');
       box.className = 'bt-choices n' + p.shuffled.length;
@@ -215,15 +281,21 @@
       var html = '';
       for (var i = 0; i < ids.length; i++) {
         var it = MQ.SHOP_MAP[ids[i]], n = MQ.P.count(S, ids[i]);
-        html += '<button class="sk-btn' + (n ? '' : ' empty') + '" data-it="' + ids[i] + '">' +
-          it.emoji + '<span>' + n + '</span></button>';
+        html += '<button class="sk-btn' + (n ? '' : ' empty') + '" data-it="' + ids[i] + '" title="' + esc(it.name + ' — ' + it.desc) + '">' +
+          it.emoji + '<span>' + n + '</span><u>' + esc(it.name) + '</u></button>';
       }
       var box = $('btSkills');
       box.innerHTML = html;
       var bs = box.querySelectorAll('.sk-btn');
       for (var j = 0; j < bs.length; j++) bs[j].onclick = function () {
         var id = this.getAttribute('data-it');
-        if (!MQ.P.count(MQ.S, id)) { MQ.FX.toast('상점에서 살 수 있어요', 'warn'); return; }
+        var it = MQ.SHOP_MAP[id];
+        if (!MQ.P.count(MQ.S, id)) {
+          UI.sheet('<div class="sh-head"><span class="sh-e">' + it.emoji + '</span><div><b>' + esc(it.name) + '</b>' +
+            '<i>지금 0개</i></div></div><p class="sh-p">' + esc(it.desc) + '</p>' +
+            '<p class="sh-p">상점에서 <b>' + it.price + '💰</b> 에 살 수 있어요.</p>');
+          return;
+        }
         MQ.Battle.useItem(id);
       };
     },
@@ -247,19 +319,20 @@
           '</div>';
         if (res.levelUps) {
           html += '<div class="res-lv">🎊 레벨 업! <b>Lv ' + S.lv + '</b>' +
-            (res.levelUps > 1 ? ' (' + res.levelUps + '번)' : '') + '</div>';
+            (res.levelUps > 1 ? ' (' + res.levelUps + '번)' : '') +
+            '<small>가방에서 ✨스킬포인트를 쓸 수 있어요</small></div>';
         }
         if (res.items.length) {
           html += '<div class="res-items">';
           for (var i = 0; i < res.items.length; i++) {
             var c = res.items[i];
-            html += '<div class="drop r' + c.item.rar + '">' +
+            html += '<button class="drop r' + c.item.rar + '" data-item="' + c.item.id + '">' +
               '<span class="d-e">' + c.item.emoji + '</span>' +
               '<b>' + esc(c.item.name) + '</b>' +
               '<i style="color:' + c.rar.color + '">' + c.rar.name + '</i>' +
-              (c.dup ? '<u>중복 → 골드</u>' : '<u class="new">NEW</u>') + '</div>';
+              (c.dup ? '<u>중복 → 골드</u>' : '<u class="new">NEW</u>') + '</button>';
           }
-          html += '</div>';
+          html += '</div><p class="res-tip">아이템을 눌러 보면 무슨 능력인지 알려줘요</p>';
         }
       }
       if (res.ach && res.ach.length) {
@@ -273,7 +346,7 @@
       html += '<p class="res-diff">지금 난이도 <b style="color:' + rk.color + '">' + rk.name + '</b> (Lv ' + S.diff + ')</p>';
       html += '<div class="res-btns">' +
         (res.win ? '<button class="big-btn primary" id="rsNext">다음 판 ▶</button>' : '<button class="big-btn primary" id="rsRetry">🔁 다시 도전</button>') +
-        '<button class="big-btn ghost" id="rsMap">지도로</button></div>';
+        '<button class="big-btn ghost" id="rsMap">🗺️ 지도로</button></div>';
       html += '</div>';
 
       UI.modal(html, { wide: true, noClose: true });
@@ -284,6 +357,9 @@
         for (var q = 0; q < res.items.length; q++) best = Math.max(best, res.items[q].item.rar);
         if (best >= 3) { MQ.FX.rain('✨', 26); MQ.Snd.play('rare'); }
       }
+      var drops = document.querySelectorAll('#modal .drop');
+      for (var d2 = 0; d2 < drops.length; d2++) drops[d2].onclick = function () { UI.itemDetail(this.getAttribute('data-item'), true); };
+
       var n = $('rsNext'); if (n) n.onclick = function () {
         UI.closeModal();
         if (opt.kind === 'dungeon') MQ.Game.dungeonPick();
@@ -294,30 +370,32 @@
         if (opt.kind === 'dungeon') MQ.Game.dungeonPick();
         else MQ.Game.startStage(opt.region, opt.stage);
       };
-      $('rsMap').onclick = function () { UI.closeModal(); UI.show('map'); };
+      $('rsMap').onclick = function () { UI.closeModal(); UI.show('map', { walk: true }); };
     },
 
     /* =====================================================================
-     * 가방(장비)
+     * 가방
      * ===================================================================== */
     paintBag: function () {
       var S = MQ.S;
       var g = MQ.P.gear(S);
-      var html = '<div class="stat-card">' +
+      var html = helpLine('bag');
+      html += '<div class="stat-card">' +
         '<div class="st"><span>⚔️</span><b>' + Math.round(MQ.P.atk(S)) + '</b><i>공격</i></div>' +
         '<div class="st"><span>🛡️</span><b>' + Math.round(MQ.P.def(S)) + '</b><i>방어</i></div>' +
         '<div class="st"><span>❤️</span><b>' + MQ.P.hpMax(S) + '</b><i>체력</i></div>' +
         '<div class="st"><span>💥</span><b>' + Math.round(MQ.P.crit(S) * 100) + '%</b><i>치명타</i></div>' +
         '<div class="st"><span>⭐</span><b>×' + g.exp.toFixed(2) + '</b><i>경험치</i></div>' +
         '<div class="st"><span>💰</span><b>×' + g.gold.toFixed(2) + '</b><i>골드</i></div>' +
-        '</div>';
+        '</div>' +
+        '<p class="tiny-note">공격이 높으면 몬스터를 더 빨리 쓰러뜨리고, 방어가 높으면 틀려도 덜 아파요.</p>';
 
-      /* 스킬포인트로 올리는 영구 능력 */
       html += '<div class="perk-box' + (S.sp > 0 ? ' has' : '') + '">' +
         '<div class="perk-h"><b>✨ 스킬포인트</b><i>남은 포인트 ' + S.sp + '개</i></div>' +
+        '<p class="tiny-note">레벨이 오를 때마다 1개씩 생겨요. 한 번 올리면 계속 남아요.</p>' +
         '<div class="perk-grid">';
       var PERKS = [['atk', '⚔️', '공격력', '+2'], ['def', '🛡️', '방어력', '+2'], ['hp', '❤️', '체력', '+10'],
-      ['time', '⏳', '문제 시간', '+0.6초'], ['luck', '🍀', '행운', '희귀 확률 +6%']];
+      ['time', '⏳', '문제 시간', '+0.6초'], ['luck', '🍀', '행운', '희귀 +6%']];
       for (var pi = 0; pi < PERKS.length; pi++) {
         var pk = PERKS[pi];
         html += '<button class="perk" data-perk="' + pk[0] + '"' + (S.sp > 0 ? '' : ' disabled') + '>' +
@@ -326,16 +404,16 @@
       }
       html += '</div></div>';
 
-      html += '<div class="slots">';
+      html += '<h3 class="sec">🧍 지금 낀 장비 <small>눌러서 자세히 보기</small></h3><div class="slots">';
       for (var i = 0; i < MQ.SLOTS.length; i++) {
         var sl = MQ.SLOTS[i], it = MQ.ITEM[S.inv.equipped[sl.key]];
-        html += '<div class="slot' + (it ? ' r' + it.rar : '') + '" data-slot="' + sl.key + '">' +
+        html += '<button class="slot' + (it ? ' r' + it.rar : '') + '" data-slot="' + sl.key + '">' +
           '<span class="s-i">' + (it ? it.emoji : sl.icon) + '</span>' +
-          '<b>' + (it ? esc(it.name) : '비어 있음') + '</b><i>' + sl.name + '</i></div>';
+          '<b>' + (it ? esc(it.name) : '비어 있음') + '</b><i>' + sl.name + '</i></button>';
       }
       html += '</div>';
 
-      html += '<h3 class="sec">🎒 가진 장비</h3><div class="item-grid">';
+      html += '<h3 class="sec">🎒 가진 장비 <small>눌러서 끼우기</small></h3><div class="item-grid">';
       var owned = [];
       for (var id in S.inv.owned) if (MQ.ITEM[id]) owned.push(MQ.ITEM[id]);
       owned.sort(function (a, b) { return b.rar - a.rar; });
@@ -350,36 +428,127 @@
       }
       html += '</div>';
 
-      html += '<h3 class="sec">🧪 가진 아이템</h3><div class="pot-grid">';
+      html += '<h3 class="sec">🧪 가진 도우미 <small>전투 중에 쓸 수 있어요</small></h3><div class="pot-grid">';
       for (var k = 0; k < MQ.SHOP.length; k++) {
-        var sp = MQ.SHOP[k], n = MQ.P.count(S, sp.id);
+        var sp = MQ.SHOP[k];
         if (sp.id === 'chest' || sp.id === 'bigchest') continue;
-        html += '<div class="pot"><span>' + sp.emoji + '</span><b>' + esc(sp.name) + '</b><i>' + n + '개</i></div>';
+        html += '<button class="pot" data-shop="' + sp.id + '"><span>' + sp.emoji + '</span><b>' + esc(sp.name) + '</b>' +
+          '<i>' + MQ.P.count(S, sp.id) + '개</i><u>' + esc(sp.desc) + '</u></button>';
       }
       html += '</div>';
 
       $('bagBody').innerHTML = html;
+
       var items = document.querySelectorAll('#bagBody .item');
-      for (var m = 0; m < items.length; m++) items[m].onclick = function () {
-        var it = MQ.ITEM[this.getAttribute('data-item')];
-        if (MQ.S.inv.equipped[it.slot] === it.id) MQ.P.unequip(MQ.S, it.slot);
-        else MQ.P.equip(MQ.S, it.id);
-        MQ.Snd.play('tap'); MQ.Game.save(); UI.paintBag(); UI.paintHud();
-      };
+      for (var m = 0; m < items.length; m++) items[m].onclick = function () { UI.itemDetail(this.getAttribute('data-item')); };
+      var slots = document.querySelectorAll('#bagBody .slot');
+      for (var s2 = 0; s2 < slots.length; s2++) slots[s2].onclick = function () { UI.slotDetail(this.getAttribute('data-slot')); };
+      var pots = document.querySelectorAll('#bagBody .pot');
+      for (var p3 = 0; p3 < pots.length; p3++) pots[p3].onclick = function () { UI.shopDetail(this.getAttribute('data-shop')); };
       var perks = document.querySelectorAll('#bagBody .perk');
       for (var p2 = 0; p2 < perks.length; p2++) perks[p2].onclick = function () {
-        if (MQ.S.sp <= 0) { MQ.FX.toast('레벨을 올리면 포인트가 생겨요', 'warn'); return; }
-        var k = this.getAttribute('data-perk');
-        MQ.S.sp--; MQ.S.perks[k] = (MQ.S.perks[k] || 0) + 1;
-        if (k === 'hp') MQ.S.hp = MQ.P.hpMax(MQ.S);
+        var k2 = this.getAttribute('data-perk');
+        if (MQ.S.sp <= 0) {
+          UI.sheet('<div class="sh-head"><span class="sh-e">✨</span><div><b>스킬포인트</b><i>지금 0개</i></div></div>' +
+            '<p class="sh-p">레벨이 1 오를 때마다 1개씩 생겨요. 전투에서 이겨 경험치를 모으면 금방 올라가요!</p>');
+          return;
+        }
+        MQ.S.sp--; MQ.S.perks[k2] = (MQ.S.perks[k2] || 0) + 1;
+        if (k2 === 'hp') MQ.S.hp = MQ.P.hpMax(MQ.S);
         MQ.Snd.play('levelup'); MQ.FX.toast('능력이 올랐어요!');
         MQ.Game.save(); UI.paintBag(); UI.paintHud();
       };
-      var slots = document.querySelectorAll('#bagBody .slot');
-      for (var s2 = 0; s2 < slots.length; s2++) slots[s2].onclick = function () {
-        MQ.P.unequip(MQ.S, this.getAttribute('data-slot'));
-        MQ.Snd.play('tap'); MQ.Game.save(); UI.paintBag(); UI.paintHud();
+    },
+
+    /* ---------- 설명 카드들 ---------- */
+    itemDetail: function (id, noEquip) {
+      var it = MQ.ITEM[id]; if (!it) return;
+      var S = MQ.S;
+      var slot = null;
+      for (var i = 0; i < MQ.SLOTS.length; i++) if (MQ.SLOTS[i].key === it.slot) slot = MQ.SLOTS[i];
+      var eqd = S.inv.equipped[it.slot] === it.id;
+      var cur2 = MQ.ITEM[S.inv.equipped[it.slot]];
+      var have = !!S.inv.owned[it.id];
+
+      var lines = [];
+      if (it.atk) lines.push(['⚔️', '공격력', '+' + it.atk, '몬스터에게 주는 피해가 커져요']);
+      if (it.def) lines.push(['🛡️', '방어력', '+' + it.def, '틀렸을 때 덜 아파요']);
+      var b = it.bonus || {};
+      if (b.hp) lines.push(['❤️', '최대 체력', '+' + b.hp, '더 여러 번 틀려도 버텨요']);
+      if (b.exp) lines.push(['⭐', '경험치', '×' + b.exp, '레벨이 더 빨리 올라요']);
+      if (b.gold) lines.push(['💰', '골드', '×' + b.gold, '돈이 더 많이 들어와요']);
+      if (b.crit) lines.push(['💥', '치명타 확률', '+' + Math.round(b.crit * 100) + '%', '가끔 두 배로 때려요']);
+      if (b.time) lines.push(['⏳', '문제 시간', '+' + b.time + '초', '생각할 시간이 늘어나요']);
+      if (b.shield) lines.push(['🛡️', '보호막', '×' + b.shield, '판마다 한 번 공짜로 막아 줘요']);
+      if (!lines.length) lines.push(['🧝', '겉모습', '', '능력은 없지만 멋있어요']);
+
+      var html = '<div class="sh-head r' + it.rar + '"><span class="sh-e">' + it.emoji + '</span>' +
+        '<div><b>' + esc(it.name) + '</b>' +
+        '<i style="color:' + MQ.RARITY[it.rar].color + '">' + MQ.RARITY[it.rar].name + ' · ' + (slot ? slot.name : '') + '</i></div></div>';
+      html += '<div class="sh-lines">';
+      for (var l = 0; l < lines.length; l++) {
+        html += '<div class="sh-line"><span>' + lines[l][0] + '</span><b>' + lines[l][1] + '</b>' +
+          '<em>' + lines[l][2] + '</em><i>' + lines[l][3] + '</i></div>';
+      }
+      html += '</div>';
+
+      if (cur2 && cur2.id !== it.id && have) {
+        var dAtk = it.atk - cur2.atk, dDef = it.def - cur2.def;
+        html += '<p class="sh-cmp">지금 낀 <b>' + esc(cur2.name) + '</b> 과 비교하면 ' +
+          '공격 <b class="' + (dAtk >= 0 ? 'up' : 'dn') + '">' + (dAtk >= 0 ? '+' : '') + dAtk + '</b>, ' +
+          '방어 <b class="' + (dDef >= 0 ? 'up' : 'dn') + '">' + (dDef >= 0 ? '+' : '') + dDef + '</b> 이에요.</p>';
+      }
+      if (!have) html += '<p class="sh-p">아직 없는 아이템이에요. 상자에서 나올 수 있어요!</p>';
+
+      if (have && !noEquip) {
+        html += '<div class="sh-btns">' +
+          (eqd ? '<button class="big-btn ghost" id="shOff">벗기</button>'
+            : '<button class="big-btn primary" id="shOn">이걸 끼우기</button>') + '</div>';
+      }
+      UI.sheet(html);
+      var on1 = $('shOn'); if (on1) on1.onclick = function () {
+        MQ.P.equip(MQ.S, it.id); MQ.Snd.play('item'); MQ.Game.save(); UI.closeModal(); UI.paintBag(); UI.paintHud();
       };
+      var off = $('shOff'); if (off) off.onclick = function () {
+        MQ.P.unequip(MQ.S, it.slot); MQ.Snd.play('tap'); MQ.Game.save(); UI.closeModal(); UI.paintBag(); UI.paintHud();
+      };
+    },
+
+    slotDetail: function (key) {
+      var sl = null, i;
+      for (i = 0; i < MQ.SLOTS.length; i++) if (MQ.SLOTS[i].key === key) sl = MQ.SLOTS[i];
+      var it = MQ.ITEM[MQ.S.inv.equipped[key]];
+      if (it) return UI.itemDetail(it.id);
+      var n = 0;
+      for (var id in MQ.S.inv.owned) if (MQ.ITEM[id] && MQ.ITEM[id].slot === key) n++;
+      UI.sheet('<div class="sh-head"><span class="sh-e">' + sl.icon + '</span><div><b>' + sl.name + ' 칸</b><i>비어 있어요</i></div></div>' +
+        '<p class="sh-p">여기에 ' + sl.name + ' 을(를) 끼우면 더 세져요. 지금 가진 ' + sl.name + ' 은 <b>' + n + '개</b> 예요.</p>' +
+        (n ? '<p class="sh-p">아래 <b>가진 장비</b> 에서 골라 눌러 보세요.</p>' : '<p class="sh-p">몬스터를 물리치고 상자를 열면 나와요!</p>'));
+    },
+
+    shopDetail: function (id) {
+      var it = MQ.SHOP_MAP[id]; if (!it) return;
+      var S = MQ.S;
+      var price = it.gem ? (it.gem + ' 💎') : (it.price + ' 💰');
+      var can = it.gem ? S.gem >= it.gem : S.gold >= it.price;
+      UI.sheet('<div class="sh-head"><span class="sh-e">' + it.emoji + '</span><div><b>' + esc(it.name) + '</b>' +
+        '<i>' + (id === 'chest' || id === 'bigchest' ? '한 번 쓰면 사라져요' : '지금 ' + MQ.P.count(S, id) + '개') + '</i></div></div>' +
+        '<p class="sh-p">' + esc(it.desc) + '</p>' +
+        '<p class="sh-p">값 <b>' + price + '</b>' + (can ? '' : ' — 아직 모자라요') + '</p>' +
+        '<div class="sh-btns"><button class="big-btn ' + (can ? 'primary' : 'ghost') + '" id="shBuy">사기</button></div>');
+      $('shBuy').onclick = function () { UI.closeModal(); UI.buy(id); };
+    },
+
+    skillDetail: function (sk) {
+      var m = MQ.SKILLS[sk], S = MQ.S;
+      var b = (S.stats.bySkill && S.stats.bySkill[sk]) || { n: 0, ok: 0 };
+      var types = [], all = MQ.Gen.list();
+      for (var i = 0; i < all.length; i++) if (all[i].skill === sk) types.push(all[i].icon + ' ' + all[i].name);
+      UI.sheet('<div class="sh-head"><span class="sh-e">' + m.icon + '</span><div><b>' + m.name + ' 능력치</b>' +
+        '<i style="color:' + m.color + '">Lv ' + (S.skillLv[sk] || 1) + '</i></div></div>' +
+        '<p class="sh-p">이 분야 문제를 맞힐 때마다 조금씩 자라요. 지금까지 <b>' + b.n + '문제</b> 중 <b>' + b.ok + '개</b> 맞혔어요' +
+        (b.n ? ' (' + Math.round(b.ok / b.n * 100) + '%)' : '') + '.</p>' +
+        '<p class="sh-p"><b>이런 문제가 나와요</b><br><span class="sh-tags">' + esc(types.join(' · ')) + '</span></p>');
     },
 
     /* =====================================================================
@@ -389,28 +558,31 @@
       var S = MQ.S;
       tab = tab || UI._codexTab || 'mon';
       UI._codexTab = tab;
-      var html = '<div class="tabs">' +
+      var html = helpLine('codex');
+      html += '<div class="tabs">' +
         '<button data-t="mon" class="' + (tab === 'mon' ? 'on' : '') + '">👾 몬스터</button>' +
         '<button data-t="item" class="' + (tab === 'item' ? 'on' : '') + '">🎁 아이템</button>' +
         '<button data-t="type" class="' + (tab === 'type' ? 'on' : '') + '">🧠 문제</button>' +
         '<button data-t="ach" class="' + (tab === 'ach' ? 'on' : '') + '">🏅 업적</button>' +
         '</div>';
 
+      var i, j;
       if (tab === 'mon') {
-        var all = [], i, j;
+        var all = [];
         for (i = 0; i < MQ.REGIONS.length; i++) {
-          for (j = 0; j < MQ.REGIONS[i].mons.length; j++) all.push({ m: MQ.REGIONS[i].mons[j], r: MQ.REGIONS[i] });
-          all.push({ m: MQ.REGIONS[i].boss, r: MQ.REGIONS[i], boss: 1 });
+          for (j = 0; j < MQ.REGIONS[i].mons.length; j++) all.push({ m: MQ.REGIONS[i].mons[j], r: i });
+          all.push({ m: MQ.REGIONS[i].boss, r: i, boss: 1 });
         }
         var seen = 0;
         for (i = 0; i < all.length; i++) if (S.codex.mon[all[i].m.name]) seen++;
         html += '<p class="dex-count">' + seen + ' / ' + all.length + ' 종 발견</p><div class="dex-grid">';
         for (i = 0; i < all.length; i++) {
           var f = !!S.codex.mon[all[i].m.name];
-          html += '<div class="dex' + (f ? '' : ' unk') + (all[i].boss ? ' boss' : '') + '">' +
+          html += '<button class="dex' + (f ? '' : ' unk') + (all[i].boss ? ' boss' : '') +
+            '" data-mon="' + esc(all[i].m.name) + '" data-r="' + all[i].r + '">' +
             '<span class="d-e">' + (f ? all[i].m.emoji : '❔') + '</span>' +
             '<b>' + (f ? esc(all[i].m.name) : '???') + '</b>' +
-            '<i>' + all[i].r.emoji + ' ' + esc(all[i].r.name) + '</i></div>';
+            '<i>' + MQ.REGIONS[all[i].r].emoji + ' ' + esc(MQ.REGIONS[all[i].r].name) + '</i></button>';
         }
         html += '</div>';
       } else if (tab === 'item') {
@@ -418,10 +590,10 @@
         html += '<p class="dex-count">' + have + ' / ' + MQ.ITEMS.length + ' 종 수집</p><div class="dex-grid">';
         for (var k = 0; k < MQ.ITEMS.length; k++) {
           var it = MQ.ITEMS[k], f2 = !!S.codex.item[it.id];
-          html += '<div class="dex r' + it.rar + (f2 ? '' : ' unk') + '">' +
+          html += '<button class="dex r' + it.rar + (f2 ? '' : ' unk') + '" data-item="' + it.id + '">' +
             '<span class="d-e">' + (f2 ? it.emoji : '❔') + '</span>' +
             '<b>' + (f2 ? esc(it.name) : '???') + '</b>' +
-            '<i style="color:' + MQ.RARITY[it.rar].color + '">' + MQ.RARITY[it.rar].name + '</i></div>';
+            '<i style="color:' + MQ.RARITY[it.rar].color + '">' + MQ.RARITY[it.rar].name + '</i></button>';
         }
         html += '</div>';
       } else if (tab === 'type') {
@@ -431,11 +603,11 @@
         for (var t = 0; t < types.length; t++) {
           var ty = types[t], f3 = !!S.codex.type[ty.id];
           var bt = (S.stats.byType && S.stats.byType[ty.id]) || { n: 0, ok: 0 };
-          html += '<div class="dex' + (f3 ? '' : ' unk') + '">' +
+          html += '<button class="dex' + (f3 ? '' : ' unk') + '" data-type="' + ty.id + '">' +
             '<span class="d-e">' + (f3 ? ty.icon : '❔') + '</span>' +
             '<b>' + (f3 ? esc(ty.name) : '???') + '</b>' +
             '<i style="color:' + MQ.SKILLS[ty.skill].color + '">' + MQ.SKILLS[ty.skill].name +
-            (bt.n ? ' · ' + Math.round(bt.ok / bt.n * 100) + '%' : '') + '</i></div>';
+            (bt.n ? ' · ' + Math.round(bt.ok / bt.n * 100) + '%' : '') + '</i></button>';
         }
         html += '</div>';
       } else {
@@ -456,6 +628,57 @@
       for (var z = 0; z < tb.length; z++) tb[z].onclick = function () {
         MQ.Snd.play('tap'); UI.paintCodex(this.getAttribute('data-t'));
       };
+      var dx = document.querySelectorAll('#codexBody .dex');
+      for (var y = 0; y < dx.length; y++) dx[y].onclick = function () {
+        if (this.getAttribute('data-item')) return UI.itemDetail(this.getAttribute('data-item'), true);
+        if (this.getAttribute('data-type')) return UI.typeDetail(this.getAttribute('data-type'));
+        UI.monDetail(this.getAttribute('data-mon'), +this.getAttribute('data-r'));
+      };
+    },
+
+    monDetail: function (name, ri) {
+      var S = MQ.S, r = MQ.REGIONS[ri], m = null, boss = false, i;
+      for (i = 0; i < r.mons.length; i++) if (r.mons[i].name === name) m = r.mons[i];
+      if (!m && r.boss.name === name) { m = r.boss; boss = true; }
+      if (!m) return;
+      var found = !!S.codex.mon[name];
+      if (!found) {
+        return UI.sheet('<div class="sh-head"><span class="sh-e">❔</span><div><b>아직 못 만난 몬스터</b>' +
+          '<i>' + r.emoji + ' ' + esc(r.name) + '</i></div></div>' +
+          '<p class="sh-p">이 지역에서 모험하다 보면 만날 수 있어요!</p>');
+      }
+      var hpTxt = m.hp >= 1.4 ? '아주 튼튼해요' : m.hp >= 1.1 ? '조금 튼튼해요' : '보통이에요';
+      var atkTxt = m.atk >= 1.7 ? '아주 아프게 때려요' : m.atk >= 1.3 ? '조금 아프게 때려요' : '약하게 때려요';
+      UI.sheet('<div class="sh-head' + (boss ? ' r3' : '') + '"><span class="sh-e">' + m.emoji + '</span>' +
+        '<div><b>' + esc(m.name) + '</b><i>' + r.emoji + ' ' + esc(r.name) + (boss ? ' · 보스' : '') + '</i></div></div>' +
+        '<div class="sh-lines">' +
+        '<div class="sh-line"><span>❤️</span><b>체력</b><em>' + m.hp.toFixed(1) + '배</em><i>' + hpTxt + '</i></div>' +
+        '<div class="sh-line"><span>⚔️</span><b>공격력</b><em>' + m.atk.toFixed(1) + '배</em><i>' + atkTxt + '</i></div>' +
+        (boss ? '<div class="sh-line"><span>🎯</span><b>도전</b><em>' + m.q + '문제</em><i>연속으로 이겨야 해요</i></div>' : '') +
+        '</div>' +
+        '<p class="sh-p">이 지역에서는 <b>' + r.skills.map(function (s) { return MQ.SKILLS[s].name; }).join(' · ') +
+        '</b> 문제가 자주 나와요.</p>');
+    },
+
+    typeDetail: function (id) {
+      var ty = MQ.Gen.types[id]; if (!ty) return;
+      var S = MQ.S;
+      var bt = (S.stats.byType && S.stats.byType[id]) || { n: 0, ok: 0 };
+      var sample = null;
+      try { sample = ty.fn(Math.max(ty.minLv, Math.min(ty.maxLv, S.diff)), MQ.R); } catch (e) { }
+      var html = '<div class="sh-head"><span class="sh-e">' + ty.icon + '</span><div><b>' + esc(ty.name) + '</b>' +
+        '<i style="color:' + MQ.SKILLS[ty.skill].color + '">' + MQ.SKILLS[ty.skill].name + ' 분야</i></div></div>';
+      html += '<p class="sh-p">' + (bt.n ? '지금까지 <b>' + bt.n + '문제</b> 중 <b>' + bt.ok + '개</b> 맞혔어요 (' +
+        Math.round(bt.ok / bt.n * 100) + '%).' : '아직 만나 본 적 없는 문제예요.') + '</p>';
+      if (sample) {
+        html += '<div class="sh-sample"><div class="ss-t">이런 문제예요</div>' +
+          (sample.svg ? '<div class="q-svg">' + sample.svg + '</div>' : '') +
+          '<div class="ss-q">' + sample.text + '</div>' +
+          (sample.sub ? '<div class="ss-sub">' + sample.sub + '</div>' : '') +
+          '<div class="ss-a">정답 <b>' + esc(sample.answer) + '</b></div>' +
+          '<div class="ss-e">' + esc(sample.explain) + '</div></div>';
+      }
+      UI.sheet(html);
     },
 
     /* =====================================================================
@@ -465,9 +688,12 @@
       var S = MQ.S;
       MQ.Prog.ensureMissions(S);
       var si = MQ.Prog.seasonInfo();
-      var html = '<div class="season" style="border-color:' + si.color + '">' +
+      var html = helpLine('quest');
+      html += '<div class="season" style="border-color:' + si.color + '">' +
         '<div class="se-h"><span>' + si.emoji + '</span><b>' + esc(si.name) + '</b>' +
-        '<i>시즌 ' + si.no + ' · ' + S.season.pt + '점</i></div><div class="pass">';
+        '<i>시즌 ' + si.no + ' · ' + S.season.pt + '점</i></div>' +
+        '<p class="tiny-note">문제를 풀고 미션을 끝낼 때마다 시즌 점수가 올라요. 4주마다 새 시즌이 시작돼요.</p>' +
+        '<div class="pass">';
       for (var i = 0; i < MQ.SEASON_PASS.length; i++) {
         var p = MQ.SEASON_PASS[i];
         var taken = S.season.taken.indexOf(i) >= 0;
@@ -494,8 +720,15 @@
       };
       var sp = document.querySelectorAll('#questBody .pass-i');
       for (var s = 0; s < sp.length; s++) sp[s].onclick = function () {
-        var got = MQ.Prog.claimSeason(MQ.S, +this.getAttribute('data-sp'));
-        if (!got) { MQ.FX.toast('아직 점수가 모자라요', 'warn'); return; }
+        var idx = +this.getAttribute('data-sp');
+        var got = MQ.Prog.claimSeason(MQ.S, idx);
+        if (!got) {
+          var pass = MQ.SEASON_PASS[idx];
+          UI.sheet('<div class="sh-head"><span class="sh-e">🎁</span><div><b>시즌 보상</b><i>' + pass.at + '점 필요</i></div></div>' +
+            '<p class="sh-p">지금 <b>' + MQ.S.season.pt + '점</b> 이에요. ' +
+            (MQ.S.season.taken.indexOf(idx) >= 0 ? '이미 받은 보상이에요.' : '<b>' + Math.max(0, pass.at - MQ.S.season.pt) + '점</b> 만 더 모으면 받을 수 있어요!') + '</p>');
+          return;
+        }
         MQ.Snd.play('rare'); MQ.FX.rain('✨', 16);
         MQ.FX.toast('시즌 보상을 받았어요!');
         MQ.Game.save(); UI.paintQuests(); UI.paintHud();
@@ -524,20 +757,24 @@
      * ===================================================================== */
     paintShop: function () {
       var S = MQ.S;
-      var html = '<p class="shop-note">모험에 필요한 것들을 살 수 있어요.</p><div class="shop-grid">';
+      var html = helpLine('shop') + '<div class="shop-grid">';
       for (var i = 0; i < MQ.SHOP.length; i++) {
         var it = MQ.SHOP[i];
         var price = it.gem ? (it.gem + ' 💎') : (it.price + ' 💰');
         var can = it.gem ? S.gem >= it.gem : S.gold >= it.price;
-        html += '<button class="buy' + (can ? '' : ' no') + '" data-buy="' + it.id + '">' +
+        html += '<div class="buy' + (can ? '' : ' no') + '">' +
           '<span class="b-e">' + it.emoji + '</span><b>' + esc(it.name) + '</b>' +
           '<i>' + esc(it.desc) + '</i><u>' + price + '</u>' +
-          '<em>' + (it.id === 'chest' || it.id === 'bigchest' ? '' : '가진 개수 ' + MQ.P.count(S, it.id)) + '</em></button>';
+          '<em>' + (it.id === 'chest' || it.id === 'bigchest' ? '&nbsp;' : '가진 개수 ' + MQ.P.count(S, it.id)) + '</em>' +
+          '<div class="buy-btns"><button class="buy-go" data-buy="' + it.id + '">사기</button>' +
+          '<button class="buy-info" data-info="' + it.id + '">?</button></div></div>';
       }
       html += '</div>';
       $('shopBody').innerHTML = html;
-      var bs = document.querySelectorAll('#shopBody .buy');
+      var bs = document.querySelectorAll('#shopBody .buy-go');
       for (var j = 0; j < bs.length; j++) bs[j].onclick = function () { UI.buy(this.getAttribute('data-buy')); };
+      var inf = document.querySelectorAll('#shopBody .buy-info');
+      for (var k = 0; k < inf.length; k++) inf[k].onclick = function () { UI.shopDetail(this.getAttribute('data-info')); };
     },
     buy: function (id) {
       var S = MQ.S, it = MQ.SHOP_MAP[id];
@@ -555,7 +792,9 @@
         UI.modal('<div class="drop-big r' + c.item.rar + '">' +
           '<span>' + c.item.emoji + '</span><h2>' + esc(c.item.name) + '</h2>' +
           '<p style="color:' + c.rar.color + '">' + c.rar.name + '</p>' +
-          '<small>' + (c.dup ? '이미 있어서 골드로 바꿨어요' : '새 아이템이에요!') + '</small></div>');
+          '<small>' + (c.dup ? '이미 있어서 골드로 바꿨어요' : '새 아이템이에요!') + '</small>' +
+          '<div class="sh-btns"><button class="big-btn ghost" id="cdInfo">어떤 아이템인지 보기</button></div></div>');
+        var ci = $('cdInfo'); if (ci) ci.onclick = function () { UI.itemDetail(c.item.id, true); };
         if (c.item.rar >= 3) MQ.FX.rain('✨', 20);
       } else {
         MQ.P.give(S, id, 1);
@@ -564,31 +803,38 @@
       }
       var got = MQ.Prog.checkAch(S);
       for (var g = 0; g < got.length; g++) MQ.FX.toast('🏅 ' + got[g].name, 'ach');
-      MQ.Game.save(); UI.paintShop(); UI.paintHud();
+      MQ.Game.save();
+      if (cur === 'shop') UI.paintShop();
+      if (cur === 'bag') UI.paintBag();
+      UI.paintHud();
     },
 
     /* =====================================================================
-     * 공용 모달 · 메뉴
+     * 공용 모달 · 설명 카드 · 메뉴
      * ===================================================================== */
     modal: function (html, opt) {
       opt = opt || {};
       var wrap = $('modal');
-      wrap.innerHTML = '<div class="modal-box' + (opt.wide ? ' wide' : '') + '">' +
+      wrap.className = opt.sheet ? 'sheet-mode' : '';
+      wrap.innerHTML = '<div class="modal-box' + (opt.wide ? ' wide' : '') + (opt.sheet ? ' sheet' : '') + '">' +
         (opt.noClose ? '' : '<button class="mo-x" id="moX">✕</button>') + html + '</div>';
       wrap.classList.add('on');
       var x = $('moX');
       if (x) x.onclick = UI.closeModal;
-      if (!opt.noClose) wrap.onclick = function (e) { if (e.target === wrap) UI.closeModal(); };
-      else wrap.onclick = null;
+      wrap.onclick = opt.noClose ? null : function (e) { if (e.target === wrap) UI.closeModal(); };
     },
+    /* 아래에서 올라오는 설명 카드 */
+    sheet: function (html) { MQ.Snd.play('open'); UI.modal(html, { sheet: true }); },
     closeModal: function () { var w = $('modal'); w.classList.remove('on'); w.innerHTML = ''; },
 
     menu: function () {
       var S = MQ.S;
       var html = '<h2>⚙️ 설정</h2><div class="menu-list">' +
-        '<button data-m="sound">' + (MQ.Snd.isOn() ? '🔊 소리 켜짐' : '🔇 소리 꺼짐') + '</button>' +
+        '<button data-m="sound">' + (MQ.Snd.isOn() ? '🔊 효과음 켜짐' : '🔇 효과음 꺼짐') + '</button>' +
+        '<button data-m="bgm">' + (MQ.Bgm.isOn() ? '🎵 배경음악 켜짐' : '🎵 배경음악 꺼짐') + '</button>' +
         '<button data-m="how">❓ 게임 방법</button>' +
         '<button data-m="parent">👨‍👩‍👧 보호자 보기</button>' +
+        '<button data-m="hub">🏠 게임 목록으로 나가기</button>' +
         '<button data-m="reset">🗑️ 처음부터 다시</button>' +
         '</div><p class="menu-note">기록은 이 기기에 자동으로 저장돼요.</p>';
       UI.modal(html);
@@ -596,8 +842,10 @@
       for (var i = 0; i < bs.length; i++) bs[i].onclick = function () {
         var m = this.getAttribute('data-m');
         if (m === 'sound') { MQ.Snd.setOn(!MQ.Snd.isOn()); S.settings.sound = MQ.Snd.isOn(); MQ.Game.save(); UI.menu(); }
+        else if (m === 'bgm') { MQ.Bgm.setOn(!MQ.Bgm.isOn()); S.settings.bgm = MQ.Bgm.isOn(); MQ.Game.save(); UI.music(); UI.menu(); }
         else if (m === 'how') UI.howTo();
         else if (m === 'parent') UI.parent();
+        else if (m === 'hub') { MQ.Game.save(); location.href = '../../../'; }
         else if (m === 'reset') UI.confirmReset();
       };
     },
@@ -607,10 +855,11 @@
         '<ul class="how">' +
         '<li>⚔️ <b>정답을 고르면 몬스터를 때려요.</b> 틀리면 내가 맞아요.</li>' +
         '<li>🔥 <b>연속으로 맞히면 콤보!</b> 5콤보마다 필살기가 터지고 경험치가 ×2, ×3, ×5, ×10 으로 커져요.</li>' +
+        '<li>🗺️ 지도에서 <b>칸을 하나 깰 때마다 캐릭터가 한 걸음</b> 앞으로 걸어가요. 지도는 옆으로 밀어서 둘러볼 수 있어요.</li>' +
         '<li>🎁 몬스터를 물리치면 상자가 나와요. 무기·펫·날개·탈것을 모아 더 세지세요.</li>' +
         '<li>🧠 문제는 스스로 난이도를 맞춰요. 잘 맞히면 어려워지고, 어려우면 쉬워져요.</li>' +
-        '<li>🗺️ 레벨이 오르면 새 지역이 열려요. 마지막에는 우주까지!</li>' +
         '<li>🗝️ 랜덤 던전은 들어갈 때마다 규칙과 보상이 달라져요.</li>' +
+        '<li>🚪 전투 중에 그만하고 싶으면 왼쪽 위 <b>✕ 나가기</b> 를 누르세요.</li>' +
         '</ul>');
     },
 
@@ -620,6 +869,19 @@
         '<button class="big-btn ghost" id="noReset">아니요</button></div>');
       $('doReset').onclick = function () { MQ.Save.clear(); location.reload(); };
       $('noReset').onclick = UI.closeModal;
+    },
+
+    /* 전투 중 나가기 */
+    exitBattle: function () {
+      UI.modal('<h2>🚪 나갈까요?</h2><p class="warn-p">지금 판에서 얻은 보상은 사라져요.</p>' +
+        '<div class="res-btns">' +
+        '<button class="big-btn primary" id="exStay">↩️ 계속 싸우기</button>' +
+        '<button class="big-btn" id="exMap">🗺️ 지도로 나가기</button>' +
+        '<button class="big-btn ghost" id="exHub">🏠 게임 목록으로</button>' +
+        '</div>');
+      $('exStay').onclick = UI.closeModal;
+      $('exMap').onclick = function () { UI.closeModal(); MQ.Battle.flee(); };
+      $('exHub').onclick = function () { MQ.Battle.flee(); MQ.Game.save(); location.href = '../../../'; };
     },
 
     /* ---------------- 보호자 대시보드(숨김) ---------------- */

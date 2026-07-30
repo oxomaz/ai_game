@@ -45,6 +45,7 @@
       if (h >= 21) MQ.S.stats.night = 1;
       if (h < 7) MQ.S.stats.morning = 1;
       MQ.Snd.setOn(MQ.S.settings.sound !== false);
+      MQ.Bgm.setOn(MQ.S.settings.bgm !== false);
       return !!S;
     },
 

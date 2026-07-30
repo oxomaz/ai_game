@@ -51,7 +51,7 @@
       },
       daily: null, weekly: null,
       season: { key: null, pt: 0, taken: [] },
-      settings: { sound: true, bigText: false }
+      settings: { sound: true, bgm: true, bigText: false }
     };
   };
 

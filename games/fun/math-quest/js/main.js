@@ -53,13 +53,20 @@
       }
     };
     $('btnHow').onclick = function () { MQ.Snd.unlock(); MQ.UI.howTo(); };
-    $('btFlee').onclick = function () {
-      MQ.UI.modal('<h2>도망갈까요?</h2><p class="warn-p">지금까지 얻은 보상은 사라져요.</p>' +
-        '<div class="res-btns"><button class="big-btn danger" id="flYes">도망간다</button>' +
-        '<button class="big-btn ghost" id="flNo">계속 싸운다</button></div>');
-      $('flYes').onclick = function () { MQ.UI.closeModal(); MQ.Battle.flee(); };
-      $('flNo').onclick = MQ.UI.closeModal;
-    };
+    $('btExit').onclick = function () { MQ.UI.exitBattle(); };
+
+    /* 브라우저 뒤로가기 = 나가기 */
+    try { history.pushState({ mq: 1 }, ''); } catch (e) { }
+    window.addEventListener('popstate', function () {
+      try { history.pushState({ mq: 1 }, ''); } catch (e) { }
+      if (document.getElementById('modal').classList.contains('on')) { MQ.UI.closeModal(); return; }
+      if (MQ.Battle.active()) { MQ.UI.exitBattle(); return; }
+      if (MQ.UI.current() !== 'map' && MQ.UI.current() !== 'title') { MQ.UI.show('map'); return; }
+      MQ.FX.toast('한 번 더 누르면 게임 목록으로 나가요', 'warn');
+      if (MQ.UI._backOnce) { location.href = '../../../'; }
+      MQ.UI._backOnce = true;
+      setTimeout(function () { MQ.UI._backOnce = false; }, 2000);
+    });
 
     var tabs = document.querySelectorAll('#nav button');
     for (var i = 0; i < tabs.length; i++) tabs[i].onclick = function () {
@@ -79,6 +86,7 @@
 
     document.addEventListener('pointerdown', function once() {
       MQ.Snd.unlock();
+      MQ.UI.music();          // 첫 터치에서 배경음악도 깨운다(모바일 정책)
       document.removeEventListener('pointerdown', once);
     });
 

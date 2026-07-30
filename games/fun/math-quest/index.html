@@ -56,13 +56,22 @@
 
 <!-- ===================== 지도 ===================== -->
 <section id="sc-map" class="screen">
+  <div class="map-bar">
+    <a class="back-link" href="../../../">← 게임 목록</a>
+    <div class="region-strip" id="regionStrip"></div>
+  </div>
+  <div class="map-wrap">
+    <canvas id="worldCv"></canvas>
+    <div class="map-tip" id="mapTip">지도를 옆으로 밀어 보세요. 칸을 누르면 무엇이 있는지 알려줘요.</div>
+  </div>
+  <div class="node-card" id="nodeCard"></div>
   <div class="body" id="mapBody"></div>
 </section>
 
 <!-- ===================== 전투 ===================== -->
 <section id="sc-battle" class="screen">
   <div class="bt-head">
-    <button class="bt-flee" id="btFlee">← 도망</button>
+    <button class="bt-flee" id="btExit">✕ 나가기</button>
     <div class="bt-title"><b id="btTitle"></b><span id="btWave"></span></div>
     <div id="btMod"></div>
   </div>
@@ -145,12 +154,14 @@
 
 <!-- 게임 -->
 <script src="js/audio.js"></script>
+<script src="js/bgm.js"></script>
 <script src="js/fx.js"></script>
 <script src="js/save.js"></script>
 <script src="js/player.js"></script>
 <script src="js/difficulty.js"></script>
 <script src="js/loot.js"></script>
 <script src="js/progress.js"></script>
+<script src="js/worldmap.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/battle.js"></script>
 <script src="js/game.js"></script>

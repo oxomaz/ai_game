@@ -47,6 +47,7 @@
       };
       if (B.hp <= 0) B.hp = B.hpMax;
       MQ.UI.show('battle');
+      MQ.Bgm.play(opt.kind === 'boss' ? 'boss' : opt.kind === 'dungeon' ? 'dungeon' : 'battle');
       $('btTitle').textContent = opt.title || '전투';
       $('btMod').innerHTML = mod.label ? '<span class="mod-chip">' + esc(mod.label) + '</span>' : '';
       Battle.nextMonster();
