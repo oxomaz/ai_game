@@ -49,6 +49,7 @@ export const GAMES = {
   onitama: { max: 100000, label: '오니타마' },
   'cooking-catch': { max: 100000, label: '요리조리 셰프' },
   dalmuti: { max: 100000, label: '달무티' },
+  'memory-cards': { max: 100000, label: '메모리 카드' },
 };
 
 // ── HTTP 유틸 ──────────────────────────────────────────────────────────────

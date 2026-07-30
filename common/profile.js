@@ -72,7 +72,8 @@
     'subway-io':           { emoji: '🚇', title: '지하철 슬리더',    cat: 'fun' },
     'onitama':             { emoji: '🥷', title: '오니타마',         cat: 'fun' },
     'cooking-catch':       { emoji: '🍳', title: '요리조리 셰프',    cat: 'fun' },
-    'dalmuti':             { emoji: '👑', title: '달무티',          cat: 'fun' }
+    'dalmuti':             { emoji: '👑', title: '달무티',          cat: 'fun' },
+    'memory-cards':        { emoji: '🧠', title: '메모리 카드',    cat: 'fun' }
   };
 
   /* ---------------- 배지 카탈로그 ---------------- */
@@ -82,7 +83,7 @@
     'play-10':      { emoji: '🎮', title: '단골 손님',     desc: '게임을 10판 했어요',                     game: '*' },
     'play-50':      { emoji: '🏅', title: '게임 고수',     desc: '게임을 50판 했어요',                     game: '*' },
     'explorer-5':   { emoji: '🧭', title: '탐험가',        desc: '서로 다른 게임 5개를 해봤어요',          game: '*' },
-    'explorer-all': { emoji: '🌟', title: '올라운더',      desc: '12개 게임을 전부 해봤어요',              game: '*' },
+    'explorer-all': { emoji: '🌟', title: '올라운더',      desc: '13개 게임을 전부 해봤어요',              game: '*' },
 
     /* 연산 스피드 퀴즈 */
     'ms-hit20':     { emoji: '➕', title: '계산 척척',     desc: '한 판에 20문제 맞히기',                  game: 'math-speed' },
@@ -156,7 +157,14 @@
     'dm-win':       { emoji: '👑', title: '대달무티',      desc: '최종 1등을 차지했어요',                  game: 'dalmuti' },
     'dm-hard':      { emoji: '🏰', title: '왕좌의 주인',   desc: '어려움 컴퓨터들을 상대로 1등',           game: 'dalmuti' },
     'dm-win5':      { emoji: '🏆', title: '영원한 통치',   desc: '달무티에서 5번 우승',                    game: 'dalmuti' },
-    'dm-rev':       { emoji: '🔥', title: '대혁명',        desc: '대농노로 대혁명을 일으켰어요',           game: 'dalmuti' }
+    'dm-rev':       { emoji: '🔥', title: '대혁명',        desc: '대농노로 대혁명을 일으켰어요',           game: 'dalmuti' },
+
+    /* 메모리 카드 */
+    'mc-clear':     { emoji: '🧠', title: '기억력 개장',   desc: '메모리 카드 한 판을 클리어했어요',       game: 'memory-cards' },
+    'mc-perfect':   { emoji: '💯', title: '완벽한 기억',   desc: '한 번도 안 틀리고 클리어',               game: 'memory-cards' },
+    'mc-hard':      { emoji: '🏆', title: '24쌍 정복',     desc: '도전(6×8) 판을 클리어',                  game: 'memory-cards' },
+    'mc-flag100':   { emoji: '🌍', title: '국기 박사',     desc: '국기 짝을 모두 합쳐 100개 맞히기',       game: 'memory-cards' },
+    'mc-packs':     { emoji: '🗂️', title: '카드 수집가',   desc: '카드팩 5종 이상 플레이',                 game: 'memory-cards' }
   };
 
   /* ---------------- 아바타 후보 ---------------- */
@@ -266,7 +274,8 @@
     'subway-io':           { re: /^혼자$/,                                label: '혼자 플레이' },
     'onitama':             { re: /^컴퓨터 · 보통$/,                       label: '컴퓨터 · 보통' },
     'cooking-catch':       { re: /^보통 · 60초$/,                         label: '보통 · 60초' },
-    'dalmuti':             { re: /^4명 · 보통 · 5판$/,                    label: '4명 · 보통 · 5판' }
+    'dalmuti':             { re: /^4명 · 보통 · 5판$/,                    label: '4명 · 보통 · 5판' },
+    'memory-cards':        { re: /^세계 국기 · 국기 ↔ 나라 이름 · 보통$/, label: '세계 국기 · 국기↔나라 · 보통' }
   };
 
   /* records.js 를 옆 폴더에서 자동으로 불러온다 → 게임 파일은 손댈 필요 없음 */
