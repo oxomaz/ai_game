@@ -155,7 +155,7 @@
 
     <div class="step"><i>STEP 1</i><b>노선을 고르세요</b></div>
     <div class="lines" id="lineList"></div>
-    <div class="tip" id="mapNote">🗺️ 고른 노선의 <b>실제 모양과 진짜 역 이름</b>이 배경 지도로 깔려요. 강과 바닷가도 실제 위치예요.</div>
+    <div class="tip" id="mapNote">🗺️ 고른 노선의 <b>실제 모양과 진짜 역 이름</b>이 배경 지도로 깔려요. <b>큰 도로·공원·산·강·동 이름</b>까지 실제 위치 그대로예요.</div>
 
     <div class="row"><button class="btn" id="toStep2" disabled>다음 →</button></div>
     <div class="row"><button class="btn ghost" id="vsOpen">🌐 친구랑 온라인 대결</button></div>
@@ -206,6 +206,7 @@
 <script src="../../../common/versus.js"></script>
 <!-- 실제 지하철 노선·해안선·강 데이터 (OpenStreetMap). 못 읽어도 게임은 그대로 돌아간다 -->
 <script src="map-ko.js" onerror="window.SUBWAY_MAP=null"></script>
+<script src="map-bg.js" onerror="window.SUBWAY_BG=null"></script>
 <script>
 /* =========================================================
    지하철 슬리더 — slither.io 스타일 지하철 게임
@@ -1114,6 +1115,35 @@ function drawNameTag(g,p,label,col,wid){
    고른 노선이 화면(반지름 WORLD_R)에 꽉 차도록 평면에 펴서 옮긴다.
    위경도는 그대로 쓰면 가로가 눌리므로 경도에 cos(위도)를 곱한다(정거원통도법).
    지도는 배경일 뿐이고 달리는 규칙은 예전 그대로다. */
+/* ---------- 지도 배경(도로·녹지·물·지명) ----------
+   map-bg.js 의 좌표는 polyline(구글 인코딩, 1e-4°) 로 압축돼 있다.
+   한 번만 풀어서 위경도 배열로 캐시해 두고, 노선이 바뀔 때 투영만 다시 한다.
+   ⚠️ map-bg.js 가 없어도(오프라인·파일 누락) 게임은 그대로 돌아가야 한다. */
+let BGRAW=null;
+function bgDecode(str){
+  const pts=[]; let i=0, la=0, lo=0;
+  while(i<str.length){
+    let sh=0,r=0,b;
+    do{ b=str.charCodeAt(i++)-63; r|=(b&0x1f)<<sh; sh+=5; }while(b>=0x20);
+    la += (r&1) ? ~(r>>1) : (r>>1);
+    sh=0; r=0;
+    do{ b=str.charCodeAt(i++)-63; r|=(b&0x1f)<<sh; sh+=5; }while(b>=0x20);
+    lo += (r&1) ? ~(r>>1) : (r>>1);
+    pts.push([la,lo]);
+  }
+  return pts;
+}
+function bgRaw(){
+  if(BGRAW) return BGRAW;
+  const D=window.SUBWAY_BG;
+  if(!D){ BGRAW={r1:[],r2:[],r3:[],g:[],w:[],n:[],pr:2e-4}; return BGRAW; }
+  const pr=D.p||1e-4;
+  const dec=list=>(list||[]).map(t=>bgDecode(t).map(q=>[q[0]*pr, q[1]*pr]));
+  BGRAW={ r1:dec(D.r1), r2:dec(D.r2), r3:dec(D.r3), g:dec(D.g), w:dec(D.w), pr,
+          n:(D.n||[]).map(a=>[a[0], a[1]*pr, a[2]*pr, a[3]|0]) };
+  return BGRAW;
+}
+
 function buildWorldMap(lineId){
   const D = window.SUBWAY_MAP;
   if(!D || !D.lines || !D.lines[lineId]) return null;
@@ -1142,30 +1172,129 @@ function buildWorldMap(lineId){
   const near=pts=>pts.some(p=>Math.abs(p.x)<WORLD_R*2.4 && Math.abs(p.y)<WORLD_R*2.4);
   const trim=list=>(list||[]).map(conv).filter(p=>p.length>1 && near(p));
 
+  /* 배경 레이어를 세상 좌표로 옮기고, 화면 밖 판정을 위해 각 조각의 네모(bbox)를 같이 들고 있는다.
+     경계 원 밖으로 완전히 나간 조각은 아예 버린다 (어차피 원 안쪽만 그린다). */
+  const LIM=WORLD_R*1.06;
+  const pack=list=>{
+    const out=[];
+    for(const arr of list){
+      let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+      const pts=new Array(arr.length);
+      for(let i=0;i<arr.length;i++){
+        const q=P(arr[i][0],arr[i][1]); pts[i]=q;
+        if(q.x<x0)x0=q.x; if(q.x>x1)x1=q.x; if(q.y<y0)y0=q.y; if(q.y>y1)y1=q.y;
+      }
+      if(x1<-LIM||x0>LIM||y1<-LIM||y0>LIM) continue;
+      out.push({p:pts,x0,y0,x1,y1});
+    }
+    return out;
+  };
+  /* ⚡ 성능: 배경은 절대 움직이지 않으니 **격자 칸마다 Path2D 를 미리 구워 둔다.**
+     매 프레임 좌표를 다시 그리면(선 수만 개) 60fps 가 안 나온다 — 실제로 25ms 까지 갔다.
+     칸을 걸치는 조각은 걸친 칸마다 넣는다(겹쳐 그려도 색이 불투명하니 표가 안 난다). */
+  const bake=(items, close)=>{
+    const cells=new Map();
+    for(const it of items){
+      const cx0=Math.max(0,Math.min(MAP_NC-1,Math.floor((it.x0+WORLD_R)/MAP_CELL)));
+      const cx1=Math.max(0,Math.min(MAP_NC-1,Math.floor((it.x1+WORLD_R)/MAP_CELL)));
+      const cy0=Math.max(0,Math.min(MAP_NC-1,Math.floor((it.y0+WORLD_R)/MAP_CELL)));
+      const cy1=Math.max(0,Math.min(MAP_NC-1,Math.floor((it.y1+WORLD_R)/MAP_CELL)));
+      const p=it.p;
+      for(let cy=cy0;cy<=cy1;cy++) for(let cx=cx0;cx<=cx1;cx++){
+        const k=cy*MAP_NC+cx;
+        let pa=cells.get(k);
+        if(!pa){ pa=new Path2D(); cells.set(k,pa); }
+        pa.moveTo(p[0].x,p[0].y);
+        for(let i=1;i<p.length;i++) pa.lineTo(p[i].x,p[i].y);
+        if(close) pa.closePath();
+      }
+    }
+    return cells;
+  };
+  const bg=bgRaw();
+  const names=[];
+  for(const a of bg.n){
+    const q=P(a[1],a[2]);
+    if(Math.abs(q.x)>WORLD_R*0.99||Math.abs(q.y)>WORLD_R*0.99) continue;
+    if(q.x*q.x+q.y*q.y > WORLD_R*WORLD_R*0.94) continue;
+    names.push({x:q.x, y:q.y, t:a[0], r:a[3]});
+  }
+
   return {
     line: segs.map(conv),
     stations: (L.t||[]).map(t=>{ const p=P(t[3],t[4]);
       return {x:p.x, y:p.y, name:t[0], en:t[1]||'', no:t[2]||''}; }),
     coast: trim(D.coast),
-    rivers: trim(D.rivers)
+    rivers: trim(D.rivers),
+    road1: bake(pack(bg.r1)), road2: bake(pack(bg.r2)), road3: bake(pack(bg.r3)),
+    green: bake(pack(bg.g), true), water: bake(pack(bg.w), true),
+    names: names.sort((a,b)=>a.r-b.r)
   };
 }
 
-/* 지도 배경을 캔버스에 그린다 (세상 좌표계 안에서 호출) */
-function drawMapBg(g){
+/* 지도 배경을 캔버스에 그린다 (세상 좌표계 안에서 호출)
+   ── 구글 지도 '야간 모드' 같은 느낌: 어두운 땅바닥 위에 물·녹지·도로·지명.
+   경계 원 안쪽만 그려서 선로 밖은 그대로 캄캄하게 남긴다. */
+const MAP_CELL = 520;                       // 배경 격자 한 칸 크기(세상 좌표)
+const MAP_NC   = Math.ceil(WORLD_R*2/MAP_CELL);
+const MAP_STYLE = {
+  land:'#111a27', water:'#12293f', waterEdge:'#1d3d5c', green:'#14291d',
+  road1:'#26344b', road1in:'#3a4e6f', road2:'#2a374e', road3:'#1d2839',
+  label:'rgba(158,180,212,.6)'
+};
+/* 화면에 걸친 격자 칸만 골라 미리 구운 Path2D 를 그린다 */
+let mbL=0, mbR=0, mbT=0, mbB=0;      // 지금 그리고 있는(구워 넣는) 범위
+function eachCell(cells, fn){
+  if(!cells || !cells.size) return;
+  const cx0=Math.max(0,Math.floor((mbL+WORLD_R)/MAP_CELL)), cx1=Math.min(MAP_NC-1,Math.floor((mbR+WORLD_R)/MAP_CELL));
+  const cy0=Math.max(0,Math.floor((mbT+WORLD_R)/MAP_CELL)), cy1=Math.min(MAP_NC-1,Math.floor((mbB+WORLD_R)/MAP_CELL));
+  for(let cy=cy0;cy<=cy1;cy++) for(let cx=cx0;cx<=cx1;cx++){
+    const pa=cells.get(cy*MAP_NC+cx);
+    if(pa) fn(pa);
+  }
+}
+function strokeSet(g, cells, w, col){
+  g.strokeStyle=col; g.lineWidth=w;
+  eachCell(cells, pa=>g.stroke(pa));
+}
+function fillSet(g, cells, fill, edge, ew){
+  g.fillStyle=fill;
+  eachCell(cells, pa=>g.fill(pa));
+  if(edge){ g.strokeStyle=edge; g.lineWidth=ew||1.5; eachCell(cells, pa=>g.stroke(pa)); }
+}
+const labelCells=new Set();
+function paintMapBg(g){
   if(!worldMap) return;
   g.save();
   g.lineCap='round'; g.lineJoin='round';
 
-  // 바다·강 — 굵고 어두운 파랑으로 윤곽만
+  /* 경계 원 안쪽 = 땅. 여기만 지도를 그린다 */
+  g.beginPath(); g.arc(0,0,WORLD_R,0,6.3); g.clip();
+  const hasBG = worldMap.road1 && (worldMap.road1.size||worldMap.road2.size||worldMap.road3.size||worldMap.green.size);
+  if(hasBG){
+    g.fillStyle=MAP_STYLE.land;
+    g.fillRect(mbL-10,mbT-10,(mbR-mbL)+20,(mbB-mbT)+20);
+    fillSet(g, worldMap.green, MAP_STYLE.green);                       // 공원·산
+    fillSet(g, worldMap.water, MAP_STYLE.water, MAP_STYLE.waterEdge, 1.6);   // 호수·강
+  }
+
+  // 바다·강 윤곽 (map-ko.js 쪽 자료)
   g.strokeStyle='rgba(46,92,150,.42)'; g.lineWidth=16;
   g.beginPath();
   for(const s of worldMap.coast){ s.forEach((p,i)=>i?g.lineTo(p.x,p.y):g.moveTo(p.x,p.y)); }
   g.stroke();
-  g.fillStyle='rgba(34,74,124,.34)'; g.strokeStyle='rgba(58,112,175,.42)'; g.lineWidth=6;
+  g.fillStyle='rgba(28,68,110,.55)'; g.strokeStyle='rgba(58,112,175,.5)'; g.lineWidth=6;
   for(const s of worldMap.rivers){
     g.beginPath(); s.forEach((p,i)=>i?g.lineTo(p.x,p.y):g.moveTo(p.x,p.y));
     g.closePath(); g.fill(); g.stroke();
+  }
+
+  if(hasBG){
+    // 도로 — 작은 길 먼저, 큰 길은 테두리 + 밝은 속심 (지도처럼 층을 쌓는다)
+    strokeSet(g, worldMap.road3, 2.4, MAP_STYLE.road3);
+    strokeSet(g, worldMap.road2, 3.4, MAP_STYLE.road2);
+    strokeSet(g, worldMap.road1, 6.4, MAP_STYLE.road1);
+    strokeSet(g, worldMap.road1, 3.2, MAP_STYLE.road1in);
   }
 
   // 노선 — 바깥 그림자 → 노선색 → 가운데 밝은 심지
@@ -1180,7 +1309,60 @@ function drawMapBg(g){
   pass(22, col, .55);
   pass(6, '#ffffff', .16);
   g.globalAlpha=1;
+
+  // 지명 — 화면에서 항상 같은 크기로 보이게 zoom 으로 나눈다
+  if(hasBG && worldMap.names.length){
+    const maxRank = zoom>0.85 ? 3 : (zoom>0.55 ? 2 : 1);
+    g.textAlign='center'; g.textBaseline='middle';
+    g.fillStyle=MAP_STYLE.label;
+    g.strokeStyle='rgba(8,12,20,.75)'; g.lineWidth=3/zoom;
+    /* 이름끼리 겹치지 않게 — 화면을 칸으로 나눠 한 칸에 하나만 (큰 지명이 먼저 자리를 잡는다) */
+    const cw=86/zoom, ch=26/zoom, used=labelCells; used.clear();
+    let n=0;
+    for(const nm of worldMap.names){
+      if(nm.r>maxRank) continue;
+      if(nm.x<mbL||nm.x>mbR||nm.y<mbT||nm.y>mbB) continue;
+      const key=Math.round(nm.x/cw)+','+Math.round(nm.y/ch);
+      if(used.has(key)) continue;
+      used.add(key);
+      if(++n>40) break;
+      const px=(nm.r===0?15.5:nm.r===1?13:nm.r===2?11.5:10.5)/zoom;
+      g.font='700 '+px.toFixed(1)+'px system-ui,"Apple SD Gothic Neo",sans-serif';
+      g.strokeText(nm.t, nm.x, nm.y); g.fillText(nm.t, nm.x, nm.y);
+    }
+  }
   g.restore();
+}
+
+/* ⚡ 배경은 한 발짝도 움직이지 않는다 — 화면보다 넉넉한 범위를 오프스크린 캔버스에 한 번 구워 두고
+   매 프레임에는 drawImage 한 번만 한다. 카메라가 구운 범위를 벗어나거나 줌이 6% 넘게 달라지면 다시 굽는다.
+   (매 프레임 벡터로 다 그리면 수도권 노선에서 10~25ms 가 나와 60fps 가 깨졌다) */
+let bgCache=null;
+function drawMapBg(g){
+  if(!worldMap) return;
+  const vw=viewR-viewL, vh=viewB-viewT;
+  const need = !bgCache
+    || Math.abs(bgCache.z/zoom-1)>0.06
+    || viewL<bgCache.x0 || viewR>bgCache.x0+bgCache.w
+    || viewT<bgCache.y0 || viewB>bgCache.y0+bgCache.h;
+  if(need){
+    const w=vw*1.5, h=vh*1.5;
+    const sc=Math.min(dpr,1.5);
+    const pw=Math.max(2,Math.round(w*zoom*sc)), ph=Math.max(2,Math.round(h*zoom*sc));
+    if(!bgCache || bgCache.cv.width!==pw || bgCache.cv.height!==ph){
+      const cv2=document.createElement('canvas'); cv2.width=pw; cv2.height=ph;
+      bgCache={cv:cv2, c:cv2.getContext('2d'), x0:0,y0:0,w,h,z:zoom};
+    }
+    bgCache.x0=cam.x-w/2; bgCache.y0=cam.y-h/2; bgCache.w=w; bgCache.h=h; bgCache.z=zoom;
+    const c=bgCache.c;
+    c.setTransform(1,0,0,1,0,0);
+    c.clearRect(0,0,bgCache.cv.width,bgCache.cv.height);
+    c.scale(zoom*sc, zoom*sc);
+    c.translate(-bgCache.x0, -bgCache.y0);
+    mbL=bgCache.x0; mbT=bgCache.y0; mbR=bgCache.x0+w; mbB=bgCache.y0+h;
+    paintMapBg(c);
+  }
+  g.drawImage(bgCache.cv, bgCache.x0, bgCache.y0, bgCache.w, bgCache.h);
 }
 
 /* 역 — 승강장 바닥 + 노란 안전선 + 스크린도어 + 서울 지하철식 역명판 */
@@ -1244,13 +1426,15 @@ function drawWorld(){
   const L=cam.x-vw/2, R=cam.x+vw/2, T=cam.y-vh/2, B=cam.y+vh/2;
   viewL=L; viewR=R; viewT=T; viewB=B;
 
-  // 격자 (지도가 있으면 더 흐리게 — 지도가 주인공)
-  g.strokeStyle='rgba(120,160,220,'+(worldMap?'.030':'.055')+')'; g.lineWidth=1/zoom;
-  const gs=160;
-  g.beginPath();
-  for(let x=Math.floor(L/gs)*gs;x<R;x+=gs){ g.moveTo(x,T); g.lineTo(x,B); }
-  for(let y=Math.floor(T/gs)*gs;y<B;y+=gs){ g.moveTo(L,y); g.lineTo(R,y); }
-  g.stroke();
+  // 격자 — 진짜 지도 배경이 깔리면 필요 없다 (지도가 주인공)
+  if(!(worldMap && worldMap.road3 && (worldMap.road3.size||worldMap.road1.size))){
+    g.strokeStyle='rgba(120,160,220,'+(worldMap?'.030':'.055')+')'; g.lineWidth=1/zoom;
+    const gs=160;
+    g.beginPath();
+    for(let x=Math.floor(L/gs)*gs;x<R;x+=gs){ g.moveTo(x,T); g.lineTo(x,B); }
+    for(let y=Math.floor(T/gs)*gs;y<B;y+=gs){ g.moveTo(L,y); g.lineTo(R,y); }
+    g.stroke();
+  }
 
   // 실제 지도(해안선·강·노선)
   drawMapBg(g);
@@ -1618,7 +1802,7 @@ function startGame(online){
        시드 난수로 뽑아 양쪽이 똑같은 지도를 보게 한다. */
     mapLine = VS.on ? LINES[(Math.random()*LINES.length)|0] : pick.line;
     worldMap=buildWorldMap(mapLine.id);
-    miniBg=null;                       // 노선이 바뀌면 미니맵 바탕도 다시 그린다
+    miniBg=null; bgCache=null;         // 노선이 바뀌면 미니맵 바탕·지도 캐시도 다시 그린다
     /* 역 배치. 실제 지도가 있으면 그 노선의 진짜 역 자리에, 없으면 예전처럼 흩뿌린다.
        어느 쪽이든 난수를 쓰지 않고 순번으로만 정한다
        (온라인 대결에서 양쪽 난수 순서가 어긋나면 안 되기 때문) */
@@ -1728,6 +1912,7 @@ window.SUBWAY={Train,LINES,GRADES,gradeStyle,startGame,
   stop(){ running=false; },
   resume(){ if(running) return; running=true; lastT=performance.now(); requestAnimationFrame(loop); },
   spawnOrb, killTrain, botThink, spawnBot, paintCar, drawStation, VIS_L, VIS_W,
+  get worldMap(){return worldMap;}, bgRaw, drawWorld,
   setPick(l,g){ pick.line=l; pick.grade=g; },
   render(){ drawWorld(); drawMini(); drawHud(); },
   get items(){return items;}, get fx(){return fx;}, get gameTime(){return gameTime;},
