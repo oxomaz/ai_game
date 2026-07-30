@@ -137,7 +137,7 @@ body.dark .c.done .fr{background:#23463b;}
 /* 실제 국기 이미지 */
 .im{width:84%; height:auto; max-height:78%; object-fit:contain; display:block;
   border-radius:calc(var(--cell) * .05); box-shadow:0 1px 4px rgba(50,44,66,.35);}
-/* 직접 그린 그림(우주) · 지도(시·도) */
+/* 팩이 직접 그려 넣은 SVG 그림 (악기 등) */
 .art{width:90%; height:90%; display:block;}
 .art svg{width:100%; height:100%; display:block; overflow:visible;}
 
@@ -154,7 +154,6 @@ body.dark .c.done .fr{background:#23463b;}
 #info h3{margin:0; font-size:21px; font-weight:900; word-break:keep-all; line-height:1.3;}
 #info .ihead{display:flex; align-items:center; gap:11px; margin-bottom:10px;}
 #info .ipic{flex:0 0 auto; width:62px; height:50px; display:flex; align-items:center; justify-content:center;}
-#info .ipic.loc{width:88px; height:106px;}   /* 전국 지도는 세로로 길어서 크게 */
 #info .ipic .im,#info .ipic .art{width:100%; height:100%; max-height:100%; border-radius:5px;}
 #info .ipic .gl{font-size:36px;}
 #info .ln{display:flex; justify-content:space-between; gap:12px; font-size:14px; padding:5px 0;
@@ -302,10 +301,9 @@ footer{text-align:center; font-size:11.5px; color:var(--dim); margin-top:16px; l
 <script src="packs/animals.js"></script>
 <script src="packs/foods.js"></script>
 <script src="packs/vehicles.js"></script>
-<script src="packs/dinosaurs.js"></script>
-<script src="packs/planets.js"></script>
-<script src="packs/korea-shapes.js"></script><!-- 시·도 실제 지도 좌표 (korea.js 보다 먼저) -->
-<script src="packs/korea.js"></script>
+<script src="packs/instruments.js"></script>
+<script src="packs/sports.js"></script>
+<script src="packs/english.js"></script>
 <!-- ▲▲ 카드팩 목록 끝 ▲▲ -->
 
 <script>
@@ -484,37 +482,6 @@ footer{text-align:center; font-size:11.5px; color:var(--dim); margin-top:16px; l
   }
 
   /* ══════════ 카드 얼굴 ══════════ */
-  /* 시·도 한 곳만 크게 (packs/korea-shapes.js 의 실제 경계 좌표) */
-  var KR_FILL = '#4c6ef5';
-  function krRegion(name) {
-    var K = window.KoreaShapes;
-    if (!K || !K.paths[name]) return '';
-    var s = K.paths[name];
-    return '<svg viewBox="' + s.vb + '" preserveAspectRatio="xMidYMid meet">' +
-      '<path d="' + s.d + '" fill="' + KR_FILL + '" stroke="#fff" stroke-width="7" ' +
-      'stroke-linejoin="round" paint-order="stroke"/></svg>';
-  }
-  /* 전국 지도에서 그 지역 위치 표시 (정보 팝업·도감용).
-     서울·세종처럼 작은 곳은 점처럼 보이므로 빨간 동그라미로 짚어준다. */
-  function krLocator(name) {
-    var K = window.KoreaShapes;
-    if (!K) return '';
-    var out = '<svg viewBox="0 0 ' + K.w + ' ' + K.h + '" preserveAspectRatio="xMidYMid meet">';
-    Object.keys(K.paths).forEach(function (n) {
-      if (n === name) return;
-      out += '<path d="' + K.paths[n].d + '" fill="#d5dae3" stroke="#fff" stroke-width="4"/>';
-    });
-    var s = K.paths[name];
-    if (s) {
-      out += '<path d="' + s.d + '" fill="#f03e3e" stroke="#fff" stroke-width="4"/>';
-      var v = s.vb.split(' ').map(Number);
-      var r = Math.max(v[2], v[3]) / 2 + 26;
-      out += '<circle cx="' + (v[0] + v[2] / 2).toFixed(1) + '" cy="' + (v[1] + v[3] / 2).toFixed(1) +
-        '" r="' + r.toFixed(1) + '" fill="none" stroke="#f03e3e" stroke-width="9" opacity=".85"/>';
-    }
-    return out + '</svg>';
-  }
-
   function fieldHTML(pack, c, field) {
     var def = (pack.fields && pack.fields[field]) || { style: 'text' };
     var v = c[field];
@@ -523,7 +490,6 @@ footer{text-align:center; font-size:11.5px; color:var(--dim); margin-top:16px; l
       return '<img class="im" src="' + esc(v) + '" alt="' + esc(c.name || '') + '" loading="lazy">';
     }
     if (def.style === 'art') return '<span class="art">' + v + '</span>';       /* 팩이 넣어둔 SVG */
-    if (def.style === 'krmap') return '<span class="art">' + krRegion(c.shape) + '</span>';
     if (def.style === 'orb') {
       return '<span class="orb" style="background:radial-gradient(circle at 33% 28%,' +
         esc(c.c1) + ',' + esc(c.c2) + ')"></span>';
@@ -738,12 +704,9 @@ footer{text-align:center; font-size:11.5px; color:var(--dim); margin-top:16px; l
       toast((d.head || '') + (d.rows && d.rows.length ? ' — ' + d.rows[0][0] + ' ' + d.rows[0][1] : ''));
       return;
     }
-    /* 팝업 그림: 팩이 info.art 로 지정했으면 그것, 없으면 카드의 대표 그림 */
+    /* 팝업 그림: 팩이 정해둔 대표 그림(picField) */
     var pic = '', picCls = 'ipic';
-    if (d.art && d.art.indexOf('krlocator:') === 0) {
-      pic = '<span class="art">' + krLocator(d.art.slice(10)) + '</span>';
-      picCls = 'ipic loc';
-    } else if (pack.picField) pic = fieldHTML(pack, card, pack.picField);
+    if (pack.picField) pic = fieldHTML(pack, card, pack.picField);
     $('infoBox').innerHTML =
       '<div class="ihead">' + (pic ? '<span class="' + picCls + '">' + pic + '</span>' : '') +
       '<h3>' + esc(d.head) + '</h3></div>' +
