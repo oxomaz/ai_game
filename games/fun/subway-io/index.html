@@ -89,6 +89,21 @@
     padding:4px 9px; border-radius:20px; white-space:nowrap;}
   #fxbar .fx.bad{background:rgba(60,12,20,.85); animation:badblink .9s ease-in-out infinite;}
   @keyframes badblink{50%{opacity:.55;}}
+  /* 역 안내 방송 배너 */
+  #anno{position:absolute; left:50%; transform:translateX(-50%) translateY(-12px); top:64px;
+    background:rgba(11,18,32,.88); border:1px solid rgba(255,255,255,.14); border-radius:12px;
+    padding:8px 16px 8px 13px; display:flex; align-items:center; gap:9px; opacity:0; transition:.25s;
+    white-space:nowrap; max-width:92vw;}
+  #anno.on{opacity:1; transform:translateX(-50%) translateY(0);}
+  #anno .bar{width:5px; height:26px; border-radius:3px; background:#7cc4ff; flex:0 0 auto;}
+  #anno .t{font-size:13px; font-weight:800;}
+  #anno .t small{display:block; font-size:10.5px; font-weight:600; color:var(--sub); letter-spacing:.3px;}
+  /* 소리 켜기/끄기 */
+  #snd{position:absolute; right:10px; top:max(10px,env(safe-area-inset-top)); width:34px; height:34px;
+    border-radius:10px; background:rgba(11,18,32,.72); border:1px solid rgba(255,255,255,.09);
+    display:grid; place-items:center; font-size:16px; cursor:pointer; pointer-events:auto; user-select:none;}
+  #snd.off{opacity:.5;}
+  body.snd-shift #board{top:max(52px,calc(env(safe-area-inset-top) + 42px));}
   #toast{position:absolute; left:50%; top:34%; transform:translateX(-50%) scale(.9); opacity:0;
     font-size:21px; font-weight:900; text-shadow:0 2px 12px rgba(0,0,0,.8); letter-spacing:-.4px;
     transition:opacity .18s, transform .18s; white-space:nowrap;}
@@ -119,6 +134,8 @@
     font-size:11.5px; color:#cfe0ff; background:rgba(11,18,32,.75); padding:5px 12px; border-radius:20px;
     white-space:nowrap;}
   #vsNote.on{display:block;}
+  body.vs-playing #snd{top:44px;}
+  body.vs-playing.snd-shift #board{top:86px;}
 </style>
 </head>
 <body>
@@ -140,6 +157,8 @@
   <canvas id="mini" width="208" height="208"></canvas>
   <div id="boost">부스터</div>
   <div id="hint">마우스로 조향 · 클릭 또는 스페이스로 가속</div>
+  <div id="snd" title="소리 켜기/끄기">🔊</div>
+  <div id="anno"><div class="bar"></div><div class="t"></div></div>
   <div id="fxbar"></div>
   <div id="toast"></div>
   <div id="vsNote">👻 상대 열차는 보이기만 해요 — 부딪히지 않아요! · AI 열차는 각자 화면에서 따로 움직여요</div>
@@ -322,10 +341,17 @@ let fx = {};   // 남은 시간(초)
 let leakBurn = 0;
 function fxClear(){ fx={}; for(const k of ITEM_KEYS) fx[k]=0; leakBurn=0; }
 fxClear();
-/* 내 열차의 속도 배율 = 세상 속도 × 아이템 효과 */
+/* 승객이 많아질수록 아주 조금씩 더 빨라진다 (2026-07-30 사용자 요청 — 급격하지 않게).
+   제곱근이라 초반엔 거의 티가 안 나고, 100칸(424명)이 돼도 +27% 에서 멈춘다. */
+const PAX_SPD_CAP = 0.28;
+function paxSpeedMul(){
+  if(!player) return 1;
+  return 1 + Math.min(PAX_SPD_CAP, Math.sqrt(Math.max(0,player.pax))/75);
+}
+/* 내 열차의 속도 배율 = 세상 속도 × 승객 수 × 아이템 효과 */
 function playerSpeedMul(){
   if(fx.freeze>0) return 0;              // 🧊 정지 — 완전히 멈춘다
-  let m = worldSpeedMul();
+  let m = worldSpeedMul() * paxSpeedMul();
   if(fx.slow>0) m *= ITEMS.slow.mul;
   if(fx.fast>0) m *= ITEMS.fast.mul;
   return m;
@@ -540,7 +566,7 @@ function openVersus(){
 
 /* 온라인 모드 정리 후 첫 화면으로 */
 function endOnline(){
-  running=false; VS.on=false; VS.ghost=null;
+  running=false; VS.on=false; VS.ghost=null; SND.stopRun(); SND.bgmStop();
   document.getElementById('vsNote').classList.remove('on');
   document.getElementById('overBtns').style.display='';
   show(s1);
@@ -657,6 +683,7 @@ function applyItem(k){
   if(k==='freeze') fx.fast=0;
   if(k==='leak')   leakBurn=0;
   fx[k]=Math.min(d.sec*2, fx[k]+d.sec);
+  SND.item(!!d.bad);
   /* 먹기 전에는 정체를 모르니(❓) 먹은 순간에 알려준다 */
   toast(`${d.emoji} ${d.name}${d.bad?'…':'!'}`, d.col);
 }
@@ -671,6 +698,158 @@ function toast(text, col){
   if(!el) return;
   el.textContent=text; el.style.color=col||'#fff'; el.classList.add('on');
   clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('on'), 1100);
+}
+
+/* ══════════════════ 소리 ══════════════════
+   전부 Web Audio 로 그 자리에서 만들어 낸다 — 음원 파일이 하나도 없다.
+   (실제 지하철 안내방송·환승음악 녹음은 저작권이 있어 쓸 수 없다. 여기 나오는 가락은
+    5음계로 직접 지은 것이고, 주행음·인버터음은 소리를 흉내 내 합성한 것이다.) */
+const SND = {
+  ctx:null, master:null, bgm:null, on:true,
+  run:null, runGain:null, runLP:null, hum:null, humGain:null,
+  paxT:0, stT:-1e9, lastSt:'',
+  bgmTimer:0, bgmStep:0,
+
+  init(){
+    if(this.ctx) return this.ctx;
+    const AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC) return null;
+    try{
+      this.ctx=new AC();
+      this.master=this.ctx.createGain(); this.master.gain.value=this.on?1:0;
+      this.master.connect(this.ctx.destination);
+      this.bgm=this.ctx.createGain(); this.bgm.gain.value=0.16; this.bgm.connect(this.master);
+    }catch(e){ this.ctx=null; }
+    return this.ctx;
+  },
+  wake(){ const c=this.init(); if(c && c.state==='suspended') c.resume(); },
+  setOn(v){
+    this.on=v;
+    try{ localStorage.setItem('subway-io.snd', v?'1':'0'); }catch(e){}
+    const el=document.getElementById('snd');
+    if(el){ el.textContent=v?'🔊':'🔇'; el.classList.toggle('off',!v); }
+    if(this.master) this.master.gain.value=v?1:0;
+    if(v) this.wake();
+  },
+
+  /* 한 음 — 안내 차임에 쓰는 맑은 소리 */
+  note(freq, t0, dur, vol, type, dest){
+    const c=this.ctx; if(!c) return;
+    const o=c.createOscillator(), g=c.createGain();
+    o.type=type||'sine'; o.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002,vol), t0+0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+    o.connect(g); g.connect(dest||this.master);
+    o.start(t0); o.stop(t0+dur+0.02);
+  },
+  seq(list, vol, type, dest){          // [[반음높이, 시작초, 길이], ...]
+    const c=this.init(); if(!c) return;
+    this.wake();
+    const t=c.currentTime;
+    for(const [n,at,len] of list) this.note(440*Math.pow(2,n/12), t+at, len, vol, type, dest);
+  },
+
+  /* ── 효과음 ── */
+  pax(){                                 // 승객 태움 — 개찰구 삐
+    const c=this.ctx; if(!c) return;
+    const t=c.currentTime; if(t-this.paxT<0.07) return; this.paxT=t;
+    this.note(1180, t, 0.06, 0.055, 'square');
+  },
+  item(bad){                             // 아이템 — 좋은 건 올라가고 함정은 내려간다
+    this.seq(bad?[[7,0,.16],[2,.09,.2],[-3,.19,.34]]:[[4,0,.14],[9,.08,.14],[16,.16,.34]], 0.13, 'triangle');
+  },
+  lvup(){ this.seq([[12,0,.22],[7,.16,.34]], 0.13, 'sine'); },           // 딩-동
+  kill(){ this.seq([[-5,0,.1],[-12,.05,.22]], 0.14, 'sawtooth'); },
+  dead(){ this.seq([[-8,0,.35],[-13,.22,.5],[-20,.5,.9]], 0.16, 'triangle'); },
+  /* 역 도착 차임 — 서울 지하철 안내음처럼 4음, 직접 지은 가락 */
+  station(){ this.seq([[7,0,.3],[12,.16,.3],[9,.32,.3],[4,.48,.62]], 0.11, 'sine'); },
+
+  /* ── 전동차 주행음 ── */
+  startRun(){
+    const c=this.init(); if(!c || this.run) return;
+    this.wake();
+    // 바퀴·레일 소리 = 걸러 낸 잡음
+    const len=c.sampleRate*2, buf=c.createBuffer(1,len,c.sampleRate), d=buf.getChannelData(0);
+    let last=0;
+    for(let i=0;i<len;i++){ const w=Math.random()*2-1; last=(last+0.02*w)/1.02; d[i]=last*3.2; }
+    const src=c.createBufferSource(); src.buffer=buf; src.loop=true;
+    const lp=c.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=420; lp.Q.value=0.7;
+    const g=c.createGain(); g.gain.value=0.0001;
+    src.connect(lp); lp.connect(g); g.connect(this.master); src.start();
+    // 인버터 웅웅거림
+    const o=c.createOscillator(); o.type='sawtooth'; o.frequency.value=58;
+    const og=c.createGain(); og.gain.value=0.0001;
+    const olp=c.createBiquadFilter(); olp.type='lowpass'; olp.frequency.value=260;
+    o.connect(olp); olp.connect(og); og.connect(this.master); o.start();
+    this.run=src; this.runGain=g; this.runLP=lp; this.hum=o; this.humGain=og;
+  },
+  /* 속도에 따라 주행음이 커지고 높아진다 (mul 0 이면 정지 — 소리도 잦아든다) */
+  setSpeed(mul, boosting){
+    if(!this.ctx || !this.runGain) return;
+    const t=this.ctx.currentTime, m=Math.max(0,mul);
+    this.runGain.gain.setTargetAtTime(0.075*Math.min(1.6,m), t, 0.25);
+    this.runLP.frequency.setTargetAtTime(300+380*m, t, 0.3);
+    this.humGain.gain.setTargetAtTime(0.035*Math.min(1.5,m)*(boosting?1.7:1), t, 0.2);
+    this.hum.frequency.setTargetAtTime(48+(boosting?46:26)*m, t, 0.25);
+  },
+  stopRun(){
+    if(!this.ctx) return;
+    const t=this.ctx.currentTime;
+    try{
+      if(this.runGain) this.runGain.gain.setTargetAtTime(0.0001,t,0.2);
+      if(this.humGain) this.humGain.gain.setTargetAtTime(0.0001,t,0.2);
+      if(this.run) this.run.stop(t+1.2);
+      if(this.hum) this.hum.stop(t+1.2);
+    }catch(e){}
+    this.run=null; this.hum=null; this.runGain=null; this.humGain=null;
+  },
+  /* 가속 시작 — 옛 전동차 인버터의 '도레미파' */
+  vvvf(){ this.seq([[0,0,.16],[2,.14,.16],[4,.28,.16],[5,.42,.3]], 0.055, 'sawtooth'); },
+
+  /* ── 환승 음악 (5음계로 직접 지은 가락, 아주 작게 반복) ── */
+  BGM:[0,4,7,9,7,4,0,-3,0,4,9,12,9,7,4,0,  4,7,12,9,7,4,0,4,7,4,0,-3,0,4,7,9],
+  bgmStart(){
+    const c=this.init(); if(!c) return;
+    this.bgmStop(); this.bgmStep=0;
+    const beat=0.42;
+    const tick=()=>{
+      if(!this.ctx) return;
+      const t=this.ctx.currentTime;
+      const n=this.BGM[this.bgmStep % this.BGM.length];
+      this.note(440*Math.pow(2,(n-12)/12), t, beat*1.5, 0.09, 'triangle', this.bgm);
+      if(this.bgmStep%4===0) this.note(440*Math.pow(2,(n-24)/12), t, beat*2.4, 0.07, 'sine', this.bgm);
+      this.bgmStep++;
+      this.bgmTimer=setTimeout(tick, beat*1000);
+    };
+    tick();
+  },
+  bgmStop(){ if(this.bgmTimer){ clearTimeout(this.bgmTimer); this.bgmTimer=0; } }
+};
+
+/* 역 안내 방송 — 가까운 역을 지나가면 차임 + 배너 */
+let annoT=0;
+function announce(name, color){
+  const el=document.getElementById('anno');
+  if(!el) return;
+  el.querySelector('.bar').style.background=color||'#7cc4ff';
+  el.querySelector('.t').innerHTML=`이번 역은 <b>${name}</b>역입니다<small>SOON: ${name} STATION</small>`;
+  el.classList.add('on');
+  clearTimeout(annoT); annoT=setTimeout(()=>el.classList.remove('on'), 2600);
+}
+function stationCheck(){
+  if(!player||!player.alive||!stations.length) return;
+  const now=performance.now();
+  if(now-SND.stT < 2600) return;
+  let best=null, bd=1e9;
+  for(const st of stations){
+    const d=Math.hypot(st.x-player.x, st.y-player.y);
+    if(d<bd){ bd=d; best=st; }
+  }
+  if(best && bd < 95 && best.name!==SND.lastSt){
+    SND.lastSt=best.name; SND.stT=now;
+    SND.station(); announce(best.name, best.col);
+  }
 }
 
 /* ---------- 봇 ---------- */
@@ -767,8 +946,10 @@ function killTrain(t, reason){
     spawnOrb(p.x+rnd(-9,9), p.y+rnd(-9,9), per, mix(t.line.color,'#ffffff',.35));
   }
   if(t.isPlayer){
+    SND.dead(); SND.stopRun(); SND.bgmStop();
     endGame(reason);
   }else{
+    if(reason && reason.indexOf(':')>0 && player && reason.slice(reason.indexOf(':')+1)===player.name) SND.kill();
     setTimeout(()=>{ const i=trains.indexOf(t); if(i>=0) trains.splice(i,1); if(running) spawnBot(); }, 1200);
   }
 }
@@ -814,7 +995,7 @@ function eat(){
       const dx=t.x-f.x, dy=t.y-f.y, d2=dx*dx+dy*dy;
       if(d2>mr*mr) continue;
       const d=Math.sqrt(d2)||1;
-      if(d<er){ t.pax+=f.v; f.gone=true; food.splice(i,1); }
+      if(d<er){ t.pax+=f.v; f.gone=true; food.splice(i,1); if(t.isPlayer) SND.pax(); }
       else{ const pull=Math.min(3.4*mag, 60*mag/d); f.x+=dx/d*pull; f.y+=dy/d*pull; }
     }
   }
@@ -1667,7 +1848,10 @@ function drawHud(){
   elPax.textContent=player.pax;
   elCars.textContent=player.cars+'칸 편성'+(player.kills?' · '+player.kills+'대 격파':'');
   const lv=speedLevel();
-  if(elLvl) elLvl.textContent='속도 Lv.'+lv+(lv>=LV_MAX?' 최고!':'');
+  if(elLvl){
+    const px=Math.round((paxSpeedMul()-1)*100);
+    elLvl.textContent='속도 Lv.'+lv+(lv>=LV_MAX?' 최고!':'')+(px?' · 승객 +'+px+'%':'');
+  }
   if(elFx){
     let h='';
     for(const k of ITEM_KEYS){
@@ -1697,7 +1881,7 @@ function loop(ts){
   gameTime+=dt/60;
   tickFx(dt);
   const lv=speedLevel();
-  if(lv>shownLv){ shownLv=lv; toast('🚄 속도 Lv.'+lv+'!', '#ff9ad5'); }
+  if(lv>shownLv){ shownLv=lv; toast('🚄 속도 Lv.'+lv+'!', '#ff9ad5'); SND.lvup(); }
 
   for(const t of trains){
     if(!t.alive) continue;
@@ -1714,6 +1898,7 @@ function loop(ts){
     const tz=fit*clamp(0.98-(player.cars-BASE_CARS)*0.0062, 0.52, 0.98);
     zoom+=(tz-zoom)*Math.min(1,0.05*dt);
   }
+  if(player&&player.alive){ SND.setSpeed(playerSpeedMul(), player.boosting); stationCheck(); }
   drawWorld(); drawMini(); drawHud();
   if(VS.on) vsTick(ts);
   requestAnimationFrame(loop);
@@ -1726,14 +1911,14 @@ function aimTo(sx,sy){
   player.tAng=Math.atan2(sy-cssH/2, sx-cssW/2);
 }
 cv.addEventListener('mousemove',e=>aimTo(e.clientX,e.clientY));
-cv.addEventListener('mousedown',e=>{ if(player)player.boosting=true; });
+cv.addEventListener('mousedown',e=>{ if(player){ if(!player.boosting) SND.vvvf(); player.boosting=true; } });
 window.addEventListener('mouseup',()=>{ if(player)player.boosting=false; });
-window.addEventListener('keydown',e=>{ if(e.code==='Space'){ e.preventDefault(); if(player)player.boosting=true; } });
+window.addEventListener('keydown',e=>{ if(e.code==='Space'){ e.preventDefault(); if(player){ if(!player.boosting) SND.vvvf(); player.boosting=true; } } });
 window.addEventListener('keyup',e=>{ if(e.code==='Space'&&player)player.boosting=false; });
 cv.addEventListener('touchstart',e=>{ e.preventDefault(); const t=e.touches[0]; aimTo(t.clientX,t.clientY); },{passive:false});
 cv.addEventListener('touchmove',e=>{ e.preventDefault(); const t=e.touches[0]; aimTo(t.clientX,t.clientY); },{passive:false});
 const boostEl=document.getElementById('boost');
-function bOn(e){ e.preventDefault(); boostBtnHeld=true; boostEl.classList.add('act'); if(player)player.boosting=true; }
+function bOn(e){ e.preventDefault(); boostBtnHeld=true; boostEl.classList.add('act'); if(player){ if(!player.boosting) SND.vvvf(); player.boosting=true; } }
 function bOff(e){ boostBtnHeld=false; boostEl.classList.remove('act'); if(player)player.boosting=false; }
 boostEl.addEventListener('touchstart',bOn,{passive:false});
 boostEl.addEventListener('touchend',bOff);
@@ -1899,6 +2084,7 @@ function startGame(online){
   if(VS.on){ Versus.reseed(0); Versus.seeded(build); } else build();
 
   cam.x=player.x; cam.y=player.y; zoom=clamp(Math.min(cssW,cssH)/640,0.60,1.15)*0.95;
+  SND.lastSt=''; SND.stT=-1e9; SND.startRun(); SND.bgmStart();
   running=true; lastT=performance.now(); show(null);
   const hintEl=document.getElementById('hint');
   hintEl.style.opacity='1'; hintEl.style.transition='opacity .6s';
@@ -1953,6 +2139,23 @@ function seedVersusName(){
   }catch(e){}
 }
 
+/* 소리 버튼 · 브라우저 정책상 첫 조작이 있어야 소리가 난다 */
+(function(){
+  let saved=null;
+  try{ saved=localStorage.getItem('subway-io.snd'); }catch(e){}
+  SND.on = saved!=='0';
+  const el=document.getElementById('snd');
+  if(el){
+    el.textContent=SND.on?'🔊':'🔇'; el.classList.toggle('off',!SND.on);
+    const flip=e=>{ e.preventDefault(); e.stopPropagation(); SND.setOn(!SND.on); };
+    el.addEventListener('click',flip); el.addEventListener('touchstart',flip,{passive:false});
+  }
+  const wake=()=>{ if(SND.on) SND.wake(); };
+  window.addEventListener('pointerdown', wake);
+  window.addEventListener('keydown', wake);
+})();
+document.body.classList.add('snd-shift');
+
 /* 초기 미리보기 */
 renderGrades();
 renderBest();
@@ -1964,7 +2167,8 @@ window.SUBWAY={Train,LINES,GRADES,gradeStyle,startGame,
   stop(){ running=false; },
   resume(){ if(running) return; running=true; lastT=performance.now(); requestAnimationFrame(loop); },
   spawnOrb, killTrain, botThink, spawnBot, paintCar, drawStation, VIS_L, VIS_W,
-  get worldMap(){return worldMap;}, bgRaw, drawWorld,
+  get worldMap(){return worldMap;}, bgRaw, drawWorld, SND, announce, stationCheck,
+  paxSpeedMul, playerSpeedMul,
   setPick(l,g){ pick.line=l; pick.grade=g; },
   render(){ drawWorld(); drawMini(); drawHud(); },
   get items(){return items;}, get fx(){return fx;}, get gameTime(){return gameTime;},
@@ -1981,7 +2185,7 @@ window.SUBWAY={Train,LINES,GRADES,gradeStyle,startGame,
       eat(); pickItems(); collide(); refillFood(); refillItems();
     }
   },
-  C:{WORLD_R,BASE_SPEED,BOOST_SPEED,TURN_RATE,SEG,CAR_L,CAR_W,BASE_CARS,MAX_CARS,PAX_PER_CAR,LV_SEC,LV_STEP,LV_MAX,ITEM_TARGET}};
+  C:{WORLD_R,BASE_SPEED,BOOST_SPEED,TURN_RATE,SEG,CAR_L,CAR_W,BASE_CARS,MAX_CARS,PAX_PER_CAR,LV_SEC,LV_STEP,LV_MAX,ITEM_TARGET,PAX_SPD_CAP}};
 </script>
 </body>
 </html>
