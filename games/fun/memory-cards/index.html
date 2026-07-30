@@ -134,6 +134,12 @@ body.dark .c.done .fr{background:#23463b;}
   font-size:calc(var(--cell) * var(--k, .135));}
 .ic{font-size:calc(var(--cell) * .25); line-height:1.1;}
 .orb{width:64%; height:64%; border-radius:50%; box-shadow:inset -3px -4px 8px rgba(0,0,0,.28), 0 2px 6px rgba(0,0,0,.16);}
+/* 실제 국기 이미지 */
+.im{width:84%; height:auto; max-height:78%; object-fit:contain; display:block;
+  border-radius:calc(var(--cell) * .05); box-shadow:0 1px 4px rgba(50,44,66,.35);}
+/* 직접 그린 그림(우주) · 지도(시·도) */
+.art{width:90%; height:90%; display:block;}
+.art svg{width:100%; height:100%; display:block; overflow:visible;}
 
 /* ── 정보 팝업 ── */
 /* 팝업이 떠 있어도 카드를 계속 누를 수 있게 pointer-events 를 끈다 (흐름 안 끊김) */
@@ -145,7 +151,12 @@ body.dark .c.done .fr{background:#23463b;}
   pointer-events:auto; border:2.5px solid var(--line);
   box-shadow:0 -8px 34px rgba(50,40,80,.28); animation:up .26s cubic-bezier(.2,1.3,.4,1);}
 @keyframes up{from{transform:translateY(26px); opacity:.4}to{transform:none; opacity:1}}
-#info h3{margin:0 0 9px; font-size:21px; font-weight:900; word-break:keep-all; line-height:1.3;}
+#info h3{margin:0; font-size:21px; font-weight:900; word-break:keep-all; line-height:1.3;}
+#info .ihead{display:flex; align-items:center; gap:11px; margin-bottom:10px;}
+#info .ipic{flex:0 0 auto; width:62px; height:50px; display:flex; align-items:center; justify-content:center;}
+#info .ipic.loc{width:88px; height:106px;}   /* 전국 지도는 세로로 길어서 크게 */
+#info .ipic .im,#info .ipic .art{width:100%; height:100%; max-height:100%; border-radius:5px;}
+#info .ipic .gl{font-size:36px;}
 #info .ln{display:flex; justify-content:space-between; gap:12px; font-size:14px; padding:5px 0;
   border-bottom:1px dashed var(--line);}
 #info .ln span{color:var(--dim); font-weight:800; flex:0 0 auto;}
@@ -182,8 +193,11 @@ body.dark .c.done .fr{background:#23463b;}
   display:flex; align-items:center; gap:9px; cursor:pointer; text-align:left; font-family:inherit;
   color:var(--ink); min-width:0;}
 .bkc:active{transform:scale(.98);}
-.bkc .e{font-size:26px; flex:0 0 auto;}
+.bkc .e{flex:0 0 auto; width:36px; height:28px; display:flex; align-items:center; justify-content:center;}
 .bkc .e .orb{width:26px; height:26px; display:block;}
+.bkc .e .im,.bkc .e .art{width:100%; height:100%; max-height:100%; border-radius:3px;}
+/* 도감·팝업에는 카드 칸 크기(--cell)가 없으므로 기본값을 준다 */
+#book,#info{--cell:46px;}
 .bkc .w{min-width:0; display:block;}
 .bkc .n{display:block; font-size:13px; font-weight:900; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .bkc .s{display:block; font-size:11px; color:var(--dim); overflow:hidden; text-overflow:ellipsis;
@@ -290,6 +304,7 @@ footer{text-align:center; font-size:11.5px; color:var(--dim); margin-top:16px; l
 <script src="packs/vehicles.js"></script>
 <script src="packs/dinosaurs.js"></script>
 <script src="packs/planets.js"></script>
+<script src="packs/korea-shapes.js"></script><!-- 시·도 실제 지도 좌표 (korea.js 보다 먼저) -->
 <script src="packs/korea.js"></script>
 <!-- ▲▲ 카드팩 목록 끝 ▲▲ -->
 
@@ -469,11 +484,46 @@ footer{text-align:center; font-size:11.5px; color:var(--dim); margin-top:16px; l
   }
 
   /* ══════════ 카드 얼굴 ══════════ */
-  function faceHTML(slot) {
-    var pack = S.pack, c = slot.card;
-    var def = (pack.fields && pack.fields[slot.field]) || { style: 'text' };
-    var v = c[slot.field];
+  /* 시·도 한 곳만 크게 (packs/korea-shapes.js 의 실제 경계 좌표) */
+  var KR_FILL = '#4c6ef5';
+  function krRegion(name) {
+    var K = window.KoreaShapes;
+    if (!K || !K.paths[name]) return '';
+    var s = K.paths[name];
+    return '<svg viewBox="' + s.vb + '" preserveAspectRatio="xMidYMid meet">' +
+      '<path d="' + s.d + '" fill="' + KR_FILL + '" stroke="#fff" stroke-width="7" ' +
+      'stroke-linejoin="round" paint-order="stroke"/></svg>';
+  }
+  /* 전국 지도에서 그 지역 위치 표시 (정보 팝업·도감용).
+     서울·세종처럼 작은 곳은 점처럼 보이므로 빨간 동그라미로 짚어준다. */
+  function krLocator(name) {
+    var K = window.KoreaShapes;
+    if (!K) return '';
+    var out = '<svg viewBox="0 0 ' + K.w + ' ' + K.h + '" preserveAspectRatio="xMidYMid meet">';
+    Object.keys(K.paths).forEach(function (n) {
+      if (n === name) return;
+      out += '<path d="' + K.paths[n].d + '" fill="#d5dae3" stroke="#fff" stroke-width="4"/>';
+    });
+    var s = K.paths[name];
+    if (s) {
+      out += '<path d="' + s.d + '" fill="#f03e3e" stroke="#fff" stroke-width="4"/>';
+      var v = s.vb.split(' ').map(Number);
+      var r = Math.max(v[2], v[3]) / 2 + 26;
+      out += '<circle cx="' + (v[0] + v[2] / 2).toFixed(1) + '" cy="' + (v[1] + v[3] / 2).toFixed(1) +
+        '" r="' + r.toFixed(1) + '" fill="none" stroke="#f03e3e" stroke-width="9" opacity=".85"/>';
+    }
+    return out + '</svg>';
+  }
+
+  function fieldHTML(pack, c, field) {
+    var def = (pack.fields && pack.fields[field]) || { style: 'text' };
+    var v = c[field];
     if (def.style === 'glyph') return '<span class="gl">' + esc(v) + '</span>';
+    if (def.style === 'img') {
+      return '<img class="im" src="' + esc(v) + '" alt="' + esc(c.name || '') + '" loading="lazy">';
+    }
+    if (def.style === 'art') return '<span class="art">' + v + '</span>';       /* 팩이 넣어둔 SVG */
+    if (def.style === 'krmap') return '<span class="art">' + krRegion(c.shape) + '</span>';
     if (def.style === 'orb') {
       return '<span class="orb" style="background:radial-gradient(circle at 33% 28%,' +
         esc(c.c1) + ',' + esc(c.c2) + ')"></span>';
@@ -482,6 +532,18 @@ footer{text-align:center; font-size:11.5px; color:var(--dim); margin-top:16px; l
     var ic = (def.icon && c.glyph) ? '<span class="ic">' + esc(c.glyph) + '</span>' : '';
     return ic + '<span class="tx" style="--k:' + kOf(v, def.icon ? 0.155 : 0.175) + '">' + esc(v) + '</span>';
   }
+  function faceHTML(slot) { return fieldHTML(S.pack, slot.card, slot.field); }
+
+  /* 국기 이미지를 못 불러오면 나라 이름 글자로 대체 (오프라인·파일 누락 대비) */
+  document.addEventListener('error', function (e) {
+    var t = e.target;
+    if (!t || t.tagName !== 'IMG' || t.className !== 'im') return;
+    var sp = document.createElement('span');
+    sp.className = 'tx';
+    sp.style.setProperty('--k', kOf(t.alt, 0.175));
+    sp.textContent = t.alt || '?';
+    if (t.parentNode) t.parentNode.replaceChild(sp, t);
+  }, true);
   /* 글자 수에 맞춰 글씨 크기 비율을 정한다 (칸 크기의 몇 배) */
   function kOf(text, base) {
     var n = String(text == null ? '' : text).length;
@@ -676,7 +738,15 @@ footer{text-align:center; font-size:11.5px; color:var(--dim); margin-top:16px; l
       toast((d.head || '') + (d.rows && d.rows.length ? ' — ' + d.rows[0][0] + ' ' + d.rows[0][1] : ''));
       return;
     }
-    $('infoBox').innerHTML = '<h3>' + esc(d.head) + '</h3>' +
+    /* 팝업 그림: 팩이 info.art 로 지정했으면 그것, 없으면 카드의 대표 그림 */
+    var pic = '', picCls = 'ipic';
+    if (d.art && d.art.indexOf('krlocator:') === 0) {
+      pic = '<span class="art">' + krLocator(d.art.slice(10)) + '</span>';
+      picCls = 'ipic loc';
+    } else if (pack.picField) pic = fieldHTML(pack, card, pack.picField);
+    $('infoBox').innerHTML =
+      '<div class="ihead">' + (pic ? '<span class="' + picCls + '">' + pic + '</span>' : '') +
+      '<h3>' + esc(d.head) + '</h3></div>' +
       (d.rows || []).map(function (r) {
         return '<div class="ln"><span>' + esc(r[0]) + '</span><b>' + esc(r[1]) + '</b></div>';
       }).join('') +
@@ -917,6 +987,7 @@ footer{text-align:center; font-size:11.5px; color:var(--dim); margin-top:16px; l
     S.pack = p;
     $('bkTitle').textContent = p.emoji + ' ' + p.title + ' 도감';
     $('bkDesc').textContent = p.desc || '';
+    $('bkSearch').placeholder = '🔎 ' + (p.id === 'flags' ? '나라 이름·수도로 찾기' : '이름으로 찾기');
     if (p.groups && p.groups.length) {
       $('bkTabs').style.display = 'flex';
       $('bkTabs').innerHTML = '<button class="ch' + (bkGroup === 'all' ? ' on' : '') + '" data-g="all">전체</button>' +
@@ -926,17 +997,19 @@ footer{text-align:center; font-size:11.5px; color:var(--dim); margin-top:16px; l
     } else { $('bkTabs').style.display = 'none'; $('bkTabs').innerHTML = ''; }
 
     var q = bkQuery.toLowerCase();
+    var SKIP = { art: 1, img: 1, shape: 1, c1: 1, c2: 1 };   /* 그림 데이터는 검색 대상이 아니다 */
     var list = p.cards.filter(function (c) {
       if (bkGroup !== 'all' && c.group !== bkGroup) return false;
       if (!q) return true;
       return Object.keys(c).some(function (k) {
-        return typeof c[k] === 'string' && c[k].toLowerCase().indexOf(q) >= 0;
+        return !SKIP[k] && typeof c[k] === 'string' && c[k].length <= 40 &&
+          c[k].toLowerCase().indexOf(q) >= 0;
       });
     });
     $('bkCount').textContent = list.length + '장' + (bkQuery ? ' (검색: ' + bkQuery + ')' : '');
     $('bkGrid').innerHTML = list.map(function (c) {
-      var face = c.glyph ? esc(c.glyph)
-        : (c.c1 ? '<span class="orb" style="background:radial-gradient(circle at 33% 28%,' + esc(c.c1) + ',' + esc(c.c2) + ')"></span>' : '🃏');
+      var face = p.picField ? fieldHTML(p, c, p.picField)
+        : (c.glyph ? '<span class="gl">' + esc(c.glyph) + '</span>' : '🃏');
       var sub = c.capital || c.spot || c.trait || c.home || c.from || c.where || c.kind || '';
       return '<button class="bkc" data-k="' + esc(c.key) + '"><span class="e">' + face + '</span>' +
         '<span class="w"><span class="n">' + esc(c.name || c.key) + '</span>' +

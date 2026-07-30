@@ -1,16 +1,17 @@
 /* ══════════════════════════════════════════════════════════════
    카드팩 : 세계 국기 (120개국)
    [나라코드, 나라이름, 수도, 한 줄 설명]  — 대륙별로 묶여 있습니다.
-   국기 이모지는 나라코드에서 자동으로 만들어집니다(오타 걱정 없음).
+   국기 그림은 packs/flags/<나라코드>.svg (일부 .png) 실제 이미지 파일입니다.
    ══════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
 
-  /* 'KR' → 🇰🇷 : 알파벳을 지역표시기호(Regional Indicator)로 바꾼다 */
-  function flag(code) {
-    return String.fromCodePoint.apply(null, code.split('').map(function (ch) {
-      return 0x1F1E6 + ch.charCodeAt(0) - 65;
-    }));
+  /* 국기는 실제 이미지 파일을 씁니다.
+     이모지(🇰🇷)를 쓰면 윈도우에서는 국기가 안 그려지고 'KR' 글자로 보입니다.
+     대부분 SVG, 문양이 아주 복잡한 9개 나라만 PNG 입니다. */
+  var PNG = ['BO', 'DO', 'EC', 'ES', 'GT', 'HR', 'MX', 'RS', 'VA'];
+  function flagSrc(code) {
+    return 'packs/flags/' + code.toLowerCase() + (PNG.indexOf(code) >= 0 ? '.png' : '.svg');
   }
 
   var DATA = {
@@ -159,7 +160,7 @@
       cards.push({
         key: row[0],
         group: g,
-        glyph: flag(row[0]),
+        img: flagSrc(row[0]),
         name: row[1],
         capital: row[2],
         cont: CONT[g],
@@ -183,18 +184,19 @@
       { id: 'oc', title: '오세아니아' }
     ],
     modes: [
-      { id: 'same', title: '국기 ↔ 국기', a: 'glyph', b: 'glyph', hint: '같은 국기 두 장 찾기' },
-      { id: 'name', title: '국기 ↔ 나라 이름', a: 'glyph', b: 'name', hint: '국기와 나라 이름 짝 맞추기' },
-      { id: 'cap', title: '국기 ↔ 수도', a: 'glyph', b: 'capital', hint: '국기와 수도 짝 맞추기 (어려움!)' }
+      { id: 'same', title: '국기 ↔ 국기', a: 'img', b: 'img', hint: '같은 국기 두 장 찾기' },
+      { id: 'name', title: '국기 ↔ 나라 이름', a: 'img', b: 'name', hint: '국기와 나라 이름 짝 맞추기' },
+      { id: 'cap', title: '국기 ↔ 수도', a: 'img', b: 'capital', hint: '국기와 수도 짝 맞추기 (어려움!)' }
     ],
+    picField: 'img',
     fields: {
-      glyph: { style: 'glyph' },
+      img: { style: 'img' },
       name: { style: 'text' },
       capital: { style: 'text', tag: '수도' }
     },
     info: function (c) {
       return {
-        head: c.glyph + ' ' + c.name,
+        head: c.name,
         rows: [['수도', c.capital], ['대륙', c.cont]],
         note: c.note
       };
