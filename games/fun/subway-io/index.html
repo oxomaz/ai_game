@@ -1136,11 +1136,12 @@ function bgDecode(str){
 function bgRaw(){
   if(BGRAW) return BGRAW;
   const D=window.SUBWAY_BG;
-  if(!D){ BGRAW={r1:[],r2:[],r3:[],g:[],w:[],n:[],pr:2e-4}; return BGRAW; }
+  if(!D){ BGRAW={r1:[],r2:[],r3:[],g:[],w:[],n:[],lm:[],pr:1e-4}; return BGRAW; }
   const pr=D.p||1e-4;
   const dec=list=>(list||[]).map(t=>bgDecode(t).map(q=>[q[0]*pr, q[1]*pr]));
   BGRAW={ r1:dec(D.r1), r2:dec(D.r2), r3:dec(D.r3), g:dec(D.g), w:dec(D.w), pr,
-          n:(D.n||[]).map(a=>[a[0], a[1]*pr, a[2]*pr, a[3]|0]) };
+          n:(D.n||[]).map(a=>[a[0], a[1]*pr, a[2]*pr, a[3]|0]),
+          lm:(D.lm||[]).map(a=>[a[0], a[1]*pr, a[2]*pr, a[3]|0]) };
   return BGRAW;
 }
 
@@ -1220,6 +1221,13 @@ function buildWorldMap(lineId){
     names.push({x:q.x, y:q.y, t:a[0], r:a[3]});
   }
 
+  const marks=[];
+  for(const a of bg.lm){
+    const q=P(a[1],a[2]);
+    if(q.x*q.x+q.y*q.y > WORLD_R*WORLD_R*0.955) continue;
+    marks.push({x:q.x, y:q.y, t:a[0], k:a[3]});
+  }
+
   return {
     line: segs.map(conv),
     stations: (L.t||[]).map(t=>{ const p=P(t[3],t[4]);
@@ -1228,7 +1236,8 @@ function buildWorldMap(lineId){
     rivers: trim(D.rivers),
     road1: bake(pack(bg.r1)), road2: bake(pack(bg.r2)), road3: bake(pack(bg.r3)),
     green: bake(pack(bg.g), true), water: bake(pack(bg.w), true),
-    names: names.sort((a,b)=>a.r-b.r)
+    names: names.sort((a,b)=>a.r-b.r),
+    marks: marks.sort((a,b)=>LM_PRI[a.k]-LM_PRI[b.k])
   };
 }
 
@@ -1240,8 +1249,12 @@ const MAP_NC   = Math.ceil(WORLD_R*2/MAP_CELL);
 const MAP_STYLE = {
   land:'#111a27', water:'#12293f', waterEdge:'#1d3d5c', green:'#14291d',
   road1:'#26344b', road1in:'#3a4e6f', road2:'#2a374e', road3:'#1d2839',
-  label:'rgba(158,180,212,.6)'
+  label:'rgba(158,180,212,.6)', mark:'#ffdc8c'
 };
+/* 랜드마크 아이콘 (map-bg.js 의 lm[3] 번호 순서) */
+const LM_ICON = ['🏯','🗼','✈️','🎡','🏟️','🏛️','⭐','🐠','🛍️','🎓','⛰️'];
+/* 자리가 좁을 때 누구를 남길지 — 궁궐·타워·공항·놀이공원이 1순위, 박물관·대학이 마지막 */
+const LM_PRI  = [0,0,0,0,1,3,1,1,1,3,2];
 /* 화면에 걸친 격자 칸만 골라 미리 구운 Path2D 를 그린다 */
 let mbL=0, mbR=0, mbT=0, mbB=0;      // 지금 그리고 있는(구워 넣는) 범위
 function eachCell(cells, fn){
@@ -1310,14 +1323,43 @@ function paintMapBg(g){
   pass(6, '#ffffff', .16);
   g.globalAlpha=1;
 
+  /* 랜드마크 — 경복궁·롯데월드타워·에버랜드처럼 누구나 아는 곳.
+     동 이름보다 **먼저** 그려서 자리를 먼저 차지하게 한다. */
+  const used=labelCells; used.clear();
+  const cw=86/zoom, ch=26/zoom;
+  if(hasBG && worldMap.marks && worldMap.marks.length){
+    g.textAlign='center'; g.textBaseline='middle';
+    const lw=118/zoom, lh=42/zoom;
+    for(const m of worldMap.marks){
+      if(m.x<mbL||m.x>mbR||m.y<mbT||m.y>mbB) continue;
+      /* 겹치면 아래 순위는 통째로 건너뛴다 — 도심에서 이름이 뒤엉키지 않게 */
+      const lk=Math.round(m.x/lw)+'#'+Math.round(m.y/lh);
+      if(used.has(lk)) continue;
+      used.add(lk);
+      used.add(Math.round(m.x/cw)+','+Math.round(m.y/ch));
+      const ip=19/zoom, tp=12/zoom;
+      // 바닥에 은은한 빛
+      g.fillStyle='rgba(255,216,120,.10)';
+      g.beginPath(); g.arc(m.x, m.y, 21/zoom, 0, 6.3); g.fill();
+      g.fillStyle='rgba(255,216,120,.85)';
+      g.beginPath(); g.arc(m.x, m.y, 2.6/zoom, 0, 6.3); g.fill();
+      g.font=ip.toFixed(1)+'px system-ui,"Apple SD Gothic Neo",sans-serif';
+      g.fillText(LM_ICON[m.k]||'⭐', m.x, m.y-14/zoom);
+      g.font='800 '+tp.toFixed(1)+'px system-ui,"Apple SD Gothic Neo",sans-serif';
+      g.strokeStyle='rgba(8,12,20,.85)'; g.lineWidth=3.4/zoom;
+      g.strokeText(m.t, m.x, m.y+13/zoom);
+      g.fillStyle=MAP_STYLE.mark;
+      g.fillText(m.t, m.x, m.y+13/zoom);
+    }
+  }
+
   // 지명 — 화면에서 항상 같은 크기로 보이게 zoom 으로 나눈다
   if(hasBG && worldMap.names.length){
     const maxRank = zoom>0.85 ? 3 : (zoom>0.55 ? 2 : 1);
     g.textAlign='center'; g.textBaseline='middle';
     g.fillStyle=MAP_STYLE.label;
     g.strokeStyle='rgba(8,12,20,.75)'; g.lineWidth=3/zoom;
-    /* 이름끼리 겹치지 않게 — 화면을 칸으로 나눠 한 칸에 하나만 (큰 지명이 먼저 자리를 잡는다) */
-    const cw=86/zoom, ch=26/zoom, used=labelCells; used.clear();
+    /* 이름끼리 겹치지 않게 — 화면을 칸으로 나눠 한 칸에 하나만 (랜드마크·큰 지명이 먼저 자리를 잡는다) */
     let n=0;
     for(const nm of worldMap.names){
       if(nm.r>maxRank) continue;
@@ -1590,6 +1632,10 @@ function drawMini(){
     const x=cx+t.x*k, y=cy+t.y*k;
     g.fillStyle='rgba(8,12,22,.55)'; rr(g,x-4,y-3,8,6,1.5); g.fill();
     g.fillStyle=t.line.color; rr(g,x-3,y-2,6,4,1); g.fill();
+  }
+  if(worldMap && worldMap.marks){               // 랜드마크 = 작은 금색 점
+    g.fillStyle='rgba(255,220,140,.75)';
+    for(const m of worldMap.marks){ g.beginPath(); g.arc(cx+m.x*k, cy+m.y*k, 1.7,0,6.3); g.fill(); }
   }
   for(const it of items){                       // 아이템 = 작은 흰 점 (정체는 안 보여준다)
     g.fillStyle='rgba(255,255,255,.85)';
