@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Tiny World ― 세계수와 정령의 섬</title>
+<meta name="description" content="자원을 모으고 도구와 건물을 만들어 나만의 섬을 키우고, 귀여운 정령을 만나는 탐험 게임">
+<meta name="theme-color" content="#7ec96b">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/ui.css">
+</head>
+<body>
+
+<!-- ===================== 시작 화면 ===================== -->
+<section id="title" class="screen">
+  <div class="title-sky"></div>
+  <div class="title-inner">
+    <a class="hub-link" href="../../../">← 게임 목록</a>
+
+    <div class="logo">
+      <div class="logo-tree">🌳</div>
+      <h1>Tiny&nbsp;World</h1>
+      <p class="logo-sub">세계수와 정령의 섬</p>
+    </div>
+
+    <div id="jgChip"></div>
+
+    <div class="title-btns">
+      <button id="btnContinue" class="big-btn primary hidden">▶ 이어하기</button>
+      <button id="btnNew" class="big-btn">🌱 새 게임</button>
+      <button id="btnHowTo" class="big-btn ghost">❓ 게임 방법</button>
+    </div>
+
+    <p id="titleBest" class="title-best"></p>
+    <p class="title-tip">방향키·WASD 또는 화면 왼쪽 패드로 움직이고,<br>스페이스·E 또는 <b>모으기</b> 버튼으로 채집해요.</p>
+  </div>
+</section>
+
+<!-- ===================== 게임 화면 ===================== -->
+<section id="game" class="screen hidden">
+
+  <header id="hud">
+    <div class="hud-row">
+      <div class="hud-chip" id="hudPlayer">
+        <span class="hud-face">🧒</span>
+        <span class="hud-col">
+          <b id="hudName">탐험가</b>
+          <span class="hud-lv">Lv.<i id="hudLv">1</i></span>
+        </span>
+      </div>
+
+      <div class="hud-bars">
+        <div class="bar xp"><i id="barXp"></i><span id="txtXp">0/30</span></div>
+        <div class="bar en"><i id="barEn"></i><span id="txtEn">40/40</span></div>
+      </div>
+
+      <button class="hud-tree" id="hudTree">
+        <span id="hudTreeIcon">🌱</span>
+        <span class="hud-col">
+          <b id="hudTreeStage">씨앗</b>
+          <span class="bar tr"><i id="barTree"></i></span>
+        </span>
+      </button>
+    </div>
+
+    <div id="questBox" class="quest-box"></div>
+  </header>
+
+  <div id="stage">
+    <canvas id="cv"></canvas>
+
+    <div id="toasts"></div>
+    <div id="banner" class="hidden"></div>
+
+    <div id="placebar" class="hidden">
+      <span id="placeText">놓을 곳을 골라 보자!</span>
+      <button id="placeCancel">취소</button>
+    </div>
+
+    <!-- 모바일 가상 패드 -->
+    <div id="pad" class="pad">
+      <button class="pk up"    data-dir="up">▲</button>
+      <button class="pk left"  data-dir="left">◀</button>
+      <button class="pk right" data-dir="right">▶</button>
+      <button class="pk down"  data-dir="down">▼</button>
+    </div>
+
+    <div id="actionWrap">
+      <button id="btnAction" class="act-btn">
+        <span class="act-icon">✋</span>
+        <span class="act-label">모으기</span>
+      </button>
+    </div>
+  </div>
+
+  <nav id="bottombar">
+    <button data-panel="inv"><span>🎒</span><i>가방</i></button>
+    <button data-panel="craft"><span>🔨</span><i>제작</i></button>
+    <button data-panel="build"><span>🏠</span><i>건설</i></button>
+    <button data-panel="spirits"><span>🧚</span><i>정령</i><em id="spiritDot" class="dot hidden"></em></button>
+    <button data-panel="codex"><span>📖</span><i>도감</i></button>
+    <button data-panel="settings"><span>⚙️</span><i>설정</i></button>
+  </nav>
+</section>
+
+<!-- ===================== 모달 ===================== -->
+<div id="overlay" class="hidden"><div id="overlayCard"></div></div>
+<div id="confetti" class="hidden"></div>
+
+<!-- 공용 라이브러리: 플레이어 · 기록 · 배지 -->
+<script src="../../../common/profile.js"></script>
+
+<!-- 데이터 -->
+<script src="data/items.js"></script>
+<script src="data/recipes.js"></script>
+<script src="data/buildings.js"></script>
+<script src="data/spirits.js"></script>
+<script src="data/quests.js"></script>
+<script src="data/maps.js"></script>
+
+<!-- 게임 코드 -->
+<script src="js/audio.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/save.js"></script>
+<script src="js/player.js"></script>
+<script src="js/inventory.js"></script>
+<script src="js/map.js"></script>
+<script src="js/gathering.js"></script>
+<script src="js/crafting.js"></script>
+<script src="js/building.js"></script>
+<script src="js/spirits.js"></script>
+<script src="js/worldTree.js"></script>
+<script src="js/quests.js"></script>
+<script src="js/events.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/input.js"></script>
+<script src="js/game.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

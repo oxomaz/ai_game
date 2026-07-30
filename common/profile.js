@@ -73,7 +73,8 @@
     'onitama':             { emoji: '🥷', title: '오니타마',         cat: 'fun' },
     'cooking-catch':       { emoji: '🍳', title: '요리조리 셰프',    cat: 'fun' },
     'dalmuti':             { emoji: '👑', title: '달무티',          cat: 'fun' },
-    'memory-cards':        { emoji: '🧠', title: '메모리 카드',    cat: 'fun' }
+    'memory-cards':        { emoji: '🧠', title: '메모리 카드',    cat: 'fun' },
+    'tiny-world':          { emoji: '🌳', title: 'Tiny World',      cat: 'fun' }
   };
 
   /* ---------------- 배지 카탈로그 ---------------- */
@@ -83,7 +84,7 @@
     'play-10':      { emoji: '🎮', title: '단골 손님',     desc: '게임을 10판 했어요',                     game: '*' },
     'play-50':      { emoji: '🏅', title: '게임 고수',     desc: '게임을 50판 했어요',                     game: '*' },
     'explorer-5':   { emoji: '🧭', title: '탐험가',        desc: '서로 다른 게임 5개를 해봤어요',          game: '*' },
-    'explorer-all': { emoji: '🌟', title: '올라운더',      desc: '13개 게임을 전부 해봤어요',              game: '*' },
+    'explorer-all': { emoji: '🌟', title: '올라운더',      desc: '14개 게임을 전부 해봤어요',              game: '*' },
 
     /* 연산 스피드 퀴즈 */
     'ms-hit20':     { emoji: '➕', title: '계산 척척',     desc: '한 판에 20문제 맞히기',                  game: 'math-speed' },
@@ -164,7 +165,15 @@
     'mc-perfect':   { emoji: '💯', title: '완벽한 기억',   desc: '한 번도 안 틀리고 클리어',               game: 'memory-cards' },
     'mc-hard':      { emoji: '🏆', title: '24쌍 정복',     desc: '도전(6×8) 판을 클리어',                  game: 'memory-cards' },
     'mc-flag100':   { emoji: '🌍', title: '국기 박사',     desc: '국기 짝을 모두 합쳐 100개 맞히기',       game: 'memory-cards' },
-    'mc-packs':     { emoji: '🗂️', title: '카드 수집가',   desc: '카드팩 5종 이상 플레이',                 game: 'memory-cards' }
+    'mc-packs':     { emoji: '🗂️', title: '카드 수집가',   desc: '카드팩 5종 이상 플레이',                 game: 'memory-cards' },
+
+    /* Tiny World */
+    'tw-tool':      { emoji: '🪓', title: '첫 도구',        desc: '나무 도끼나 곡괭이를 만들었어요',              game: 'tiny-world' },
+    'tw-house':     { emoji: '🏠', title: '내 집 마련',      desc: '작은 집을 지었어요',                          game: 'tiny-world' },
+    'tw-spirit1':   { emoji: '🧚', title: '첫 정령 친구',    desc: '정령과 처음 친구가 되었어요',                  game: 'tiny-world' },
+    'tw-spirit4':   { emoji: '🌈', title: '정령 마스터',     desc: '정령 4종을 모두 친구로 만들었어요',            game: 'tiny-world' },
+    'tw-tree4':     { emoji: '🌟', title: '빛나는 세계수',   desc: '세계수를 4단계까지 키웠어요',                  game: 'tiny-world' },
+    'tw-codex':     { emoji: '📖', title: '도감 완성',       desc: '도감을 100% 채웠어요',                        game: 'tiny-world' }
   };
 
   /* ---------------- 아바타 후보 ---------------- */
