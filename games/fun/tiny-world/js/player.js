@@ -58,6 +58,8 @@ TW.Player = (function () {
 
   function addXp(s, amount, silent) {
     s.xp += amount;
+    /* 뭔가 진척이 있었다는 신호 → 자동 힌트 타이머를 되돌린다 */
+    if (window.TW && TW.Help) TW.Help.mark();
     var ups = [];
     while (s.xp >= xpNeed(s.level)) {
       s.xp -= xpNeed(s.level);

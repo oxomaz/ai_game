@@ -60,6 +60,19 @@
 .hud-tree b { font-size: 12px; }
 .hud-tree .bar.tr { width: 54px; margin-top: 2px; }
 
+/* 아주 좁은 화면(320px)에서 상단 한 줄이 넘치지 않게 줄인다 */
+@media (max-width: 360px) {
+  .hud-row { gap: 5px; }
+  .hud-chip { padding: 3px 7px 3px 5px; gap: 4px; }
+  .hud-chip b { max-width: 52px; font-size: 12px; }
+  .hud-face { font-size: 17px; }
+  .hud-help { width: 32px; height: 32px; font-size: 15px; }
+  .hud-tree { padding: 4px 6px; gap: 4px; }
+  .hud-tree .bar.tr { width: 40px; }
+  .hud-tree b { font-size: 11px; }
+  .hud-tree #hudTreeIcon { font-size: 17px; }
+}
+
 /* 퀘스트 */
 .quest-box { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
 .q-item {
@@ -83,6 +96,65 @@
 }
 .q-item.q-ok { border-color: #b6e8ab; background: #f2fff0; }
 .q-fold { font-size: 12px; font-weight: 900; color: #b3a98f; }
+.q-help {
+  flex: 0 0 auto;
+  border: none;
+  background: #fff3cf;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  font-size: 15px; font-weight: 900;
+  color: #b3801a;
+  cursor: pointer;
+  box-shadow: 0 2px 0 #e8d49a;
+  font-family: inherit;
+}
+.q-help:active { transform: translateY(2px); box-shadow: none; }
+
+/* 화면 위 ❓ 버튼 */
+.hud-help {
+  flex: 0 0 auto;
+  border: 2px solid #e6dfc8;
+  background: #fff;
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  font-size: 17px; font-weight: 900;
+  color: #b3801a;
+  cursor: pointer;
+  font-family: inherit;
+}
+.hud-help:active { background: #fff3cf; transform: translateY(2px); }
+
+/* 도움말 패널 */
+.help-item, .help-now {
+  border: 2px solid #ece5d0;
+  border-radius: 16px;
+  background: #fff;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+.help-now { border-color: #ffd98a; background: #fffdf2; }
+.help-head {
+  width: 100%;
+  display: flex; align-items: center; gap: 9px;
+  border: none; background: transparent;
+  padding: 11px 12px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.help-head .hh-ic { font-size: 22px; flex: 0 0 auto; }
+.help-head .hh-tt { flex: 1 1 auto; font-size: 15px; font-weight: 900; color: #4b4436; min-width: 0; }
+.help-head .hh-tt em {
+  display: block;
+  font-style: normal; font-size: 12.5px; font-weight: 700; color: #8a7a4e;
+  margin-top: 2px;
+}
+.help-head .hh-ar { flex: 0 0 auto; font-size: 12px; color: #b3a98f; }
+.help-body { padding: 0 13px 13px; }
+.help-text { margin: 6px 0 10px; font-size: 14px; line-height: 1.75; color: #5f5847; }
+.help-list { margin: 4px 0 0; padding-left: 20px; }
+.help-list li { font-size: 13.5px; line-height: 1.72; color: #5f5847; margin-bottom: 7px; }
+.help-list li b { color: #3f6b43; }
 
 /* 퀘스트 접기 · 낮은 화면(가로 모드)에서는 자동으로 한 줄만 */
 #hud.mini .q-item:nth-child(n+2) { display: none; }

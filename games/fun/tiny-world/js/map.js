@@ -158,6 +158,90 @@ TW.Map = (function () {
     };
   }
 
+  /* ---------- 길안내 화살표 ----------
+     목표가 화면 안에 있으면 그 위에 통통 튀는 표시,
+     화면 밖이면 화면 가장자리에서 방향과 거리를 알려 준다. */
+  function drawGuide(ctx, s, t) {
+    if (!TW.Help) return;
+    var g = TW.Help.guide();
+    if (!g) return;
+    var p = TW.state.pos;
+    var gx = (g.x - cam.x) * s, gy = (g.y - cam.y) * s;
+    var pulse = 0.5 + Math.sin(t * 5) * 0.5;
+    var inside = gx > 26 && gx < VW - 26 && gy > 26 && gy < VH - 26;
+
+    ctx.save();
+    if (inside) {
+      /* 목표 위 표시 */
+      ctx.globalAlpha = 0.35 + pulse * 0.3;
+      ctx.fillStyle = '#ffe066';
+      ctx.beginPath();
+      ctx.ellipse(gx, gy + s * 0.25, s * 0.42, s * 0.20, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      var bob = Math.sin(t * 4) * 5;
+      ctx.fillStyle = '#ff9d3d';
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(gx, gy - s * 0.55 + bob);
+      ctx.lineTo(gx - 11, gy - s * 0.95 + bob);
+      ctx.lineTo(gx + 11, gy - s * 0.95 + bob);
+      ctx.closePath();
+      ctx.stroke(); ctx.fill();
+      /* 화면 안에 보이는 목표에는 이름을 또 쓰지 않는다
+         (자원·건물은 이미 자기 이름표를 갖고 있어서 두 번 겹친다) */
+    } else {
+      /* 화면 가장자리 화살표 */
+      var cx = VW / 2, cy = VH / 2;
+      var dx = gx - cx, dy = gy - cy;
+      var ang = Math.atan2(dy, dx);
+      /* 화면 가장자리(안쪽 34px)까지 뻗어 나가는 지점을 구한다 */
+      var mx = VW / 2 - 34, my = VH / 2 - 34;
+      var k = Math.min(
+        Math.abs(dx) > 0.001 ? mx / Math.abs(dx) : 1e9,
+        Math.abs(dy) > 0.001 ? my / Math.abs(dy) : 1e9
+      );
+      if (!isFinite(k)) k = 1;
+      var ax = cx + dx * k, ay = cy + dy * k;
+      ctx.translate(ax, ay);
+      ctx.globalAlpha = 0.55 + pulse * 0.45;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.rotate(ang);
+      ctx.fillStyle = '#ff9d3d';
+      ctx.beginPath();
+      ctx.moveTo(15, 0); ctx.lineTo(-9, -12); ctx.lineTo(-4, 0); ctx.lineTo(-9, 12);
+      ctx.closePath(); ctx.fill();
+      ctx.rotate(-ang);
+      var dist = Math.round(Math.sqrt(Math.pow(g.x - p.x, 2) + Math.pow(g.y - p.y, 2)));
+      /* 글자가 화면 밖으로 잘리지 않게 안쪽으로 당긴다 */
+      label(ctx, g.label + ' ' + dist + '칸', 0, 44, ax);
+      ctx.restore();
+      return;
+    }
+    ctx.restore();
+  }
+
+  function label(ctx, text, x, y, screenX) {
+    if (!text) return;
+    ctx.font = 'bold 13px "Nanum Gothic", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    var w = ctx.measureText(text).width + 16;
+    if (screenX !== undefined) {
+      /* screenX = 지금 원점의 화면 좌표. 좌우로 잘리면 그만큼 밀어 준다 */
+      var left = screenX + x - w / 2, right = screenX + x + w / 2;
+      if (left < 6) x += 6 - left;
+      if (right > VW - 6) x -= right - (VW - 6);
+    }
+    ctx.fillStyle = 'rgba(255,157,61,.95)';
+    TW.Sprites.rr(ctx, x - w / 2, y - 15, w, 21, 10);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.fillText(text, x, y);
+  }
+
   /* ---------- 그리기 ---------- */
   function render(t) {
     if (!ctx) return;
@@ -324,7 +408,10 @@ TW.Map = (function () {
       }
     }
 
-    /* 6) 입자·글자 */
+    /* 6) 길안내 화살표 */
+    drawGuide(ctx, s, t);
+
+    /* 7) 입자·글자 */
     TW.FX.draw(ctx, cam, s);
     ctx.restore();
   }

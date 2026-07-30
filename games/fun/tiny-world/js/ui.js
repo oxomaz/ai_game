@@ -28,12 +28,24 @@ TW.UI = (function () {
       if (panel === p) closePanel(); else openPanel(p);
     });
     el.hudTree.addEventListener('click', function () { TW.Audio.play('open'); openPanel('tree'); });
-    /* 퀘스트 칸을 누르면 접기/펴기 (모바일에서 화면을 넓게 쓰려고) */
-    el.questBox.addEventListener('click', function () {
+    /* 퀘스트 칸: ❓ 는 힌트, 나머지를 누르면 접기/펴기 */
+    el.questBox.addEventListener('click', function (e) {
+      if (e.target.closest('[data-hint]')) {
+        TW.Audio.play('open');
+        TW.Help.show(true);
+        return;
+      }
       el.hud.classList.toggle('mini');
       TW.Audio.play('open');
+      lastQuestHtml = '';
       renderQuests();
       TW.Map.resize();
+    });
+    /* 화면 위 ❓ 버튼 = 도움말 */
+    var hb = document.getElementById('btnHelp');
+    if (hb) hb.addEventListener('click', function () {
+      TW.Audio.play('open');
+      openPanel('help');
     });
     el.placeCancel.addEventListener('click', function () { TW.Building.cancelPlace(); });
   }
@@ -112,11 +124,17 @@ TW.UI = (function () {
     el.btnAction.classList.toggle('off', !t && !TW.Building.placing);
   }
 
+  /* 퀘스트 칸은 내용이 "바뀔 때만" 다시 그린다.
+     매번 innerHTML 을 새로 만들면 등장 애니메이션이 계속 재시작돼 깜빡거린다. */
+  var lastQuestHtml = '';
+
   function renderQuests() {
     var list = TW.Quests.active();
     var html = '';
     if (!list.length) {
-      html = '<div class="q-item q-ok"><span class="q-ic">🎉</span><span class="q-txt">모든 목표를 다 했어! 섬을 자유롭게 꾸며 보자.</span></div>';
+      html = '<div class="q-item q-ok"><span class="q-ic">🎉</span>' +
+        '<span class="q-txt">모든 목표를 다 했어! 섬을 자유롭게 꾸며 보자.</span>' +
+        '<button class="q-help" data-hint="1">❓</button></div>';
     }
     var mini = el.hud.classList.contains('mini');
     list.forEach(function (it, i) {
@@ -127,9 +145,12 @@ TW.UI = (function () {
         (i === 0 && it.q.hint ? '<span class="q-hint">' + it.q.hint + '</span>' : '') +
         '</span>' +
         '<span class="q-num">' + it.cur + '/' + it.need + '</span>' +
-        (i === 0 ? '<span class="q-fold">' + (mini ? '▾' : '▴') + '</span>' : '') +
+        (i === 0 ? '<button class="q-help" data-hint="1">❓</button>' +
+                   '<span class="q-fold">' + (mini ? '▾' : '▴') + '</span>' : '') +
         '</div>';
     });
+    if (html === lastQuestHtml) return;     /* ← 깜빡임 방지 */
+    lastQuestHtml = html;
     el.questBox.innerHTML = html;
   }
 
@@ -231,6 +252,71 @@ TW.UI = (function () {
     else if (panel === 'codex') el.overlayCard.innerHTML = head('도감', '📖') + codexHtml();
     else if (panel === 'settings') el.overlayCard.innerHTML = head('설정', '⚙️') + settingsHtml();
     else if (panel === 'tree') el.overlayCard.innerHTML = head('세계수', '🌟') + treeHtml();
+    else if (panel === 'help') el.overlayCard.innerHTML = head('도움말', '❓') + helpHtml();
+  }
+
+  /* ---------- 도움말 ---------- */
+  var helpOpen = 'now';         /* 펼쳐 놓은 항목 id */
+
+  function helpFocus(id) {
+    helpOpen = id;
+    if (panel === 'help') renderPanel();
+  }
+
+  function helpHtml() {
+    var c = TW.Help.current();
+    var h = '<div class="card-body">';
+
+    /* 지금 할 일 */
+    h += '<div class="help-now' + (helpOpen === 'now' ? ' open' : '') + '">' +
+      '<button class="help-head" data-act="helpTopic" data-id="now">' +
+      '<span class="hh-ic">' + c.icon + '</span>' +
+      '<span class="hh-tt">지금 할 일<em>' + c.title + '</em></span>' +
+      '<span class="hh-ar">' + (helpOpen === 'now' ? '▲' : '▼') + '</span></button>';
+    if (helpOpen === 'now') {
+      h += '<div class="help-body">';
+      if (c.cur !== undefined) {
+        h += '<div class="chips"><span class="chip on">' + c.cur + ' / ' + c.need + ' 했어요</span></div>';
+      }
+      h += '<p class="help-text">' + esc(c.text).replace(/\n/g, '<br>') + '</p>';
+      if (c.target) {
+        h += '<button class="go" style="width:100%" data-act="guide">🧭 ' +
+          esc(c.target.label) + ' 위치를 화살표로 알려 줘!</button>';
+      } else if (c.panel) {
+        h += '<button class="go alt" style="width:100%" data-act="goPanel" data-p="' + c.panel + '">' +
+          TW.Help.panelName(c.panel) + ' 열기</button>';
+      }
+      h += '</div>';
+    }
+    h += '</div>';
+
+    /* 주제별 설명 */
+    TW.Help.TOPICS.forEach(function (t) {
+      var open = helpOpen === t.id;
+      h += '<div class="help-item' + (open ? ' open' : '') + '">' +
+        '<button class="help-head" data-act="helpTopic" data-id="' + t.id + '">' +
+        '<span class="hh-ic">' + t.icon + '</span>' +
+        '<span class="hh-tt">' + t.title + '</span>' +
+        '<span class="hh-ar">' + (open ? '▲' : '▼') + '</span></button>';
+      if (open) {
+        h += '<div class="help-body"><ul class="help-list">';
+        t.lines.forEach(function (l) { h += '<li>' + bold(esc(l)) + '</li>'; });
+        h += '</ul></div>';
+      }
+      h += '</div>';
+    });
+
+    h += '<button class="go alt" style="width:100%;margin-top:12px" data-act="howto">' +
+      '🎬 처음 안내 다시 보기</button>';
+    h += '</div>';
+    return h;
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function bold(s) {
+    return s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
   }
 
   /* ---------- 가방 ---------- */
@@ -509,7 +595,10 @@ TW.UI = (function () {
       '<div class="r-sub">도감 ' + st.pct + '% · 채집 ' + s.counters.gather_all + '번 · 놀이 시간 ' + mins + '분</div>' +
       '</span></div>';
     h += '<div class="sec-title">🧭 도움말</div>';
-    h += '<div class="set-row"><span><span class="lb">게임 방법 다시 보기</span></span>' +
+    h += '<div class="set-row"><span><span class="lb">게임 방법 · 막힐 때 보기</span>' +
+      '<br><span class="sb">조작법 · 채집 · 제작 · 건설 · 정령 · 세계수</span></span>' +
+      '<button class="go alt" data-act="help">❓ 열기</button></div>';
+    h += '<div class="set-row"><span><span class="lb">처음 안내 다시 보기</span></span>' +
       '<button class="go alt" data-act="howto">보기</button></div>';
     h += '<div class="set-row"><span><span class="lb">시작 화면으로</span><br><span class="sb">진행은 자동으로 저장돼요</span></span>' +
       '<button class="go alt" data-act="totitle">나가기</button></div>';
@@ -632,6 +721,24 @@ TW.UI = (function () {
       return;
     }
     if (act === 'howto') { howto(false); return; }
+    if (act === 'helpTopic') {
+      var id = b.getAttribute('data-id');
+      helpOpen = (helpOpen === id) ? '' : id;
+      TW.Audio.play('open');
+      renderPanel();
+      return;
+    }
+    if (act === 'guide') {
+      var c2 = TW.Help.setGuideFromCurrent();
+      closePanel();
+      if (c2.target) {
+        toast('화살표를 따라가 보자! → ' + c2.target.label, '🧭');
+        TW.Audio.play('event');
+      }
+      return;
+    }
+    if (act === 'goPanel') { openPanel(b.getAttribute('data-p')); return; }
+    if (act === 'help') { openPanel('help'); return; }
     if (act === 'totitle') { TW.Game.toTitle(); return; }
     if (act === 'reset1') {
       cheer('<div class="c-ic">⚠️</div><h2>정말 지울까요?</h2>' +
@@ -662,7 +769,7 @@ TW.UI = (function () {
     currentPanel: function () { return panel; },
     showPlaceBar: showPlaceBar, hidePlaceBar: hidePlaceBar,
     updateCraftBar: updateCraftBar, spiritDialog: spiritDialog,
-    howto: howto, codexStats: codexStats, el: el
+    howto: howto, codexStats: codexStats, helpFocus: helpFocus, el: el
   };
 })();
 

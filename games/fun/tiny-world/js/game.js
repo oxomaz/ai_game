@@ -176,6 +176,7 @@ TW.Game = (function () {
       TW.Spirits.update(dt, t);
       TW.Map.tickNodes(dt);
       TW.Events.update(dt);
+      TW.Help.update(dt);
       TW.FX.update(dt);
       TW.state.stats.play += dt;
 
