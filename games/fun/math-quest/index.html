@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Math Quest ― 숫자의 모험</title>
+<meta name="description" content="문제를 풀어 몬스터를 물리치고, 레벨을 올리고, 장비와 펫을 모으는 성장형 모험 게임">
+<meta name="theme-color" content="#0d1030">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/ui.css">
+</head>
+<body>
+
+<div id="fxLayer" aria-hidden="true"></div>
+<div id="toasts" aria-live="polite"></div>
+
+<!-- ===================== 위쪽 상태바 ===================== -->
+<header id="hud"></header>
+
+<!-- ===================== 시작 화면 ===================== -->
+<section id="sc-title" class="screen on">
+  <div class="title-bg"></div>
+  <div class="title-inner">
+    <a class="hub-link" href="../../../">← 게임 목록</a>
+    <div class="logo">
+      <div class="logo-icons"><span>⚔️</span><span>🐉</span><span>✨</span></div>
+      <h1>Math&nbsp;Quest</h1>
+      <p class="logo-sub">숫자의 모험</p>
+    </div>
+    <div id="jgChip"></div>
+    <div class="title-btns">
+      <button id="btnContinue" class="big-btn primary hidden">▶ 이어하기</button>
+      <button id="btnNew" class="big-btn">🌱 새 모험 시작</button>
+      <button id="btnHow" class="big-btn ghost">❓ 게임 방법</button>
+    </div>
+    <p id="titleBest" class="title-best"></p>
+    <p class="title-tip">정답을 고르면 몬스터를 때려요.<br>연속으로 맞히면 <b>콤보 필살기</b>가 터집니다!</p>
+  </div>
+</section>
+
+<!-- ===================== 실력측정 ===================== -->
+<section id="sc-assess" class="screen">
+  <div class="as-wrap">
+    <h2>🎖️ 실력 시험</h2>
+    <p class="as-note">5문제만 풀면 딱 맞는 곳에서 시작해요.<br>모르면 <b>잘 모르겠어요</b>를 눌러도 괜찮아요.</p>
+    <div class="as-prog"><i id="asBar"></i></div>
+    <div class="as-step" id="asStep">1 / 5</div>
+    <div class="as-card">
+      <div class="q-svg hidden" id="asSvg"></div>
+      <div class="q-text" id="asQ"></div>
+      <div class="q-sub" id="asSub"></div>
+    </div>
+    <div class="bt-choices n4" id="asChoices"></div>
+  </div>
+</section>
+
+<!-- ===================== 지도 ===================== -->
+<section id="sc-map" class="screen">
+  <div class="body" id="mapBody"></div>
+</section>
+
+<!-- ===================== 전투 ===================== -->
+<section id="sc-battle" class="screen">
+  <div class="bt-head">
+    <button class="bt-flee" id="btFlee">← 도망</button>
+    <div class="bt-title"><b id="btTitle"></b><span id="btWave"></span></div>
+    <div id="btMod"></div>
+  </div>
+
+  <div class="bt-cards">
+    <div class="bt-card" id="btPlayerCard"></div>
+    <div class="bt-vs">VS</div>
+    <div class="bt-card mon" id="btMonCard"></div>
+  </div>
+
+  <div class="bt-stage" id="btStage">
+    <div class="bt-mon" id="btMon">🐌</div>
+    <div class="bt-combo" id="btCombo"></div>
+  </div>
+
+  <div class="bt-time">
+    <div class="bt-time-bar"><i class="bt-time-fill" id="btTimeFill"></i></div>
+    <span id="btTimeNum"></span>
+  </div>
+
+  <div class="bt-q">
+    <div class="q-meta" id="btQMeta"></div>
+    <div class="q-svg hidden" id="btQSvg"></div>
+    <div class="q-text" id="btQText"></div>
+    <div class="q-sub hidden" id="btQSub"></div>
+  </div>
+
+  <div class="bt-explain hidden" id="btExplain"></div>
+  <div class="bt-choices n4" id="btChoices"></div>
+  <div class="bt-skills" id="btSkills"></div>
+</section>
+
+<!-- ===================== 가방 ===================== -->
+<section id="sc-bag" class="screen">
+  <div class="body" id="bagBody"></div>
+</section>
+
+<!-- ===================== 도감 ===================== -->
+<section id="sc-codex" class="screen">
+  <div class="body" id="codexBody"></div>
+</section>
+
+<!-- ===================== 미션 ===================== -->
+<section id="sc-quest" class="screen">
+  <div class="body" id="questBody"></div>
+</section>
+
+<!-- ===================== 상점 ===================== -->
+<section id="sc-shop" class="screen">
+  <div class="body" id="shopBody"></div>
+</section>
+
+<!-- ===================== 아래 메뉴 ===================== -->
+<nav id="nav" class="hidden">
+  <button data-go="map"><span>🗺️</span>지도</button>
+  <button data-go="bag"><span>🎒</span>가방</button>
+  <button data-go="codex"><span>📖</span>도감</button>
+  <button data-go="quest"><span>🎯</span>미션<i id="navQuestDot"></i></button>
+  <button data-go="shop"><span>🛒</span>상점</button>
+</nav>
+
+<div id="modal"></div>
+
+<!-- 공용 플레이어·기록 (없어도 게임은 돌아간다) -->
+<script src="../../../common/profile.js"></script>
+
+<!-- 데이터 -->
+<script src="data/regions.js"></script>
+<script src="data/items.js"></script>
+
+<!-- 문제 엔진 -->
+<script src="js/generator.js"></script>
+<script src="js/gen/arith.js"></script>
+<script src="js/gen/shape.js"></script>
+<script src="js/gen/logic.js"></script>
+<script src="js/gen/life.js"></script>
+
+<!-- 업적·미션은 지역/아이템/문제유형을 참조하므로 그다음 -->
+<script src="data/achievements.js"></script>
+
+<!-- 게임 -->
+<script src="js/audio.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/save.js"></script>
+<script src="js/player.js"></script>
+<script src="js/difficulty.js"></script>
+<script src="js/loot.js"></script>
+<script src="js/progress.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/battle.js"></script>
+<script src="js/game.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

@@ -73,7 +73,8 @@
     'cooking-catch':       { emoji: '🍳', title: '요리조리 셰프',    cat: 'fun' },
     'dalmuti':             { emoji: '👑', title: '달무티',          cat: 'fun' },
     'memory-cards':        { emoji: '🧠', title: '메모리 카드',    cat: 'fun' },
-    'tiny-world':          { emoji: '🌳', title: 'Tiny World',      cat: 'fun' }
+    'tiny-world':          { emoji: '🌳', title: 'Tiny World',      cat: 'fun' },
+    'math-quest':          { emoji: '⚔️', title: 'Math Quest',      cat: 'fun' }
   };
 
   /* ---------------- 배지 카탈로그 ---------------- */
@@ -83,7 +84,7 @@
     'play-10':      { emoji: '🎮', title: '단골 손님',     desc: '게임을 10판 했어요',                     game: '*' },
     'play-50':      { emoji: '🏅', title: '게임 고수',     desc: '게임을 50판 했어요',                     game: '*' },
     'explorer-5':   { emoji: '🧭', title: '탐험가',        desc: '서로 다른 게임 5개를 해봤어요',          game: '*' },
-    'explorer-all': { emoji: '🌟', title: '올라운더',      desc: '13개 게임을 전부 해봤어요',              game: '*' },
+    'explorer-all': { emoji: '🌟', title: '올라운더',      desc: '14개 게임을 전부 해봤어요',              game: '*' },
 
     /* 연산 스피드 퀴즈 */
     'ms-hit20':     { emoji: '➕', title: '계산 척척',     desc: '한 판에 20문제 맞히기',                  game: 'math-speed' },
@@ -167,7 +168,15 @@
     'tw-spirit1':   { emoji: '🧚', title: '첫 정령 친구',    desc: '정령과 처음 친구가 되었어요',                  game: 'tiny-world' },
     'tw-spirit4':   { emoji: '🌈', title: '정령 마스터',     desc: '정령 4종을 모두 친구로 만들었어요',            game: 'tiny-world' },
     'tw-tree4':     { emoji: '🌟', title: '빛나는 세계수',   desc: '세계수를 4단계까지 키웠어요',                  game: 'tiny-world' },
-    'tw-codex':     { emoji: '📖', title: '도감 완성',       desc: '도감을 100% 채웠어요',                        game: 'tiny-world' }
+    'tw-codex':     { emoji: '📖', title: '도감 완성',       desc: '도감을 100% 채웠어요',                        game: 'tiny-world' },
+    'mq-start':     { emoji: '🧭', title: '모험의 시작',    desc: 'Math Quest 첫 문제를 풀었어요',              game: 'math-quest' },
+    'mq-lv10':      { emoji: '⭐', title: '여행자',        desc: 'Math Quest에서 Lv10 을 넘었어요',            game: 'math-quest' },
+    'mq-lv30':      { emoji: '🌟', title: '베테랑 모험가',  desc: 'Math Quest에서 Lv30 을 넘었어요',            game: 'math-quest' },
+    'mq-lv50':      { emoji: '🏅', title: '전설의 용사',    desc: 'Math Quest에서 Lv50 을 넘었어요',            game: 'math-quest' },
+    'mq-boss':      { emoji: '👑', title: '첫 보스 격파',   desc: 'Math Quest 보스를 처음 물리쳤어요',          game: 'math-quest' },
+    'mq-allboss':   { emoji: '🐉', title: '세계 정복',      desc: 'Math Quest 지역 8곳의 보스를 모두 물리쳤어요', game: 'math-quest' },
+    'mq-combo20':   { emoji: '🔥', title: '20콤보',        desc: 'Math Quest에서 20연속 정답을 해냈어요',       game: 'math-quest' },
+    'mq-solve1000': { emoji: '📚', title: '1000문제',      desc: 'Math Quest에서 1000문제를 풀었어요',          game: 'math-quest' }
   };
 
   /* ---------------- 아바타 후보 ---------------- */
