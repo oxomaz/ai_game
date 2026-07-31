@@ -33,9 +33,16 @@ TW.Building = (function () {
   function place(x, y) {
     var type = api.placing;
     if (!type) return false;
+    /* 그 사이 지형이 바뀌었을 수도 있으니 마지막으로 한 번 더 계산한다 */
+    TW.Map.invalidateChoke();
     if (!TW.Map.canBuild(x, y)) {
       TW.Audio.play('error');
-      TW.UI.toast('여기엔 지을 수 없어. 빈 땅을 골라 봐!', '🚧');
+      /* 왜 안 되는지 알려 준다 */
+      if (TW.Map.isChokePoint(x, y)) {
+        TW.UI.toast('여기에 지으면 길이 막혀! 다른 곳에 지어 보자.', '🚧');
+      } else {
+        TW.UI.toast('여기엔 지을 수 없어. 빈 땅을 골라 봐!', '🚧');
+      }
       return false;
     }
     var def = TW.BUILDINGS[type];
@@ -61,9 +68,63 @@ TW.Building = (function () {
     TW.Player.addXp(s, def.xp);
     if (def.energy) TW.WorldTree.addEnergy(def.energy, '건물 완성');
     cancelPlace();
+    TW.Map.invalidateChoke();
     TW.Quests.check();
     TW.UI.syncHud();
     return true;
+  }
+
+  /* ---------- 건물 부수기 (재료는 전부 돌려준다) ----------
+     실수로 지었거나, 예전 판에서 건물에 둘러싸여 갇혔을 때 빠져나오는 길. */
+  function demolish(id) {
+    var s = TW.state;
+    var i = -1;
+    for (var k = 0; k < s.buildings.length; k++) if (s.buildings[k].id === id) { i = k; break; }
+    if (i < 0) return false;
+    var b = s.buildings[i], def = TW.BUILDINGS[b.type];
+
+    /* 정령이 일하던 건물이면 일자리를 비워 준다 */
+    Object.keys(s.spirits).forEach(function (key) {
+      if (s.spirits[key].job === b.id) s.spirits[key].job = null;
+    });
+
+    s.buildings.splice(i, 1);
+    Object.keys(def.cost).forEach(function (item) { TW.Inv.add(item, def.cost[item]); });
+
+    TW.Audio.play('build');
+    TW.FX.burst(b.x + 0.5, b.y + 0.5, '#d9cdb4', 16);
+    TW.FX.floatText(b.x + 0.5, b.y - 0.2, def.name + ' 정리! 재료를 돌려받았어', '#ffe98a', true);
+    TW.Map.invalidateChoke();
+    TW.UI.toast(def.icon + ' ' + def.name + ' 을 부수고 재료를 돌려받았어!', '🧰');
+    TW.UI.syncHud();
+    return true;
+  }
+
+  /* ---------- 갇혔는지 확인하고 도와주기 ----------
+     예전 판에서 이미 갇힌 채로 저장된 경우를 위한 안전장치. */
+  function trapped() {
+    return TW.Map.reachableCount(14) < 12;
+  }
+
+  /* 갇혔으면 주변 건물을 하나 부숴서 길을 연다. 건물이 없으면 밖으로 옮겨 준다. */
+  function rescue() {
+    var s = TW.state;
+    var px = Math.floor(s.pos.x), py = Math.floor(s.pos.y);
+    var best = null, bd = 1e9;
+    s.buildings.forEach(function (b) {
+      var d = Math.abs(b.x - px) + Math.abs(b.y - py);
+      if (d < bd) { bd = d; best = b; }
+    });
+    if (best && bd <= 3) { demolish(best.id); return 'demolish'; }
+    var spot = TW.Map.nearestOpenOutside();
+    if (spot) {
+      s.pos.x = spot.x; s.pos.y = spot.y;
+      TW.Map.invalidateChoke();
+      TW.FX.burst(spot.x, spot.y, '#a8e6ff', 18);
+      TW.UI.toast('밖으로 데려왔어! 이제 다시 돌아다닐 수 있어.', '🚪');
+      return 'move';
+    }
+    return null;
   }
 
   /* ---------- 건물 사용 ---------- */
@@ -157,5 +218,8 @@ TW.Building = (function () {
   api.use = use;
   api.update = update;
   api.unlocked = unlocked;
+  api.demolish = demolish;
+  api.trapped = trapped;
+  api.rescue = rescue;
   return api;
 })();

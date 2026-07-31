@@ -102,6 +102,16 @@ TW.Input = (function () {
       return;
     }
     var t = null;
+    /* 안개 너머(아직 안 열린 지역)를 누르면 아무것도 하지 않는다 */
+    if (tile) {
+      var lockR = TW.Map.regionLocked(tile.x, tile.y);
+      if (lockR) {
+        TW.Audio.play('error');
+        TW.UI.toast(TW.REGIONS[lockR].name + '은 세계수가 ' + TW.REGIONS[lockR].lock +
+          '단계가 되면 열려!', '🔒');
+        return;
+      }
+    }
     if (tile) {
       /* 누른 칸에 무엇이 있는지 확인 */
       var n = TW.Map.nodeAt(tile.x, tile.y);

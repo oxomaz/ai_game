@@ -26,6 +26,16 @@ TW.Gather = (function () {
     if (cd > 0) return false;
     var s = TW.state, def = TW.NODES[node.t];
 
+    /* 아직 열리지 않은 지역의 자원은 캘 수 없다.
+       (안개 너머로 손만 뻗어 캐지던 문제) */
+    var lockR = TW.Map.regionLocked(node.x, node.y);
+    if (lockR) {
+      TW.Audio.play('error');
+      TW.UI.toast(TW.REGIONS[lockR].name + '은 세계수가 ' + TW.REGIONS[lockR].lock +
+        '단계가 되면 열려!', '🔒');
+      return false;
+    }
+
     /* 도구 등급 확인 */
     if (def.minTier > 0 && TW.Inv.toolTier(def.tool) < def.minTier) {
       TW.Audio.play('error');

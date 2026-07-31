@@ -396,6 +396,19 @@ TW.UI = (function () {
   }
 
   /* ---------- 건설 ---------- */
+  /* 건물이 나에게서 어느 쪽에 있는지 아이 말로 알려 준다 */
+  function whereIs(b) {
+    var p = TW.state.pos;
+    var dx = (b.x + 0.5) - p.x, dy = (b.y + 0.5) - p.y;
+    var dist = Math.round(Math.sqrt(dx * dx + dy * dy));
+    if (dist <= 2) return '바로 옆이에요';
+    var ns = dy < -1 ? '위' : (dy > 1 ? '아래' : '');
+    var ew = dx < -1 ? '왼쪽' : (dx > 1 ? '오른쪽' : '');
+    if (ns && ew) return ew + ' ' + ns + '로 ' + dist + '칸';
+    if (ns) return ns + '로 ' + dist + '칸';
+    return ew + '으로 ' + dist + '칸';
+  }
+
   function buildHtml() {
     var s = TW.state;
     var h = '<div class="card-body"><p class="card-note">건물을 고르면 놓을 수 있는 칸이 하얗게 반짝여요. 그 칸을 누르면 완성!</p>';
@@ -417,6 +430,19 @@ TW.UI = (function () {
           : '<button class="go no">Lv.' + d.lvl + '</button>') +
         '</div>';
     });
+
+    /* 내가 지은 건물 정리하기 — 잘못 지었을 때 되돌릴 수 있게 */
+    if (s.buildings.length) {
+      h += '<div class="sec-title">🧰 내가 지은 건물 정리</div>';
+      h += '<p class="card-note">부수면 재료를 <b>전부</b> 돌려받아요. 다른 곳에 다시 지을 수 있어요.</p>';
+      s.buildings.forEach(function (b) {
+        var d2 = TW.BUILDINGS[b.type];
+        h += '<div class="row"><span class="r-ic">' + d2.icon + '</span><span class="r-mid">' +
+          '<div class="r-nm">' + d2.name + '</div>' +
+          '<div class="r-sub">' + whereIs(b) + '</div></span>' +
+          '<button class="go alt" data-act="demolish" data-id="' + b.id + '">부수기</button></div>';
+      });
+    }
     h += '</div>';
     return h;
   }
@@ -737,6 +763,17 @@ TW.UI = (function () {
       }
       return;
     }
+    if (act === 'demolish') {
+      TW.Building.demolish(parseInt(b.getAttribute('data-id'), 10));
+      renderPanel();
+      return;
+    }
+    if (act === 'rescue') {
+      var how = TW.Building.rescue();
+      closePanel();
+      if (!how) toast('음… 길을 못 찾았어. 설정에서 처음부터 시작할 수 있어.', '😥');
+      return;
+    }
     if (act === 'goPanel') { openPanel(b.getAttribute('data-p')); return; }
     if (act === 'help') { openPanel('help'); return; }
     if (act === 'totitle') { TW.Game.toTitle(); return; }
@@ -769,7 +806,7 @@ TW.UI = (function () {
     currentPanel: function () { return panel; },
     showPlaceBar: showPlaceBar, hidePlaceBar: hidePlaceBar,
     updateCraftBar: updateCraftBar, spiritDialog: spiritDialog,
-    howto: howto, codexStats: codexStats, helpFocus: helpFocus, el: el
+    howto: howto, codexStats: codexStats, helpFocus: helpFocus, cheer: cheer, el: el
   };
 })();
 

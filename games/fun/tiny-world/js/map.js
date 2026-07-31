@@ -86,7 +86,131 @@ TW.Map = (function () {
     if (Math.floor(p.x) === x && Math.floor(p.y) === y) return false;
     /* 세계수 바로 앞 한 줄은 비워 둔다 */
     if (isWorldTree(x, y + 1)) return false;
+    /* 여기에 지으면 길이 막혀서 갇히는 칸이면 안 된다 */
+    if (isChokePoint(x, y)) return false;
     return true;
+  }
+
+  /* ===========================================================
+     갇힘 방지
+     내 주변을 건물로 둘러싸면 밖으로 못 나가는 문제가 있었다.
+     "이 칸을 막으면 지금 갈 수 있는 땅이 두 조각으로 갈라지는가?"
+     를 미리 계산해 두고(관절점 찾기), 그런 칸에는 아예 못 짓게 한다.
+     한 칸이라도 떨어져 나가면 막는다 — 자원이 갇히는 것도 함께 막힌다.
+     =========================================================== */
+  var chokeSet = null;      /* Uint8Array: 1이면 막으면 안 되는 칸 */
+  var chokeAt = -1e9;       /* 마지막으로 계산한 시각(초) */
+  var DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+  function invalidateChoke() { chokeAt = -1e9; }
+
+  function nowSec() {
+    return (typeof performance !== 'undefined' && performance.now)
+      ? performance.now() / 1000 : 0;
+  }
+
+  function isChokePoint(x, y) {
+    var n = nowSec();
+    if (!chokeSet || n - chokeAt > 0.4) { computeChoke(); chokeAt = n; }
+    return chokeSet[y * TW.MAP.W + x] === 1;
+  }
+
+  /* 지금 내가 걸어서 갈 수 있는 땅 위에서 관절점(끊기면 갈라지는 칸)을 찾는다.
+     반복형 DFS — 칸이 720개뿐이라 아주 빠르다. */
+  function computeChoke() {
+    var W = TW.MAP.W, H = TW.MAP.H, N = W * H;
+    if (!chokeSet || chokeSet.length !== N) chokeSet = new Uint8Array(N);
+    else chokeSet.fill(0);
+
+    var p = TW.state.pos;
+    var sx = Math.floor(p.x), sy = Math.floor(p.y);
+    if (!inBounds(sx, sy) || solidAt(sx, sy)) return;
+
+    var open = new Uint8Array(N);       /* 내가 갈 수 있는 칸 */
+    var stack = [sy * W + sx];
+    open[stack[0]] = 1;
+    while (stack.length) {
+      var v = stack.pop(), vx = v % W, vy = (v - vx) / W;
+      for (var d = 0; d < 4; d++) {
+        var nx = vx + DIRS[d][0], ny = vy + DIRS[d][1];
+        if (!inBounds(nx, ny)) continue;
+        var ni = ny * W + nx;
+        if (open[ni] || solidAt(nx, ny)) continue;
+        open[ni] = 1; stack.push(ni);
+      }
+    }
+
+    /* 관절점 찾기 (Tarjan) */
+    var disc = new Int32Array(N).fill(-1);
+    var low = new Int32Array(N);
+    var timer = 0, root = sy * W + sx, rootKids = 0;
+    var st = [[root, -1, 0]];
+    disc[root] = low[root] = timer++;
+    while (st.length) {
+      var top = st[st.length - 1];
+      var u = top[0];
+      if (top[2] < 4) {
+        var dir = DIRS[top[2]++];
+        var ux = u % W, uy = (u - ux) / W;
+        var wx = ux + dir[0], wy = uy + dir[1];
+        if (!inBounds(wx, wy)) continue;
+        var wi = wy * W + wx;
+        if (!open[wi]) continue;
+        if (disc[wi] === -1) {
+          disc[wi] = low[wi] = timer++;
+          st.push([wi, u, 0]);
+          if (u === root) rootKids++;
+        } else if (wi !== top[1]) {
+          if (disc[wi] < low[u]) low[u] = disc[wi];
+        }
+      } else {
+        st.pop();
+        var par = top[1];
+        if (par !== -1) {
+          if (low[u] < low[par]) low[par] = low[u];
+          if (par !== root && low[u] >= disc[par]) chokeSet[par] = 1;
+        }
+      }
+    }
+    if (rootKids > 1) chokeSet[root] = 1;
+  }
+
+  /* 지금 걸어서 갈 수 있는 칸 수 (갇혔는지 판단할 때 쓴다) */
+  function reachableCount(limit) {
+    var W = TW.MAP.W, H = TW.MAP.H;
+    var p = TW.state.pos;
+    var sx = Math.floor(p.x), sy = Math.floor(p.y);
+    if (!inBounds(sx, sy)) return 0;
+    var seen = {}, stack = [[sx, sy]], n = 0;
+    seen[sx + ',' + sy] = 1;
+    while (stack.length) {
+      var c = stack.pop(); n++;
+      if (limit && n >= limit) return n;
+      for (var d = 0; d < 4; d++) {
+        var nx = c[0] + DIRS[d][0], ny = c[1] + DIRS[d][1];
+        var k = nx + ',' + ny;
+        if (seen[k] || !inBounds(nx, ny) || solidAt(nx, ny)) continue;
+        seen[k] = 1; stack.push([nx, ny]);
+      }
+    }
+    return n;
+  }
+
+  /* 갇혔을 때 나갈 수 있는 가장 가까운 칸을 찾는다 (구조용) */
+  function nearestOpenOutside() {
+    var W = TW.MAP.W, H = TW.MAP.H;
+    var p = TW.state.pos;
+    var sx = Math.floor(p.x), sy = Math.floor(p.y);
+    var best = null, bd = 1e9;
+    for (var y = 0; y < H; y++) {
+      for (var x = 0; x < W; x++) {
+        if (solidAt(x, y) || regionLocked(x, y)) continue;
+        var d2 = (x - sx) * (x - sx) + (y - sy) * (y - sy);
+        if (d2 < 4) continue;                 /* 지금 갇힌 자리 근처는 제외 */
+        if (d2 < bd) { bd = d2; best = { x: x + 0.5, y: y + 0.5 }; }
+      }
+    }
+    return best;
   }
 
   /* ---------- 자원 재생성 ---------- */
@@ -119,6 +243,8 @@ TW.Map = (function () {
       for (var dy = -2; dy <= 2; dy++) {
         var x = px + dx, y = py + dy;
         if (!inBounds(x, y)) continue;
+        /* 아직 안 열린 지역은 아예 조준되지 않는다 (안개 너머 자원 캐기 방지) */
+        if (regionLocked(x, y)) continue;
         if (isWorldTree(x, y)) consider('tree', x, y);
         if (isPortal(x, y)) consider('portal', x, y);
         var b = buildingAt(x, y);
@@ -419,6 +545,8 @@ TW.Map = (function () {
   return {
     init: init, resize: resize, render: render, tickNodes: tickNodes,
     solidAt: solidAt, nodeAt: nodeAt, buildingAt: buildingAt, canBuild: canBuild,
+    isChokePoint: isChokePoint, invalidateChoke: invalidateChoke,
+    reachableCount: reachableCount, nearestOpenOutside: nearestOpenOutside,
     regionLocked: regionLocked, isWorldTree: isWorldTree, isPortal: isPortal,
     nearestTarget: nearestTarget, screenToTile: screenToTile,
     cam: cam, tileSize: function () { return S; }, inBounds: inBounds
