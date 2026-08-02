@@ -42,6 +42,14 @@ TW.Gather = (function () {
       TW.UI.toast(def.lockMsg || '더 좋은 도구가 필요해!', '🔒');
       return false;
     }
+    /* 가방이 꽉 찼으면 아예 캐지 않는다.
+       (예전에는 활동력만 쓰고 자원은 사라지는데 아무것도 못 받았다) */
+    if (TW.Inv.space() <= 0) {
+      TW.Audio.play('error');
+      TW.UI.toast('가방이 꽉 찼어! 창고를 짓거나 세계수에 자원을 줘 보자.', '📦');
+      return false;
+    }
+
     /* 활동력 */
     var cost = node.t === 'water' ? 0 : 1;
     if (cost > 0 && s.energy < cost) {

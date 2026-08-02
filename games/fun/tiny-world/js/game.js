@@ -23,7 +23,14 @@ TW.Game = (function () {
 
   function continueGame() {
     var s = TW.Save.load();
-    if (!s) { newGame(); return; }
+    if (!s) {
+      /* 저장이 깨져서 못 읽는 경우 — 그냥 새로 시작하되 왜 그런지 알려 준다 */
+      newGame();
+      setTimeout(function () {
+        TW.UI.toast('저장을 읽을 수 없어서 새 섬에서 시작했어. 미안해!', '😥');
+      }, 900);
+      return;
+    }
     TW.state = migrate(s);
     TW.Spirits.resetPositions();
     TW.FX.clear();
@@ -92,9 +99,40 @@ TW.Game = (function () {
     return true;
   }
 
+  /* ---------- 끼임 자동 탈출 ----------
+     어떤 이유로든 몸이 벽 안에 박히면(예전 저장 포함) 스스로 빠져나온다.
+     평소에는 canStand 4번만 확인하므로 비용이 거의 없다. */
+  function unstick() {
+    var s = TW.state;
+    if (canStand(s.pos.x, s.pos.y)) return false;
+    var px = Math.floor(s.pos.x), py = Math.floor(s.pos.y);
+    var best = null, bd = 1e9;
+    for (var r = 0; r <= 8; r++) {
+      for (var dx = -r; dx <= r; dx++) {
+        for (var dy = -r; dy <= r; dy++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          var cx = px + dx + 0.5, cy = py + dy + 0.5;
+          if (!TW.Map.inBounds(px + dx, py + dy)) continue;
+          if (TW.Map.regionLocked(px + dx, py + dy)) continue;
+          if (!canStand(cx, cy)) continue;
+          var d = (cx - s.pos.x) * (cx - s.pos.x) + (cy - s.pos.y) * (cy - s.pos.y);
+          if (d < bd) { bd = d; best = { x: cx, y: cy }; }
+        }
+      }
+      if (best) break;
+    }
+    if (!best) return false;
+    s.pos.x = best.x; s.pos.y = best.y;
+    TW.Map.invalidateChoke();
+    TW.FX.burst(best.x, best.y, '#a8e6ff', 14);
+    TW.UI.toast('막힌 곳에서 빠져나왔어!', '🚪');
+    return true;
+  }
+
   function move(dt) {
     var v = TW.Input.moveVector();
     var s = TW.state;
+    if (unstick()) return;
     if (v.x === 0 && v.y === 0) { api.walkPhase += dt * 0.0; return; }
     var len = Math.sqrt(v.x * v.x + v.y * v.y);
     var sp = s.speed * dt;

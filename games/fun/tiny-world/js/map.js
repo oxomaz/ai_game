@@ -81,9 +81,10 @@ TW.Map = (function () {
     if (isWorldTree(x, y)) return false;
     if (buildingAt(x, y)) return false;
     if (nodeAt(x, y)) return false;
-    /* 플레이어가 서 있는 칸에는 짓지 않는다 */
-    var p = TW.state.pos;
-    if (Math.floor(p.x) === x && Math.floor(p.y) === y) return false;
+    /* 플레이어 몸이 조금이라도 걸쳐 있는 칸에는 짓지 않는다.
+       (예전에는 "서 있는 칸"만 막아서, 몸이 두 칸에 걸쳐 있을 때 옆 칸에 지으면
+        몸이 벽 안에 박혀 네 방향 모두 막히는 문제가 있었다) */
+    if (playerOverlaps(x, y)) return false;
     /* 세계수 바로 앞 한 줄은 비워 둔다 */
     if (isWorldTree(x, y + 1)) return false;
     /* 여기에 지으면 길이 막혀서 갇히는 칸이면 안 된다 */
@@ -98,6 +99,14 @@ TW.Map = (function () {
      를 미리 계산해 두고(관절점 찾기), 그런 칸에는 아예 못 짓게 한다.
      한 칸이라도 떨어져 나가면 막는다 — 자원이 갇히는 것도 함께 막힌다.
      =========================================================== */
+  /* 플레이어 몸(반지름 0.32)이 이 칸에 조금이라도 걸치는가? 여유를 조금 둔다. */
+  var PLAYER_R = 0.36;
+  function playerOverlaps(x, y) {
+    var p = TW.state.pos;
+    return p.x + PLAYER_R > x && p.x - PLAYER_R < x + 1 &&
+           p.y + PLAYER_R > y && p.y - PLAYER_R < y + 1;
+  }
+
   var chokeSet = null;      /* Uint8Array: 1이면 막으면 안 되는 칸 */
   var chokeAt = -1e9;       /* 마지막으로 계산한 시각(초) */
   var DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -222,7 +231,9 @@ TW.Map = (function () {
       if (n.rt > 0) {
         n.rt -= dt;
         if (n.rt <= 0) {
-          if (TW.NODES[n.t].respawn > 0) { n.hp = TW.NODES[n.t].hp; n.rt = 0; }
+          /* 내가 그 자리에 서 있으면 다시 자라지 않는다 (나무 안에 갇히는 것 방지) */
+          if (TW.NODES[n.t].solid && playerOverlaps(n.x, n.y)) { n.rt = 1.2; continue; }
+          if (TW.NODES[n.t].respawn > 0) { n.hp = TW.NODES[n.t].hp; n.rt = 0; invalidateChoke(); }
           else ns.splice(i, 1);
         }
       } else ns.splice(i, 1);
@@ -545,7 +556,7 @@ TW.Map = (function () {
   return {
     init: init, resize: resize, render: render, tickNodes: tickNodes,
     solidAt: solidAt, nodeAt: nodeAt, buildingAt: buildingAt, canBuild: canBuild,
-    isChokePoint: isChokePoint, invalidateChoke: invalidateChoke,
+    isChokePoint: isChokePoint, invalidateChoke: invalidateChoke, playerOverlaps: playerOverlaps,
     reachableCount: reachableCount, nearestOpenOutside: nearestOpenOutside,
     regionLocked: regionLocked, isWorldTree: isWorldTree, isPortal: isPortal,
     nearestTarget: nearestTarget, screenToTile: screenToTile,

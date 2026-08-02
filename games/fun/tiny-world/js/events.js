@@ -7,7 +7,9 @@ TW.Events = (function () {
   var next = 40 + Math.random() * 30;
   var rainT = 0;
 
-  function freeTileNear(px, py, radius, wantRegion) {
+  /* solidType 이면 "벽"이 되는 자원이므로, 내 몸이 걸친 칸과
+     막으면 길이 끊기는 칸(길목)을 피한다. 갇힘 방지. */
+  function freeTileNear(px, py, radius, wantRegion, solidType) {
     var tries = 0;
     while (tries < 300) {
       tries++;
@@ -20,7 +22,10 @@ TW.Events = (function () {
       var t = TW.terrainAt(x, y);
       if (t === 'water' || t === 'ocean' || t === 'path' || t === 'sand') continue;
       if (TW.Map.nodeAt(x, y) || TW.Map.buildingAt(x, y) || TW.Map.isWorldTree(x, y)) continue;
-      if (Math.floor(TW.state.pos.x) === x && Math.floor(TW.state.pos.y) === y) continue;
+      /* 내 몸이 조금이라도 걸친 칸에는 만들지 않는다 */
+      if (TW.Map.playerOverlaps(x, y)) continue;
+      /* 벽이 되는 자원은 길목을 막지 않는다 */
+      if (solidType && TW.Map.isChokePoint(x, y)) continue;
       return { x: x, y: y };
     }
     return null;
@@ -29,7 +34,7 @@ TW.Events = (function () {
   function spawnTemp(type, count, life) {
     var made = 0, p = TW.state.pos;
     for (var i = 0; i < count; i++) {
-      var spot = freeTileNear(p.x, p.y, 7);
+      var spot = freeTileNear(p.x, p.y, 7, null, !!TW.NODES[type].solid);
       if (!spot) continue;
       var n = {
         id: 100000 + Math.floor(Math.random() * 800000),
